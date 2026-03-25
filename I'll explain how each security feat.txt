@@ -1,0 +1,193 @@
+I'll explain how each security feature works in your SchoolSync app, how they're implemented, and why they protect the application. I'll cover all layers: transport, authentication, authorization, input validation, rate limiting, frontend security, and database.
+
+---
+
+## 1. Transport & Headers Security
+
+### Helmet.js (main.ts)
+Helmet is a middleware that sets several HTTP headers to protect against well‑known attacks.
+
+- **`X-Frame-Options: DENY`** – Prevents your app from being embedded in an iframe, stopping clickjacking attacks.
+- **`X-Content-Type-Options: nosniff`** – Forces browsers to respect declared MIME types, preventing MIME‑type sniffing (which could lead to XSS).
+- **`Strict-Transport-Security`** (HSTS) – Forces browsers to communicate only over HTTPS, even if the user types `http://`.
+- **`X-XSS-Protection`** – Enables browser’s built‑in XSS filtering (though modern CSP is more effective).
+- **Other headers** – Removes the `X-Powered-By` header, hides server information.
+
+### Next.js Security Headers (next.config.js)
+Adds similar security headers for frontend pages:
+- **Referrer‑Policy** – Controls how much referrer info is sent.
+- **Permissions‑Policy** – Restricts browser features (e.g., camera allowed only on self‑origin, microphone disabled).
+
+### CORS (main.ts)
+CORS is configured via environment variable `CORS_ORIGINS`. Only explicitly allowed origins can make cross‑origin requests. `credentials: true` allows cookies to be sent with requests, which is necessary for the HttpOnly cookie authentication.
+
+### Body Size Limit (main.ts)
+JSON and URL‑encoded bodies are capped at 10 MB. This prevents denial‑of‑service via huge payloads that could overwhelm memory.
+
+### Compression
+gzip/brotli compression reduces payload size, which also helps mitigate certain types of compression‑oriented attacks (e.g., CRIME) when combined with HTTPS.
+
+---
+
+## 2. Authentication
+
+Your authentication system is robust and follows modern best practices.
+
+### Access Token (JWT)
+- **Storage**: Stored in an **HttpOnly, Secure, SameSite=Strict** cookie.  
+  - **HttpOnly** – Prevents JavaScript from accessing the cookie → XSS cannot steal the token.  
+  - **Secure** – Cookie is only sent over HTTPS.  
+  - **SameSite=Strict** – Cookie is only sent for same‑site requests, mitigating CSRF.
+- **Expiry**: 15 minutes. Short lifetime limits the window if a token is somehow compromised.
+
+### Refresh Token
+- **Format**: 40‑byte random hex string (cryptographically strong).
+- **Storage**:  
+  - In the database (refresh token table) linked to the user.  
+  - In a separate **HttpOnly** cookie with path restriction (`/api/auth/refresh`) so it’s only sent to the refresh endpoint.
+- **Expiry**: 7 days (configurable).
+- **Rotation**: On each refresh, the old refresh token is deleted from the DB, and a new one is issued. This prevents reuse of a stolen refresh token (if an attacker attempts to use it, the legitimate user’s token becomes invalid).
+
+### Login Flow
+1. User submits email/password.
+2. Server validates credentials, verifies password with bcrypt (12 rounds).
+3. If valid, it generates:
+   - A short‑lived JWT access token (stored in HttpOnly cookie).
+   - A random refresh token (stored in DB and another HttpOnly cookie).
+4. Both cookies are sent to the browser.
+
+### Token Refresh Flow
+- When the access token expires, the frontend’s `apiFetch` wrapper intercepts the 401.
+- It automatically calls `/api/auth/refresh` (which sends the refresh token cookie).
+- The server:
+  - Validates the refresh token (exists, not expired, matches the user).
+  - Deletes the old refresh token (rotation).
+  - Issues a new access token and a new refresh token.
+  - Returns success; the frontend retries the original request.
+
+### Logout
+- Calls `/api/auth/logout` which:
+  - Deletes **all** refresh tokens for that user from the database.
+  - Clears both cookie values (access and refresh) from the browser.
+
+### Dual Extraction (Cookie + Authorization Header)
+The JWT strategy is configured to first check the `access_token` cookie (for web browsers). If not present, it falls back to the `Authorization: Bearer` header, allowing mobile or API clients to use the same endpoints.
+
+---
+
+## 3. Role‑Based Access Control (RBAC)
+
+### Decorator & Guard
+- **`@Roles('ADMIN')`** decorator marks an endpoint with required roles.
+- **RolesGuard** (extends `JwtAuthGuard`) checks the authenticated user’s role against the required ones. If the user’s role is not in the allowed list, the request is rejected with 403.
+
+### Implementation in Controllers
+- **ADMIN‑only** endpoints: create/delete classes, manage holidays, user registration, bulk import, system status, audit logs.
+- **All authenticated** endpoints: list classes, update own profile, view attendance, etc.
+
+This ensures that even if a user has a valid JWT, they cannot perform actions beyond their role.
+
+---
+
+## 4. Input Validation
+
+### Global ValidationPipe (main.ts)
+- **`whitelist: true`** – Strips properties that are not defined in the DTO.  
+- **`forbidNonWhitelisted: true`** – Throws an error if any extra property is sent.  
+- **`transform: true`** – Automatically transforms payloads to DTO instances.
+
+### DTOs (login.dto.ts, register.dto.ts)
+- **LoginDto**:  
+  - `@IsEmail()` – Ensures email format.  
+  - `@IsString()`, `@MinLength(6)` – Password must be a string at least 6 characters.
+- **RegisterDto**:  
+  - Email validated similarly.  
+  - Password length 6–128.  
+  - Name length 1–100.  
+  - Role checked against a whitelist: `['ADMIN','TEACHER','STUDENT','PARENT']`.
+
+This prevents injection of arbitrary data, ensures data integrity, and stops attackers from sending unexpected fields that could exploit logic flaws.
+
+---
+
+## 5. Rate Limiting
+
+### Global Throttler (app.module.ts)
+- **60 requests per minute per IP** across all endpoints.  
+- Protects against brute‑force, DDoS, and resource exhaustion.
+
+### Login‑Specific Throttle (auth.controller.ts)
+- **5 attempts per minute per IP** on `/auth/login`.  
+- Much stricter to make password guessing impractical.
+
+Rate limiting uses `@nestjs/throttler` with a key based on IP address.
+
+---
+
+## 6. Frontend Security
+
+### apiFetch Wrapper (lib/api.ts)
+- Uses `fetch` with `credentials: 'include'` to automatically send cookies (HttpOnly tokens).
+- On receiving a 401 Unauthorized, it triggers the token refresh flow (calls `/api/auth/refresh`).
+- While refreshing, it queues subsequent requests (prevents multiple concurrent refresh calls).
+- After successful refresh, retries the original request. If refresh fails, redirects to login.
+- No tokens are ever stored in localStorage or sessionStorage.
+
+### AuthGuard (components/AuthGuard.tsx)
+- Wraps protected pages in Next.js.
+- Calls `/api/auth/me` (which returns user info based on the access token cookie).
+- If the user is not authenticated, redirects to login.
+- Optionally checks required roles (if provided) and shows “access denied” if the user lacks permission.
+
+### Zero Token Exposure
+- Because tokens are stored in HttpOnly cookies, they are completely inaccessible to any client‑side JavaScript. This eliminates a whole class of XSS‑based token theft.
+
+---
+
+## 7. Database Security
+
+### Refresh Token Model
+- Unique constraint on token value (prevents duplicates).
+- Index on `userId` for fast lookups.
+- Index on `expiresAt` to efficiently clean expired tokens.
+- `cascade delete` – when a user is deleted, all their refresh tokens are automatically removed.
+
+### Production Logging
+- Prisma logging is set to `['error', 'warn']` only, so no sensitive SQL or data leaks to logs.
+
+### Password Hashing
+- Bcrypt with 12 rounds. Even if the database is compromised, passwords are difficult to crack.
+
+---
+
+## 8. How All Layers Work Together
+
+1. **Request arrives** – Helmet headers are added, CORS is checked, body size limit enforced.
+2. **Authentication** – The JWT is extracted from the cookie (or Authorization header). The JWT strategy validates it and attaches the user to the request.
+3. **Authorization** – If the endpoint has `@Roles()`, the RolesGuard checks the user’s role.
+4. **Validation** – The request payload is validated against the DTO; any extra fields are rejected.
+5. **Rate limiting** – Counts the request against IP, returns 429 if exceeded.
+6. **Business logic** – Executes the controller method.
+7. **Response** – Secure headers are already set; cookies are set if login/refresh.
+
+If a request fails (e.g., 401), the frontend’s `apiFetch` intercepts it and attempts to refresh automatically, ensuring a seamless user experience while keeping tokens secure.
+
+---
+
+## Summary of Security Posture
+
+| Threat | Protection |
+|--------|------------|
+| **XSS** | HttpOnly cookies, CSP (recommended), input validation, no token in JS |
+| **CSRF** | SameSite=Strict cookies, (optional CSRF token can be added) |
+| **Brute‑force** | Rate limiting (global + login) |
+| **Privilege escalation** | RBAC with RolesGuard |
+| **Injection** | ValidationPipe, DTOs, parameterized queries (Prisma) |
+| **Clickjacking** | X‑Frame‑Options |
+| **MITM / sniffing** | HSTS, Secure cookies, HTTPS only |
+| **Token theft** | Short‑lived access token, refresh token rotation, HttpOnly |
+| **Denial‑of‑Service** | Rate limiting, body size limit |
+
+---
+
+Your app’s security is already **well above average** for a production application. The few recommended enhancements (CSP, CSRF tokens, per‑user rate limiting, audit logging) are nice‑to‑haves that would elevate it to enterprise grade, but the current implementation already protects against the most critical risks.

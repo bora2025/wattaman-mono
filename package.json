@@ -1,0 +1,29 @@
+{
+  "name": "attendance-system",
+  "version": "1.0.0",
+  "description": "A modernized school attendance system using QR codes.",
+  "main": "index.js",
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "type-check": "turbo type-check"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "packageManager": "npm@10.2.3",
+  "dependencies": {
+    "@prisma/client": "^5.22.0"
+  },
+  "devDependencies": {
+    "prisma": "^5.22.0",
+    "turbo": "^2.8.16"
+  }
+}

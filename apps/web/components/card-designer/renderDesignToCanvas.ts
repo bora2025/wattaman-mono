@@ -1,0 +1,295 @@
+import { CardDesign, TextElement, LogoElement, ShapeElement, PhotoPlaceholder, QrPlaceholder } from './types';
+
+interface RenderContext {
+  /** Values to replace template placeholders like {{Student Name}} */
+  fieldValues?: Record<string, string>;
+  /** QR code data URL to render */
+  qrDataUrl?: string;
+  /** Photo URL or data URL */
+  photoUrl?: string | null;
+  /** Render scale multiplier (default 3 ≈ 300 DPI for standard ID cards) */
+  scale?: number;
+}
+
+/**
+ * Renders a CardDesign into an HTMLCanvasElement, substituting
+ * template placeholders ({{...}}) with real values and drawing
+ * the QR code and photo images.
+ */
+export async function renderDesignToCanvas(
+  design: CardDesign,
+  ctx2: RenderContext = {},
+): Promise<HTMLCanvasElement> {
+  const scale = ctx2.scale ?? 3; // default ≈ 300 DPI for standard 85.6 mm ID card
+  const canvas = document.createElement('canvas');
+  canvas.width = design.width * scale;
+  canvas.height = design.height * scale;
+  const ctx = canvas.getContext('2d')!;
+  ctx.scale(scale, scale);
+
+  // --- Background + frame ---
+  if (design.frameWidth > 0) {
+    ctx.fillStyle = design.frameColor;
+    ctx.beginPath();
+    ctx.roundRect(0, 0, design.width, design.height, 12);
+    ctx.fill();
+    ctx.fillStyle = design.backgroundColor;
+    const fw = design.frameWidth;
+    ctx.beginPath();
+    ctx.roundRect(fw, fw, design.width - fw * 2, design.height - fw * 2, Math.max(0, 12 - fw));
+    ctx.fill();
+  } else {
+    ctx.fillStyle = design.backgroundColor;
+    ctx.beginPath();
+    ctx.roundRect(0, 0, design.width, design.height, 12);
+    ctx.fill();
+  }
+
+  // --- Photo placeholder — rendered in z-index sorted loop below ---
+
+  // --- QR code — rendered in z-index sorted loop below ---
+
+  // --- All elements sorted by zIndex ---
+  type RenderItem =
+    | { kind: 'photo'; z: number; data: PhotoPlaceholder }
+    | { kind: 'qr'; z: number; data: QrPlaceholder }
+    | { kind: 'shape'; z: number; data: ShapeElement }
+    | { kind: 'logo'; z: number; data: LogoElement }
+    | { kind: 'text'; z: number; data: TextElement };
+
+  const items: RenderItem[] = [
+    ...(design.photo ? [{ kind: 'photo' as const, z: design.photo.zIndex ?? 0, data: design.photo }] : []),
+    ...(design.qr ? [{ kind: 'qr' as const, z: design.qr.zIndex ?? 0, data: design.qr }] : []),
+    ...(design.shapes ?? []).map((s) => ({ kind: 'shape' as const, z: s.zIndex ?? 0, data: s })),
+    ...design.logos.map((l) => ({ kind: 'logo' as const, z: l.zIndex ?? 0, data: l })),
+    ...design.texts.map((t) => ({ kind: 'text' as const, z: t.zIndex ?? 0, data: t })),
+  ].sort((a, b) => a.z - b.z);
+
+  for (const item of items) {
+    if (item.kind === 'photo') {
+      const p = item.data as PhotoPlaceholder;
+      if (ctx2.photoUrl) {
+        await drawImageInRect(ctx, ctx2.photoUrl, p.x, p.y, p.width, p.height, p.borderRadius, p.borderColor, p.borderWidth);
+      } else {
+        ctx.fillStyle = '#e2e8f0';
+        ctx.beginPath();
+        ctx.roundRect(p.x, p.y, p.width, p.height, p.borderRadius);
+        ctx.fill();
+        ctx.strokeStyle = p.borderColor;
+        ctx.lineWidth = p.borderWidth;
+        ctx.stroke();
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = 'normal normal 10px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Photo', p.x + p.width / 2, p.y + p.height / 2 + 4);
+        ctx.textAlign = 'start';
+      }
+    } else if (item.kind === 'qr') {
+      const q = item.data as QrPlaceholder;
+      if (ctx2.qrDataUrl) {
+        await drawImg(ctx, ctx2.qrDataUrl, q.x, q.y, q.width, q.height);
+      } else {
+        ctx.save();
+        ctx.fillStyle = '#e2e8f0';
+        ctx.beginPath();
+        ctx.roundRect(q.x, q.y, q.width, q.height, q.borderRadius);
+        ctx.fill();
+        if (q.borderWidth > 0) {
+          ctx.strokeStyle = q.borderColor;
+          ctx.lineWidth = q.borderWidth;
+          ctx.stroke();
+        }
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = 'normal normal 9px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('QR Code', q.x + q.width / 2, q.y + q.height / 2 + 3);
+        ctx.textAlign = 'start';
+        ctx.restore();
+      }
+    } else if (item.kind === 'shape') {
+      const shape = item.data;
+      ctx.save();
+      ctx.globalAlpha = shape.opacity;
+
+      const cx = shape.x + shape.width / 2;
+      const cy = shape.y + shape.height / 2;
+      if (shape.rotation) {
+        ctx.translate(cx, cy);
+        ctx.rotate((shape.rotation * Math.PI) / 180);
+        ctx.translate(-cx, -cy);
+      }
+
+      let fillStyle: string | CanvasGradient = shape.color;
+      if (shape.gradient?.enabled && shape.gradient.stops.length >= 2) {
+        if (shape.gradient.type === 'linear') {
+          const rad = (shape.gradient.angle * Math.PI) / 180;
+          const gcx = shape.x + shape.width / 2;
+          const gcy = shape.y + shape.height / 2;
+          const len = Math.max(shape.width, shape.height) / 2;
+          const grad = ctx.createLinearGradient(
+            gcx - Math.cos(rad) * len,
+            gcy - Math.sin(rad) * len,
+            gcx + Math.cos(rad) * len,
+            gcy + Math.sin(rad) * len,
+          );
+          for (const s of shape.gradient.stops) grad.addColorStop(s.offset, s.color);
+          fillStyle = grad;
+        } else {
+          const gcx = shape.x + shape.width / 2;
+          const gcy = shape.y + shape.height / 2;
+          const r = Math.max(shape.width, shape.height) / 2;
+          const grad = ctx.createRadialGradient(gcx, gcy, 0, gcx, gcy, r);
+          for (const s of shape.gradient.stops) grad.addColorStop(s.offset, s.color);
+          fillStyle = grad;
+        }
+      }
+
+      if (shape.type === 'circle') {
+        ctx.beginPath();
+        ctx.ellipse(
+          shape.x + shape.width / 2,
+          shape.y + shape.height / 2,
+          shape.width / 2,
+          shape.height / 2,
+          0, 0, Math.PI * 2,
+        );
+        ctx.fillStyle = fillStyle;
+        ctx.fill();
+        if (shape.borderWidth > 0) {
+          ctx.strokeStyle = shape.borderColor;
+          ctx.lineWidth = shape.borderWidth;
+          ctx.stroke();
+        }
+      } else if (shape.type === 'line') {
+        ctx.strokeStyle = typeof fillStyle === 'string' ? fillStyle : shape.color;
+        ctx.lineWidth = Math.max(shape.borderWidth, 2);
+        ctx.beginPath();
+        ctx.moveTo(shape.x, shape.y + shape.height / 2);
+        ctx.lineTo(shape.x + shape.width, shape.y + shape.height / 2);
+        ctx.stroke();
+      } else {
+        ctx.beginPath();
+        ctx.roundRect(shape.x, shape.y, shape.width, shape.height, shape.borderRadius);
+        ctx.fillStyle = fillStyle;
+        ctx.fill();
+        if (shape.borderWidth > 0) {
+          ctx.strokeStyle = shape.borderColor;
+          ctx.lineWidth = shape.borderWidth;
+          ctx.stroke();
+        }
+      }
+
+      ctx.restore();
+    } else if (item.kind === 'logo') {
+      const logo = item.data;
+      await drawImg(ctx, logo.src, logo.x, logo.y, logo.width, logo.height);
+    } else {
+      const text = item.data;
+      const content = substituteFields(text.content, ctx2.fieldValues);
+      ctx.fillStyle = text.color;
+      ctx.font = `${text.fontStyle} ${text.fontWeight} ${text.fontSize}px ${text.fontFamily ?? 'Inter, sans-serif'}`;
+      const align = text.textAlign ?? 'left';
+      ctx.textAlign = align === 'left' ? 'start' : align === 'right' ? 'end' : 'center';
+      ctx.textBaseline = 'alphabetic';
+      let drawX = text.x;
+      if (align === 'center') {
+        drawX = design.width / 2;
+      } else if (align === 'right') {
+        drawX = design.width - text.x;
+      }
+      ctx.fillText(content, drawX, text.y + text.fontSize);
+      ctx.textAlign = 'start';
+    }
+  }
+
+  return canvas;
+}
+
+/** Replace {{Placeholder}} tokens with real values */
+function substituteFields(template: string, values?: Record<string, string>): string {
+  if (!values) return template;
+  return template.replace(/\{\{([^}]+)\}\}/g, (_, key) => {
+    const trimmed = key.trim();
+    return values[trimmed] ?? `{{${trimmed}}}`;
+  });
+}
+
+function drawImg(
+  ctx: CanvasRenderingContext2D,
+  src: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+): Promise<void> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    const timer = setTimeout(() => { resolve(); }, 10000);
+    img.onload = () => { clearTimeout(timer); ctx.drawImage(img, x, y, w, h); resolve(); };
+    img.onerror = () => { clearTimeout(timer); resolve(); };
+    img.src = getProxiedUrl(src);
+  });
+}
+
+function getProxiedUrl(src: string): string {
+  // If it's already a data URL or a local URL, use as-is
+  if (src.startsWith('data:') || src.startsWith('/') || src.startsWith('blob:')) {
+    return src;
+  }
+  // Convert Google Drive sharing URLs to direct image URLs
+  let url = src;
+  const m1 = url.match(/drive\.google\.com\/file\/d\/([^/]+)/);
+  if (m1) url = `https://lh3.googleusercontent.com/d/${m1[1]}`;
+  const m2 = url.match(/drive\.google\.com\/open\?id=([^&]+)/);
+  if (m2) url = `https://lh3.googleusercontent.com/d/${m2[1]}`;
+  const m3 = url.match(/drive\.google\.com\/uc\?.*id=([^&]+)/);
+  if (m3) url = `https://lh3.googleusercontent.com/d/${m3[1]}`;
+  // Proxy external URLs through our API to avoid CORS issues
+  return `/api/proxy-image?url=${encodeURIComponent(url)}`;
+}
+
+function drawImageInRect(
+  ctx: CanvasRenderingContext2D,
+  src: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  radius: number,
+  borderColor: string,
+  borderWidth: number,
+): Promise<void> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    const timer = setTimeout(() => { resolve(); }, 10000);
+    img.onload = () => {
+      clearTimeout(timer);
+      ctx.save();
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, radius);
+      ctx.clip();
+      ctx.drawImage(img, x, y, w, h);
+      ctx.restore();
+      if (borderWidth > 0) {
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = borderWidth;
+        ctx.beginPath();
+        ctx.roundRect(x, y, w, h, radius);
+        ctx.stroke();
+      }
+      resolve();
+    };
+    img.onerror = () => {
+      clearTimeout(timer);
+      // fallback grey box
+      ctx.fillStyle = '#e2e8f0';
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, radius);
+      ctx.fill();
+      resolve();
+    };
+    img.src = getProxiedUrl(src);
+  });
+}

@@ -1,0 +1,174 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  email       String   @unique
+  password    String
+  name        String
+  phone       String?
+  photo       String?
+  role        String
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  classesAsTeacher Class[] @relation("TeacherClasses")
+  attendancesMarked Attendance[] @relation("MarkedBy")
+  notifications     Notification[]
+  staffAttendances  StaffAttendance[] @relation("StaffAttendances")
+  staffMarkedBy     StaffAttendance[] @relation("StaffMarkedBy")
+
+  // For students and parents
+  studentProfile Student?
+  parentStudents Student[] @relation("ParentStudents")
+  refreshTokens  RefreshToken[]
+}
+
+model Class {
+  id          String   @id @default(cuid())
+  name        String
+  subject     String?
+  teacherId   String
+  teacher     User     @relation("TeacherClasses", fields: [teacherId], references: [id])
+  schedule    String? // e.g., "Mon 9:00-10:00"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  students    Student[]
+  attendances Attendance[]
+  sessionConfigs SessionConfig[]
+}
+
+model Student {
+  id            String   @id @default(cuid())
+  studentNumber String?  // ID number from CSV (e.g., 0001, 0002)
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id])
+  classId       String?
+  class         Class?   @relation(fields: [classId], references: [id])
+  parentId      String?
+  parent        User?    @relation("ParentStudents", fields: [parentId], references: [id])
+  qrCode        String?  @unique // For static QR if needed
+  photo         String?  // URL or base64 of student photo
+  sex           String?  // MALE or FEMALE
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  attendances Attendance[]
+}
+
+model Attendance {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id])
+  classId     String
+  class       Class    @relation(fields: [classId], references: [id])
+  date        DateTime
+  session     Int      @default(1) // 1=Morning1, 2=Morning2, 3=Afternoon1, 4=Afternoon2
+  status      String
+  checkInTime  DateTime?
+  checkOutTime DateTime?
+  markedById  String
+  markedBy    User     @relation("MarkedBy", fields: [markedById], references: [id])
+  scanLatitude  Float?   // GPS latitude at scan time
+  scanLongitude Float?   // GPS longitude at scan time
+  scanLocation  String?  // Human-readable location label
+  timestamp   DateTime @default(now())
+
+  @@unique([studentId, classId, date, session])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  message   String
+  type      String   // e.g., "absence", "late"
+  sentAt    DateTime @default(now())
+  readAt    DateTime?
+}
+
+model StaffAttendance {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation("StaffAttendances", fields: [userId], references: [id])
+  date         DateTime
+  session      Int      @default(1)
+  status       String   // PRESENT, LATE, ABSENT
+  checkInTime  DateTime?
+  checkOutTime DateTime?
+  markedById   String
+  markedBy     User     @relation("StaffMarkedBy", fields: [markedById], references: [id])
+  scanLatitude  Float?   // GPS latitude at scan time
+  scanLongitude Float?   // GPS longitude at scan time
+  scanLocation  String?  // Human-readable location label
+  timestamp    DateTime @default(now())
+
+  @@unique([userId, date, session])
+}
+
+model SessionConfig {
+  id          String  @id @default(cuid())
+  classId     String? // null = global default
+  class       Class?  @relation(fields: [classId], references: [id])
+  session     Int     // 1=Morning1, 2=Morning2, 3=Afternoon1, 4=Afternoon2
+  type        String  // CHECK_IN or CHECK_OUT
+  startTime   String  // HH:mm format e.g. "07:00"
+  endTime     String  // HH:mm format e.g. "07:15"
+  scope       String  @default("CLASS") // CLASS or STAFF
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([classId, session, scope])
+}
+
+model Holiday {
+  id          String   @id @default(cuid())
+  date        DateTime
+  name        String
+  description String?
+  type        String   @default("HOLIDAY") // HOLIDAY, SCHOOL_EVENT, CUSTOM
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([date, name])
+}
+
+model Department {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  nameKh      String?  // Khmer name
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+

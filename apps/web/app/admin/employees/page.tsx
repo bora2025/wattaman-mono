@@ -1,0 +1,684 @@
+"use client"
+
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
+import Sidebar from '../../../components/Sidebar'
+import { adminNav } from '../../../lib/admin-nav'
+import { apiFetch } from '../../../lib/api'
+
+interface Department {
+  id: string
+  name: string
+  nameKh?: string
+  description?: string
+  _count?: { users: number }
+}
+
+interface User {
+  id: string
+  email: string
+  name: string
+  phone?: string
+  photo?: string
+  role: string
+  departmentId?: string
+  department?: { id: string; name: string; nameKh?: string }
+  createdAt: string
+}
+
+const ADMIN_ROLES = ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT']
+
+const roleLabels: Record<string, string> = {
+  PRIMARY_SCHOOL_PRINCIPAL: 'នាយកសាលាបឋម',
+  SECONDARY_SCHOOL_PRINCIPAL: 'នាយកសាលាអនុវិទ្យាល័យ',
+  HIGH_SCHOOL_PRINCIPAL: 'នាយកសាលាវិទ្យាល័យ',
+  UNIVERSITY_RECTOR: 'នាយកសាលាសាកលវិទ្យាល័យ',
+  OFFICER: 'មន្ត្រី',
+  STAFF: 'បុគ្គិល',
+  OFFICE_HEAD: 'ប្រធានការិយាល័យ',
+  DEPUTY_OFFICE_HEAD: 'អនុប្រធានការិយាល័យ',
+  DEPARTMENT_HEAD: 'ប្រធាននាយកដ្ឋាន',
+  DEPUTY_DEPARTMENT_HEAD: 'អនុប្រធាននាយកដ្ឋាន',
+  GENERAL_DEPARTMENT_DIRECTOR: 'អគ្គនាយកដ្ឋាន',
+  DEPUTY_GENERAL_DEPARTMENT_DIRECTOR: 'អគ្គរងនាយកដ្ឋាន',
+  COMPANY_CEO: 'អគ្គនាយកក្រុមហ៊ុន',
+  CREDIT_OFFICER: 'មន្ត្រីឥណទាន',
+  SECURITY_GUARD: 'សន្តិសុខ',
+  JANITOR: 'បុគ្គិលអនាម័យ',
+  PROJECT_MANAGER: 'ប្រធានគម្រោង',
+  BRANCH_MANAGER: 'ប្រធានសាខា',
+  EXECUTIVE_DIRECTOR: 'នាយកប្រតិបត្តិ',
+  HR_MANAGER: 'ប្រធានធនធានមនុស្ស',
+  ATHLETE_MALE: 'កីឡាករ',
+  ATHLETE_FEMALE: 'កីឡាការិនី',
+  TRAINER: 'គ្រូបង្វិក',
+  BARISTA: 'Barista',
+  CASHIER: 'អ្នកគិតលុយ',
+  RECEPTIONIST: 'អ្នកទទួលភ្ញៀវ',
+  GENERAL_MANAGER: 'អ្នកគ្រប់គ្រងទូទៅ',
+}
+
+const employeeRoles = Object.keys(roleLabels)
+
+function getRoleLabel(role: string) {
+  return roleLabels[role] || role
+}
+
+function normalizePhotoUrl(url: string): string {
+  if (!url) return url
+  const match1 = url.match(/drive\.google\.com\/file\/d\/([^/]+)/)
+  if (match1) return `https://lh3.googleusercontent.com/d/${match1[1]}`
+  const match2 = url.match(/drive\.google\.com\/open\?id=([^&]+)/)
+  if (match2) return `https://lh3.googleusercontent.com/d/${match2[1]}`
+  const match3 = url.match(/drive\.google\.com\/uc\?.*id=([^&]+)/)
+  if (match3) return `https://lh3.googleusercontent.com/d/${match3[1]}`
+  return url
+}
+
+export default function ManageEmployees() {
+  const [users, setUsers] = useState<User[]>([])
+  const [departments, setDepartments] = useState<Department[]>([])
+  const [filter, setFilter] = useState('ALL')
+  const [deptFilter, setDeptFilter] = useState('ALL')
+  const [showForm, setShowForm] = useState(false)
+  const [message, setMessage] = useState('')
+  const [msgType, setMsgType] = useState<'success' | 'error'>('success')
+  const [search, setSearch] = useState('')
+  const [activeSection, setActiveSection] = useState<'employees' | 'departments'>('employees')
+
+  // Create form
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [phone, setPhone] = useState('')
+  const [role, setRole] = useState('OFFICER')
+  const [photo, setPhoto] = useState('')
+  const [departmentId, setDepartmentId] = useState('')
+
+  // Edit state
+  const [editingUser, setEditingUser] = useState<User | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+  const [editPhone, setEditPhone] = useState('')
+  const [editRole, setEditRole] = useState('')
+  const [editPhoto, setEditPhoto] = useState('')
+  const [editDepartmentId, setEditDepartmentId] = useState('')
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+
+  // Department form state
+  const [showDeptForm, setShowDeptForm] = useState(false)
+  const [deptName, setDeptName] = useState('')
+  const [deptNameKh, setDeptNameKh] = useState('')
+  const [deptDescription, setDeptDescription] = useState('')
+  const [editingDept, setEditingDept] = useState<Department | null>(null)
+  const [editDeptName, setEditDeptName] = useState('')
+  const [editDeptNameKh, setEditDeptNameKh] = useState('')
+  const [editDeptDescription, setEditDeptDescription] = useState('')
+  const [deleteDeptId, setDeleteDeptId] = useState<string | null>(null)
+
+  useEffect(() => { fetchUsers(); fetchDepartments() }, [])
+
+  const fetchUsers = async () => {
+    try {
+      const res = await apiFetch('/api/auth/users')
+      const data = await res.json()
+      setUsers(data.filter((u: User) => !ADMIN_ROLES.includes(u.role)))
+    } catch (error) {
+      console.error('Error fetching users:', error)
+    }
+  }
+
+  const fetchDepartments = async () => {
+    try {
+      const res = await apiFetch('/api/departments')
+      if (res.ok) setDepartments(await res.json())
+    } catch { /* ignore */ }
+  }
+
+  const showMsg = (text: string, type: 'success' | 'error') => {
+    setMessage(text)
+    setMsgType(type)
+    setTimeout(() => setMessage(''), 4000)
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const res = await apiFetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, name, role, ...(departmentId ? { departmentId } : {}) }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        if ((photo || phone) && data.user?.id) {
+          if (phone) {
+            await apiFetch(`/api/auth/users/${data.user.id}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name, email, phone, role }),
+            })
+          }
+          if (photo) {
+            await apiFetch(`/api/auth/users/${data.user.id}/photo`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ photo: normalizePhotoUrl(photo) }),
+            })
+          }
+        }
+        showMsg('Employee created successfully!', 'success')
+        setName(''); setEmail(''); setPassword(''); setPhone(''); setPhoto(''); setDepartmentId(''); setShowForm(false)
+        fetchUsers()
+      } else {
+        showMsg('Error: ' + data.message, 'error')
+      }
+    } catch {
+      showMsg('Error creating employee', 'error')
+    }
+  }
+
+  const openEdit = (user: User) => {
+    setEditingUser(user)
+    setEditName(user.name)
+    setEditEmail(user.email)
+    setEditPhone(user.phone || '')
+    setEditRole(user.role)
+    setEditPhoto(user.photo || '')
+    setEditDepartmentId(user.departmentId || '')
+  }
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingUser) return
+    try {
+      const res = await apiFetch(`/api/auth/users/${editingUser.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: editName, email: editEmail, phone: editPhone, role: editRole, departmentId: editDepartmentId || null }),
+      })
+      if (res.ok) {
+        if (editPhoto !== (editingUser.photo || '')) {
+          await apiFetch(`/api/auth/users/${editingUser.id}/photo`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ photo: normalizePhotoUrl(editPhoto) }),
+          })
+        }
+        showMsg('Employee updated!', 'success')
+        setEditingUser(null)
+        fetchUsers()
+      } else {
+        const data = await res.json()
+        showMsg('Error: ' + (data.message || 'Failed'), 'error')
+      }
+    } catch {
+      showMsg('Error updating employee', 'error')
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteId) return
+    try {
+      const res = await apiFetch(`/api/auth/users/${deleteId}`, { method: 'DELETE' })
+      if (res.ok) {
+        showMsg('Employee deleted', 'success')
+        fetchUsers()
+      } else {
+        showMsg('Error deleting employee', 'error')
+      }
+    } catch {
+      showMsg('Error deleting employee', 'error')
+    }
+    setDeleteId(null)
+  }
+
+  // Department CRUD
+  const handleCreateDept = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const res = await apiFetch('/api/departments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: deptName, nameKh: deptNameKh || undefined, description: deptDescription || undefined }),
+      })
+      if (res.ok) {
+        showMsg('Department created!', 'success')
+        setDeptName(''); setDeptNameKh(''); setDeptDescription(''); setShowDeptForm(false)
+        fetchDepartments()
+      } else {
+        const data = await res.json()
+        showMsg('Error: ' + (data.message || 'Failed'), 'error')
+      }
+    } catch {
+      showMsg('Error creating department', 'error')
+    }
+  }
+
+  const openEditDept = (dept: Department) => {
+    setEditingDept(dept)
+    setEditDeptName(dept.name)
+    setEditDeptNameKh(dept.nameKh || '')
+    setEditDeptDescription(dept.description || '')
+  }
+
+  const handleEditDeptSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingDept) return
+    try {
+      const res = await apiFetch(`/api/departments/${editingDept.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: editDeptName, nameKh: editDeptNameKh || undefined, description: editDeptDescription || undefined }),
+      })
+      if (res.ok) {
+        showMsg('Department updated!', 'success')
+        setEditingDept(null)
+        fetchDepartments(); fetchUsers()
+      } else {
+        const data = await res.json()
+        showMsg('Error: ' + (data.message || 'Failed'), 'error')
+      }
+    } catch {
+      showMsg('Error updating department', 'error')
+    }
+  }
+
+  const handleDeleteDept = async () => {
+    if (!deleteDeptId) return
+    try {
+      const res = await apiFetch(`/api/departments/${deleteDeptId}`, { method: 'DELETE' })
+      if (res.ok) {
+        showMsg('Department deleted', 'success')
+        fetchDepartments(); fetchUsers()
+      } else {
+        showMsg('Error deleting department', 'error')
+      }
+    } catch {
+      showMsg('Error deleting department', 'error')
+    }
+    setDeleteDeptId(null)
+  }
+
+  // Filter & search
+  const filtered = users.filter(u => {
+    if (filter !== 'ALL' && u.role !== filter) return false
+    if (deptFilter !== 'ALL') {
+      if (deptFilter === 'NONE') { if (u.departmentId) return false }
+      else { if (u.departmentId !== deptFilter) return false }
+    }
+    if (search) {
+      const q = search.toLowerCase()
+      return u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || (u.phone || '').toLowerCase().includes(q)
+    }
+    return true
+  })
+
+  const presentRoles = Array.from(new Set(users.map(u => u.role)))
+
+  return (
+    <div className="flex min-h-screen bg-slate-50">
+      <Sidebar title="Admin" subtitle="SchoolSync" navItems={adminNav} accentColor="indigo" />
+
+      <main className="flex-1 lg:ml-0">
+        <div className="lg:hidden h-14" />
+        <div className="page-shell">
+          <div className="page-content">
+            {/* Header */}
+            <div className="page-header">
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">👔 Manage Employees</h1>
+                <p className="text-sm text-slate-500 mt-1">{filtered.length} employees · {departments.length} departments</p>
+              </div>
+              <div className="flex gap-2">
+                <Link href="/admin/qr-codes" className="btn-outline flex items-center gap-1">
+                  🪪 ID Cards
+                </Link>
+              </div>
+            </div>
+
+            {/* Messages */}
+            {message && (
+              <div className={`mx-4 mb-4 p-3 rounded-lg text-sm font-medium ${msgType === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
+                {message}
+              </div>
+            )}
+
+            <div className="page-body space-y-4">
+
+              {/* Section Tabs */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setActiveSection('employees')}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeSection === 'employees' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:border-indigo-300'}`}
+                >
+                  👔 Employees ({users.length})
+                </button>
+                <button
+                  onClick={() => setActiveSection('departments')}
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeSection === 'departments' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:border-indigo-300'}`}
+                >
+                  🏢 Departments ({departments.length})
+                </button>
+              </div>
+
+              {activeSection === 'employees' ? (
+                <>
+                  {/* Add Employee Button */}
+                  <div className="flex justify-end">
+                    <button onClick={() => setShowForm(!showForm)} className="btn-primary">
+                      {showForm ? '✕ Close' : '➕ Add Employee'}
+                    </button>
+                  </div>
+
+                  {/* Create Form */}
+                  {showForm && (
+                    <div className="card p-5">
+                      <h3 className="text-sm font-semibold text-slate-700 mb-3">New Employee</h3>
+                      <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        <div>
+                          <label className="form-label">Name *</label>
+                          <input value={name} onChange={e => setName(e.target.value)} required className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="Full name" />
+                        </div>
+                        <div>
+                          <label className="form-label">Email *</label>
+                          <input type="email" value={email} onChange={e => setEmail(e.target.value)} required className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="email@company.com" />
+                        </div>
+                        <div>
+                          <label className="form-label">Password *</label>
+                          <input type="password" value={password} onChange={e => setPassword(e.target.value)} required className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="••••••••" />
+                        </div>
+                        <div>
+                          <label className="form-label">Phone</label>
+                          <input value={phone} onChange={e => setPhone(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="012 345 678" />
+                        </div>
+                        <div>
+                          <label className="form-label">Position *</label>
+                          <select value={role} onChange={e => setRole(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                            {employeeRoles.map(r => (
+                              <option key={r} value={r}>{getRoleLabel(r)} ({r})</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="form-label">Department</label>
+                          <select value={departmentId} onChange={e => setDepartmentId(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                            <option value="">— No Department —</option>
+                            {departments.map(d => (
+                              <option key={d.id} value={d.id}>{d.name}{d.nameKh ? ` (${d.nameKh})` : ''}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="form-label">Photo URL</label>
+                          <input type="url" value={photo} onChange={e => setPhoto(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="https://..." />
+                        </div>
+                        <div className="sm:col-span-2 lg:col-span-3 flex justify-end gap-2">
+                          <button type="button" onClick={() => setShowForm(false)} className="btn-outline btn-sm">Cancel</button>
+                          <button type="submit" className="btn-primary btn-sm">Create Employee</button>
+                        </div>
+                      </form>
+                    </div>
+                  )}
+
+                  {/* Filters */}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <input
+                      value={search}
+                      onChange={e => setSearch(e.target.value)}
+                      placeholder="Search employees..."
+                      className="rounded-lg border border-slate-300 px-3 py-2 text-sm w-64"
+                    />
+                    <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                      <option value="ALL">All Departments</option>
+                      <option value="NONE">No Department</option>
+                      {departments.map(d => (
+                        <option key={d.id} value={d.id}>{d.name}{d.nameKh ? ` (${d.nameKh})` : ''}</option>
+                      ))}
+                    </select>
+                    <div className="flex flex-wrap gap-1">
+                      <button onClick={() => setFilter('ALL')} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${filter === 'ALL' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                        All ({users.length})
+                      </button>
+                      {presentRoles.map(r => (
+                        <button key={r} onClick={() => setFilter(r)} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${filter === r ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                          {getRoleLabel(r)} ({users.filter(u => u.role === r).length})
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Employee Table */}
+                  <div className="card">
+                    <div className="table-container">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Employee</th>
+                            <th>Email</th>
+                            <th>Phone</th>
+                            <th>Position</th>
+                            <th>Department</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filtered.map(user => (
+                            <tr key={user.id}>
+                              <td>
+                                <div className="flex items-center gap-3">
+                                  {user.photo ? (
+                                    <img src={normalizePhotoUrl(user.photo)} alt={user.name} className="w-8 h-8 rounded-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+                                  ) : (
+                                    <div className="avatar avatar-sm">{user.name.charAt(0).toUpperCase()}</div>
+                                  )}
+                                  <span className="font-medium text-slate-800">{user.name}</span>
+                                </div>
+                              </td>
+                              <td className="text-slate-500">{user.email}</td>
+                              <td className="text-slate-500">{user.phone || '—'}</td>
+                              <td><span className="badge-gray">{getRoleLabel(user.role)}</span></td>
+                              <td>
+                                {user.department ? (
+                                  <span className="badge-blue">{user.department.name}</span>
+                                ) : (
+                                  <span className="text-slate-400 text-xs">—</span>
+                                )}
+                              </td>
+                              <td>
+                                <div className="flex gap-1">
+                                  <button onClick={() => openEdit(user)} className="btn-outline btn-sm">✏️</button>
+                                  <button onClick={() => setDeleteId(user.id)} className="btn-outline btn-sm text-red-500 hover:bg-red-50">🗑️</button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                          {filtered.length === 0 && (
+                            <tr>
+                              <td colSpan={6} className="text-center text-slate-400 py-8">No employees found</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                /* ========== DEPARTMENTS SECTION ========== */
+                <>
+                  <div className="flex justify-end">
+                    <button onClick={() => setShowDeptForm(!showDeptForm)} className="btn-primary">
+                      {showDeptForm ? '✕ Close' : '➕ Add Department'}
+                    </button>
+                  </div>
+
+                  {/* Create Department Form */}
+                  {showDeptForm && (
+                    <div className="card p-5">
+                      <h3 className="text-sm font-semibold text-slate-700 mb-3">New Department</h3>
+                      <form onSubmit={handleCreateDept} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <div>
+                          <label className="form-label">Name (English) *</label>
+                          <input value={deptName} onChange={e => setDeptName(e.target.value)} required className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="e.g. Human Resources" />
+                        </div>
+                        <div>
+                          <label className="form-label">Name (Khmer)</label>
+                          <input value={deptNameKh} onChange={e => setDeptNameKh(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="e.g. ធនធានមនុស្ស" />
+                        </div>
+                        <div>
+                          <label className="form-label">Description</label>
+                          <input value={deptDescription} onChange={e => setDeptDescription(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" placeholder="Optional description" />
+                        </div>
+                        <div className="sm:col-span-3 flex justify-end gap-2">
+                          <button type="button" onClick={() => setShowDeptForm(false)} className="btn-outline btn-sm">Cancel</button>
+                          <button type="submit" className="btn-primary btn-sm">Create Department</button>
+                        </div>
+                      </form>
+                    </div>
+                  )}
+
+                  {/* Departments Grid */}
+                  {departments.length === 0 ? (
+                    <div className="card p-12 text-center">
+                      <p className="text-4xl mb-3">🏢</p>
+                      <p className="font-semibold text-slate-600">No departments yet</p>
+                      <p className="text-sm text-slate-400 mt-1">Create your first department to organize employees</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {departments.map(dept => (
+                        <div key={dept.id} className="card p-5 hover:shadow-md transition-shadow">
+                          <div className="flex items-start justify-between mb-3">
+                            <div>
+                              <h3 className="font-semibold text-slate-800">{dept.name}</h3>
+                              {dept.nameKh && <p className="text-sm text-slate-500">{dept.nameKh}</p>}
+                            </div>
+                            <div className="flex gap-1">
+                              <button onClick={() => openEditDept(dept)} className="btn-outline btn-sm">✏️</button>
+                              <button onClick={() => setDeleteDeptId(dept.id)} className="btn-outline btn-sm text-red-500 hover:bg-red-50">🗑️</button>
+                            </div>
+                          </div>
+                          {dept.description && <p className="text-xs text-slate-400 mb-3">{dept.description}</p>}
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-1 rounded-full">
+                              👥 {dept._count?.users || 0} employees
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Edit Employee Modal */}
+        {editingUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setEditingUser(null)}>
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6" onClick={e => e.stopPropagation()}>
+              <h3 className="text-lg font-bold text-slate-800 mb-4">Edit Employee</h3>
+              <form onSubmit={handleEditSubmit} className="space-y-3">
+                <div>
+                  <label className="form-label">Name</label>
+                  <input value={editName} onChange={e => setEditName(e.target.value)} required className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="form-label">Email</label>
+                  <input type="email" value={editEmail} onChange={e => setEditEmail(e.target.value)} required className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="form-label">Phone</label>
+                  <input value={editPhone} onChange={e => setEditPhone(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="form-label">Position</label>
+                  <select value={editRole} onChange={e => setEditRole(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                    {employeeRoles.map(r => (
+                      <option key={r} value={r}>{getRoleLabel(r)} ({r})</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label">Department</label>
+                  <select value={editDepartmentId} onChange={e => setEditDepartmentId(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm">
+                    <option value="">— No Department —</option>
+                    {departments.map(d => (
+                      <option key={d.id} value={d.id}>{d.name}{d.nameKh ? ` (${d.nameKh})` : ''}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="form-label">Photo URL</label>
+                  <input type="url" value={editPhoto} onChange={e => setEditPhoto(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                </div>
+                <div className="flex justify-end gap-2 mt-4">
+                  <button type="button" onClick={() => setEditingUser(null)} className="btn-outline btn-sm">Cancel</button>
+                  <button type="submit" className="btn-primary btn-sm">Save Changes</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Department Modal */}
+        {editingDept && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setEditingDept(null)}>
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 p-6" onClick={e => e.stopPropagation()}>
+              <h3 className="text-lg font-bold text-slate-800 mb-4">Edit Department</h3>
+              <form onSubmit={handleEditDeptSubmit} className="space-y-3">
+                <div>
+                  <label className="form-label">Name (English) *</label>
+                  <input value={editDeptName} onChange={e => setEditDeptName(e.target.value)} required className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="form-label">Name (Khmer)</label>
+                  <input value={editDeptNameKh} onChange={e => setEditDeptNameKh(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                </div>
+                <div>
+                  <label className="form-label">Description</label>
+                  <input value={editDeptDescription} onChange={e => setEditDeptDescription(e.target.value)} className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+                </div>
+                <div className="flex justify-end gap-2 mt-4">
+                  <button type="button" onClick={() => setEditingDept(null)} className="btn-outline btn-sm">Cancel</button>
+                  <button type="submit" className="btn-primary btn-sm">Save Changes</button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Employee Confirmation */}
+        {deleteId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setDeleteId(null)}>
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 text-center" onClick={e => e.stopPropagation()}>
+              <div className="text-4xl mb-3">⚠️</div>
+              <h3 className="text-lg font-bold text-slate-800 mb-2">Delete Employee?</h3>
+              <p className="text-sm text-slate-500 mb-4">This will permanently remove this employee and all their attendance records.</p>
+              <div className="flex justify-center gap-3">
+                <button onClick={() => setDeleteId(null)} className="btn-outline">Cancel</button>
+                <button onClick={handleDelete} className="btn-danger">Delete</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Department Confirmation */}
+        {deleteDeptId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setDeleteDeptId(null)}>
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6 text-center" onClick={e => e.stopPropagation()}>
+              <div className="text-4xl mb-3">⚠️</div>
+              <h3 className="text-lg font-bold text-slate-800 mb-2">Delete Department?</h3>
+              <p className="text-sm text-slate-500 mb-4">Employees in this department will be unassigned. This cannot be undone.</p>
+              <div className="flex justify-center gap-3">
+                <button onClick={() => setDeleteDeptId(null)} className="btn-outline">Cancel</button>
+                <button onClick={handleDeleteDept} className="btn-danger">Delete</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  )
+}

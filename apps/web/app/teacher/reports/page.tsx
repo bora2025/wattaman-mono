@@ -1,0 +1,423 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import Sidebar from '../../../components/Sidebar'
+import { teacherNav } from '../../../lib/teacher-nav'
+import { apiFetch, getCurrentUser } from '../../../lib/api'
+
+interface GridRow {
+  studentId: string
+  studentNumber: string
+  studentName: string
+  checkInMorning: string | null
+  checkOutMorning: string | null
+  checkInAfternoon: string | null
+  checkOutAfternoon: string | null
+  dayOff: boolean
+  isHoliday?: boolean
+  session1Status: string | null
+  session2Status: string | null
+  session3Status: string | null
+  session4Status: string | null
+}
+
+interface TotalsRow {
+  studentId: string
+  studentNumber: string
+  studentName: string
+  week: { present: number; late: number; absent: number; dayOff: number }
+  month: { present: number; late: number; absent: number; dayOff: number }
+  year: { present: number; late: number; absent: number; dayOff: number }
+}
+
+interface ClassItem {
+  id: string
+  name: string
+  subject: string | null
+}
+
+export default function TeacherReports() {
+  const [classes, setClasses] = useState<ClassItem[]>([])
+  const [selectedClassId, setSelectedClassId] = useState('')
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [grid, setGrid] = useState<GridRow[]>([])
+  const [totals, setTotals] = useState<TotalsRow[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [activeTab, setActiveTab] = useState<'daily' | 'totals'>('daily')
+  const [sessionConfigs, setSessionConfigs] = useState<Array<{session: number; type: string; startTime: string; endTime: string}>>([])
+
+  useEffect(() => {
+    fetchClasses()
+  }, [])
+
+  useEffect(() => {
+    if (selectedClassId && selectedDate) {
+      fetchData()
+    }
+  }, [selectedClassId, selectedDate])
+
+  useEffect(() => {
+    fetchSessionConfigs(selectedClassId || undefined)
+  }, [selectedClassId])
+
+  const fetchSessionConfigs = async (classId?: string) => {
+    try {
+      const url = classId ? `/api/session-config?classId=${classId}` : '/api/session-config/global'
+      const res = await apiFetch(url)
+      if (res.ok) setSessionConfigs(await res.json())
+    } catch (e) { console.error('Error fetching session configs:', e) }
+  }
+
+  const fetchClasses = async () => {
+    try {
+      const user = await getCurrentUser()
+      if (!user) return
+      const res = await apiFetch(`/api/classes?teacherId=${user.userId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setClasses(data)
+        if (data.length > 0) setSelectedClassId(data[0].id)
+      }
+    } catch (e) {
+      console.error('Error fetching classes:', e)
+    }
+  }
+
+  const fetchData = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      const [gridRes, totalsRes] = await Promise.all([
+        apiFetch(`/api/reports/attendance-grid?classId=${selectedClassId}&date=${selectedDate}`),
+        apiFetch(`/api/reports/attendance-totals?classId=${selectedClassId}&date=${selectedDate}`),
+      ])
+      if (gridRes.ok) setGrid(await gridRes.json())
+      else setError('Failed to load attendance data.')
+      if (totalsRes.ok) setTotals(await totalsRes.json())
+    } catch (err) {
+      console.error('Error fetching report data:', err)
+      setError('Failed to connect to server.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleExportGrid = () => {
+    if (!selectedClassId) return
+    apiFetch(`/api/reports/export-grid?classId=${selectedClassId}&date=${selectedDate}`)
+      .then(res => res.blob())
+      .then(blob => {
+        const a = document.createElement('a')
+        a.href = URL.createObjectURL(blob)
+        a.download = `attendance_${selectedDate}.csv`
+        a.click()
+        URL.revokeObjectURL(a.href)
+      })
+      .catch(() => setError('Export failed'))
+  }
+
+  const goDay = (offset: number) => {
+    const d = new Date(selectedDate)
+    d.setDate(d.getDate() + offset)
+    setSelectedDate(d.toISOString().split('T')[0])
+  }
+
+  const dayLabel = new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  })
+
+  const selectedClassName = classes.find(c => c.id === selectedClassId)?.name || ''
+
+  const sessionDefs = [
+    { session: 1, field: 'checkInMorning', statusField: 'session1Status' },
+    { session: 2, field: 'checkOutMorning', statusField: 'session2Status' },
+    { session: 3, field: 'checkInAfternoon', statusField: 'session3Status' },
+    { session: 4, field: 'checkOutAfternoon', statusField: 'session4Status' },
+  ]
+  const activeSessions = sessionDefs.filter(sd => {
+    const cfg = sessionConfigs.find(c => c.session === sd.session)
+    return !cfg || cfg.startTime !== cfg.endTime
+  })
+  const getSessionLabel = (sessionNum: number) => {
+    const cfg = sessionConfigs.find(c => c.session === sessionNum)
+    if (!cfg) return sessionNum <= 2 ? 'Morning' : 'Afternoon'
+    const h = parseInt(cfg.startTime.split(':')[0])
+    return h < 12 ? 'Morning' : h < 17 ? 'Afternoon' : h < 21 ? 'Evening' : 'Night'
+  }
+
+  // Daily summary counts
+  const isHolidayDate = grid.length > 0 && grid[0].isHoliday === true
+  const dailyLate = grid.filter(r => !r.dayOff && activeSessions.some(sd => (r as any)[sd.statusField] === 'LATE')).length
+  const dailyPresent = grid.filter(r => !r.dayOff).length - dailyLate
+  const dailyAbsent = isHolidayDate ? 0 : grid.filter(r => r.dayOff).length
+  const totalStudents = grid.length
+
+  return (
+    <div className="page-shell">
+      <Sidebar title="Teacher Portal" subtitle="SchoolSync" navItems={teacherNav} accentColor="emerald" />
+      <div className="page-content">
+        <div className="h-14 lg:hidden" />
+        <div className="page-header">
+          <h1 className="text-2xl font-bold text-slate-800">Attendance Reports</h1>
+          <p className="text-sm text-slate-500 mt-1">Cambodia Time (GMT+7)</p>
+        </div>
+        <div className="page-body space-y-6">
+          {/* Controls */}
+          <div className="card p-3 sm:p-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">Class</label>
+                <select
+                  value={selectedClassId}
+                  onChange={(e) => setSelectedClassId(e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-white"
+                >
+                  {classes.map(cls => (
+                    <option key={cls.id} value={cls.id}>{cls.name} — {cls.subject || 'N/A'}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">Date</label>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => goDay(-1)} className="px-3 py-2.5 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-50 active:bg-slate-100 text-sm transition-colors">◀</button>
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    className="flex-1 rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-white"
+                  />
+                  <button onClick={() => goDay(1)} className="px-3 py-2.5 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-50 active:bg-slate-100 text-sm transition-colors">▶</button>
+                </div>
+              </div>
+              <div className="flex items-end">
+                <button onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])} className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-50 active:bg-slate-100 text-sm font-medium transition-colors">
+                  📅 Today
+                </button>
+              </div>
+              <div className="flex items-end">
+                <button onClick={handleExportGrid} className="w-full sm:w-auto bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-bold py-2.5 px-4 rounded-xl shadow-md shadow-emerald-200 active:scale-[0.98] transition-all text-sm">
+                  📥 Export CSV
+                </button>
+              </div>
+            </div>
+            <p className="mt-2 text-sm font-medium text-slate-700">{dayLabel} — {selectedClassName}</p>
+          </div>
+
+          {isHolidayDate && (
+            <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-4 py-3 text-sm font-medium flex items-center gap-2">
+              <span className="text-lg">📅</span>
+              <span>This date is a <strong>holiday</strong> — absent counts are excluded.</span>
+            </div>
+          )}
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm font-medium">{error}</div>
+          )}
+
+          <div className="flex border-b border-slate-200">
+            <button
+              onClick={() => setActiveTab('daily')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'daily' ? 'border-emerald-500 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              📋 Daily Attendance
+            </button>
+            <button
+              onClick={() => setActiveTab('totals')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'totals' ? 'border-emerald-500 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              📊 Totals (Week / Month / Year)
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="card p-12">
+              <div className="empty-state">
+                <div className="w-10 h-10 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                <p className="text-sm text-slate-500 mt-3">Loading…</p>
+              </div>
+            </div>
+          ) : activeTab === 'daily' ? (
+            <>
+              {/* Day stats */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                <div className="stat-card"><p className="stat-label">Total Students</p><p className="stat-value">{totalStudents}</p></div>
+                <div className="stat-card"><p className="stat-label">Present</p><p className="stat-value text-emerald-600">{dailyPresent}</p></div>
+                <div className="stat-card"><p className="stat-label">Late</p><p className="stat-value text-amber-600">{dailyLate}</p></div>
+                <div className="stat-card"><p className="stat-label">Absent / Day Off</p><p className="stat-value text-red-600">{dailyAbsent}</p></div>
+              </div>
+
+              {grid.length === 0 ? (
+                <div className="card p-12">
+                  <div className="empty-state">
+                    <p className="text-4xl mb-3">📊</p>
+                    <p className="font-semibold text-slate-600">No attendance data</p>
+                    <p className="text-sm text-slate-400 mt-1">No records for {selectedDate}.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="card overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-slate-50">
+                        <tr className="text-left text-xs text-slate-500 uppercase tracking-wide">
+                          <th className="px-3 py-3 font-semibold">Day</th>
+                          <th className="px-3 py-3 font-semibold">ID</th>
+                          <th className="px-3 py-3 font-semibold">Student Name</th>
+                          {activeSessions.map(sd => {
+                            const cfg = sessionConfigs.find(c => c.session === sd.session)
+                            return (
+                              <th key={sd.session} className="px-3 py-3 font-semibold text-center">
+                                <div>{cfg?.type === 'CHECK_OUT' ? 'CheckOut' : 'CheckIn'}</div>
+                                <div className="text-[10px] normal-case font-normal text-slate-400">{getSessionLabel(sd.session)}</div>
+                              </th>
+                            )
+                          })}
+                          <th className="px-3 py-3 font-semibold text-center">Day Off</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {grid.map((row, i) => (
+                          <tr key={row.studentId} className={`border-t border-slate-100 ${row.dayOff ? 'bg-red-50/40' : 'hover:bg-slate-50'}`}>
+                            <td className="px-3 py-2.5 text-slate-500 text-xs">
+                              {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' })}
+                            </td>
+                            <td className="px-3 py-2.5 text-slate-600 font-mono text-xs">{row.studentNumber}</td>
+                            <td className="px-3 py-2.5 text-slate-800 font-medium">{row.studentName}</td>
+                            {activeSessions.map(sd => (
+                              <SessionCell key={sd.session} time={(row as any)[sd.field]} status={(row as any)[sd.statusField]} />
+                            ))}
+                            <td className="px-3 py-2.5 text-center">
+                              {row.dayOff ? (
+                                <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-700">🚫 Yes</span>
+                              ) : (
+                                <span className="text-xs text-slate-400">—</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            /* Totals Tab */
+            <>
+              {totals.length === 0 ? (
+                <div className="card p-12">
+                  <div className="empty-state">
+                    <p className="text-4xl mb-3">📊</p>
+                    <p className="font-semibold text-slate-600">No data</p>
+                    <p className="text-sm text-slate-400 mt-1">Select a class to view totals.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="card overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-slate-50">
+                        <tr className="text-left text-xs text-slate-500 uppercase tracking-wide">
+                          <th className="px-3 py-3 font-semibold">ID</th>
+                          <th className="px-3 py-3 font-semibold">Student Name</th>
+                          <th className="px-3 py-3 font-semibold text-center" colSpan={4}>
+                            <div>Week</div>
+                          </th>
+                          <th className="px-3 py-3 font-semibold text-center" colSpan={4}>
+                            <div>Month</div>
+                          </th>
+                          <th className="px-3 py-3 font-semibold text-center" colSpan={4}>
+                            <div>Year</div>
+                          </th>
+                        </tr>
+                        <tr className="text-[10px] text-slate-400 border-b border-slate-200">
+                          <th className="px-3 pb-2"></th>
+                          <th className="px-3 pb-2"></th>
+                          <th className="px-3 pb-2 text-center text-emerald-600 font-medium">Present</th>
+                          <th className="px-3 pb-2 text-center text-amber-500 font-medium">Late</th>
+                          <th className="px-3 pb-2 text-center text-red-500 font-medium">Absent</th>
+                          <th className="px-3 pb-2 text-center text-purple-500 font-medium">Day Off</th>
+                          <th className="px-3 pb-2 text-center text-emerald-600 font-medium">Present</th>
+                          <th className="px-3 pb-2 text-center text-amber-500 font-medium">Late</th>
+                          <th className="px-3 pb-2 text-center text-red-500 font-medium">Absent</th>
+                          <th className="px-3 pb-2 text-center text-purple-500 font-medium">Day Off</th>
+                          <th className="px-3 pb-2 text-center text-emerald-600 font-medium">Present</th>
+                          <th className="px-3 pb-2 text-center text-amber-500 font-medium">Late</th>
+                          <th className="px-3 pb-2 text-center text-red-500 font-medium">Absent</th>
+                          <th className="px-3 pb-2 text-center text-purple-500 font-medium">Day Off</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {totals.map(row => (
+                          <tr key={row.studentId} className="border-t border-slate-100 hover:bg-slate-50">
+                            <td className="px-3 py-2.5 text-slate-600 font-mono text-xs">{row.studentNumber}</td>
+                            <td className="px-3 py-2.5 text-slate-800 font-medium">{row.studentName}</td>
+                            <td className="px-3 py-2.5 text-center text-emerald-700 font-semibold">{row.week.present}</td>
+                            <td className="px-3 py-2.5 text-center text-amber-600 font-semibold">{row.week.late || 0}</td>
+                            <td className="px-3 py-2.5 text-center text-red-600 font-semibold">{row.week.absent}</td>
+                            <td className="px-3 py-2.5 text-center text-purple-600 font-semibold">{row.week.dayOff || 0}</td>
+                            <td className="px-3 py-2.5 text-center text-emerald-700 font-semibold">{row.month.present}</td>
+                            <td className="px-3 py-2.5 text-center text-amber-600 font-semibold">{row.month.late || 0}</td>
+                            <td className="px-3 py-2.5 text-center text-red-600 font-semibold">{row.month.absent}</td>
+                            <td className="px-3 py-2.5 text-center text-purple-600 font-semibold">{row.month.dayOff || 0}</td>
+                            <td className="px-3 py-2.5 text-center text-emerald-700 font-semibold">{row.year.present}</td>
+                            <td className="px-3 py-2.5 text-center text-amber-600 font-semibold">{row.year.late || 0}</td>
+                            <td className="px-3 py-2.5 text-center text-red-600 font-semibold">{row.year.absent}</td>
+                            <td className="px-3 py-2.5 text-center text-purple-600 font-semibold">{row.year.dayOff || 0}</td>
+                          </tr>
+                        ))}
+                        {/* Totals footer */}
+                        <tr className="border-t-2 border-slate-300 bg-slate-50 font-bold text-slate-700">
+                          <td className="px-3 py-2.5" colSpan={2}>Total</td>
+                          <td className="px-3 py-2.5 text-center text-emerald-700">{totals.reduce((s, r) => s + r.week.present, 0)}</td>
+                          <td className="px-3 py-2.5 text-center text-amber-600">{totals.reduce((s, r) => s + (r.week.late || 0), 0)}</td>
+                          <td className="px-3 py-2.5 text-center text-red-600">{totals.reduce((s, r) => s + r.week.absent, 0)}</td>
+                          <td className="px-3 py-2.5 text-center text-purple-600">{totals.reduce((s, r) => s + (r.week.dayOff || 0), 0)}</td>
+                          <td className="px-3 py-2.5 text-center text-emerald-700">{totals.reduce((s, r) => s + r.month.present, 0)}</td>
+                          <td className="px-3 py-2.5 text-center text-amber-600">{totals.reduce((s, r) => s + (r.month.late || 0), 0)}</td>
+                          <td className="px-3 py-2.5 text-center text-red-600">{totals.reduce((s, r) => s + r.month.absent, 0)}</td>
+                          <td className="px-3 py-2.5 text-center text-purple-600">{totals.reduce((s, r) => s + (r.month.dayOff || 0), 0)}</td>
+                          <td className="px-3 py-2.5 text-center text-emerald-700">{totals.reduce((s, r) => s + r.year.present, 0)}</td>
+                          <td className="px-3 py-2.5 text-center text-amber-600">{totals.reduce((s, r) => s + (r.year.late || 0), 0)}</td>
+                          <td className="px-3 py-2.5 text-center text-red-600">{totals.reduce((s, r) => s + r.year.absent, 0)}</td>
+                          <td className="px-3 py-2.5 text-center text-purple-600">{totals.reduce((s, r) => s + (r.year.dayOff || 0), 0)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SessionCell({ time, status }: { time: string | null; status: string | null }) {
+  if (!status || status === 'ABSENT') {
+    return <td className="px-3 py-2.5 text-center"><span className="text-xs text-red-400">✗</span></td>
+  }
+  if (status === 'DAY_OFF') {
+    return <td className="px-3 py-2.5 text-center"><span className="text-xs text-purple-500 font-medium">🏖</span></td>
+  }
+  return (
+    <td className="px-3 py-2.5 text-center">
+      <span className={`text-xs font-mono font-medium ${
+        status === 'LATE' ? 'text-amber-600' : 'text-emerald-700'
+      }`}>
+        {time || '✓'}
+      </span>
+      {status === 'LATE' && (
+        <div className="text-[10px] text-amber-500 font-medium">Late</div>
+      )}
+    </td>
+  )
+}

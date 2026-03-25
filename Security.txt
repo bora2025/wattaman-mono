@@ -1,0 +1,119 @@
+
+
+ 
+
+Gather all security features
+
+Read [](file:///c%3A/Users/borax/Desktop/SchoolSystem01/apps/api/src/main.ts)
+
+Read [](file:///c%3A/Users/borax/Desktop/SchoolSystem01/apps/api/src/auth/auth.controller.ts)
+
+Read [](file:///c%3A/Users/borax/Desktop/SchoolSystem01/apps/api/src/auth/auth.service.ts#1-1), lines 1 to 150
+
+Read [](file:///c%3A/Users/borax/Desktop/SchoolSystem01/apps/api/src/auth/jwt.strategy.ts)
+
+Read [](file:///c%3A/Users/borax/Desktop/SchoolSystem01/apps/api/src/auth/roles.guard.ts)
+
+Read [](file:///c%3A/Users/borax/Desktop/SchoolSystem01/apps/api/src/auth/roles.decorator.ts)
+
+Read [](file:///c%3A/Users/borax/Desktop/SchoolSystem01/apps/api/src/auth/jwt-auth.guard.ts)
+
+Read [](file:///c%3A/Users/borax/Desktop/SchoolSystem01/apps/api/src/auth/dto/login.dto.ts)
+
+Read [](file:///c%3A/Users/borax/Desktop/SchoolSystem01/apps/api/src/auth/dto/register.dto.ts)
+
+Read [](file:///c%3A/Users/borax/Desktop/SchoolSystem01/apps/api/src/classes/classes.controller.ts)
+
+Read [](file:///c%3A/Users/borax/Desktop/SchoolSystem01/apps/api/src/reports/reports.controller.ts#1-1), lines 1 to 100
+
+Read [](file:///c%3A/Users/borax/Desktop/SchoolSystem01/apps/api/src/holidays/holidays.controller.ts)
+
+Read [](file:///c%3A/Users/borax/Desktop/SchoolSystem01/apps/api/src/session-config/session-config.controller.ts)
+
+Read [](file:///c%3A/Users/borax/Desktop/SchoolSystem01/apps/web/next.config.js)
+
+Read [](file:///c%3A/Users/borax/Desktop/SchoolSystem01/apps/web/lib/api.ts)
+
+Read [](file:///c%3A/Users/borax/Desktop/SchoolSystem01/apps/web/components/AuthGuard.tsx)
+
+Searched for files matching `**/.env.example`, 1 match
+
+Read [](file:///c%3A/Users/borax/Desktop/SchoolSystem01/packages/database/schema.prisma#1-1), lines 1 to 60
+
+Read [](file:///c%3A/Users/borax/Desktop/SchoolSystem01/apps/api/.env.example)
+
+Read [](file:///c%3A/Users/borax/Desktop/SchoolSystem01/packages/database/schema.prisma)
+
+Searched for regex `@Throttle|ThrottlerModule|rate limiting|helmet|csrf|sanitize|xss` (`**/apps/api/src/**`), 8 results
+
+Read [](file:///c%3A/Users/borax/Desktop/SchoolSystem01/apps/api/src/app.module.ts)
+
+Read [](file:///c%3A/Users/borax/Desktop/SchoolSystem01/apps/api/src/auth/auth.module.ts)
+
+Read [](file:///c%3A/Users/borax/Desktop/SchoolSystem01/apps/web/components/Sidebar.tsx#1-1), lines 1 to 50
+
+Read [](file:///c%3A/Users/borax/AppData/Roaming/Code/User/workspaceStorage/72b77ee04e1ec2944a74ab2488c75fc0/GitHub.copilot-chat/chat-session-resources/41e44a50-33b6-453a-b087-084b4e675215/toolu_bdrk_019xEXocTek6WnMmiruARPW4__vscode-1774275314320/content.txt)
+
+Here's the full security summary of your SchoolSync app:
+
+---
+
+## Security Summary
+
+### 1. Transport & Headers
+| Feature | Detail |
+|---------|--------|
+| **Helmet.js** | X-Frame-Options: DENY, X-Content-Type-Options: nosniff, HSTS |
+| **Next.js headers** | Referrer-Policy, Permissions-Policy (camera self-only, microphone blocked) |
+| **CORS** | Configurable via `CORS_ORIGINS` env var, `credentials: true` |
+| **Body size limits** | 10 MB max (JSON + URL-encoded) |
+| **Compression** | gzip/brotli enabled |
+
+### 2. Authentication
+| Feature | Detail |
+|---------|--------|
+| **Access token** | JWT, 15-minute expiry, stored in HttpOnly/Secure/SameSite cookie |
+| **Refresh token** | 40-byte random hex, 7-day expiry, stored in DB + path-restricted HttpOnly cookie (`/api/auth/refresh`) |
+| **Token rotation** | Old refresh token deleted on each refresh (prevents reuse) |
+| **Logout** | Revokes ALL refresh tokens for user, clears both cookies |
+| **Dual extraction** | Cookie-first (web), `Authorization: Bearer` fallback (mobile) |
+| **Password hashing** | bcryptjs, 12 rounds |
+
+### 3. Rate Limiting
+| Scope | Limit |
+|-------|-------|
+| **Global** | 60 requests / 60 seconds per IP |
+| **Login** | 5 requests / 60 seconds (brute-force protection) |
+
+### 4. Role-Based Access Control (RBAC)
+| Endpoint Group | ADMIN-only | All Authenticated |
+|----------------|-----------|-------------------|
+| **User management** | register, list users, bulk import | update photo, search |
+| **Classes** | create, delete | list, update, student ops |
+| **Holidays** | create, update, delete | list, check |
+| **Reports** | system-status, audit-logs | attendance summaries, grids |
+| **Session config** | — | all (controller-level auth) |
+
+### 5. Input Validation
+| DTO | Rules |
+|-----|-------|
+| **LoginDto** | `@IsEmail()`, `@IsString() @MinLength(6)` |
+| **RegisterDto** | `@IsEmail()`, password 6–128 chars, name 1–100 chars, `@IsIn(['ADMIN','TEACHER','STUDENT','PARENT'])` |
+| **Global pipe** | `whitelist: true`, `forbidNonWhitelisted: true`, `transform: true` |
+
+### 6. Frontend Security
+- **`apiFetch()` wrapper** — all API calls use `credentials: 'include'`, auto-refresh on 401, redirect to `/login` on failure
+- **AuthGuard** — verifies auth via `/api/auth/me` cookie call, optional role check
+- **Zero localStorage tokens** — no JWT stored in JavaScript-accessible storage
+- **Concurrent refresh protection** — queues requests during token refresh
+
+### 7. Database
+- RefreshToken model with unique constraint, cascade delete on user removal, indexes on `userId` and `expiresAt`
+- Production logging restricted to `['error', 'warn']` only
+
+### 8. Potential Enhancements
+- **CSP headers** — no explicit Content-Security-Policy yet
+- **CSRF** — relying on SameSite cookies (strict in prod) but no explicit CSRF token
+- **Per-user rate limiting** — current rate limiting is IP-based only
+- **Audit logging** — endpoint exists but not wired to all sensitive operations
+- **Secrets management** — SendGrid/Twilio keys should use a vault in production
