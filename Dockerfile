@@ -5,10 +5,10 @@ RUN apk add --no-cache openssl
 WORKDIR /app
 
 # Copy package files
-COPY backend/package.json backend/package-lock.json* ./
+COPY backend/package.json backend/package-lock.json ./
 
 # Install all dependencies (--ignore-scripts to skip postinstall prisma generate before schema is copied)
-RUN npm install --ignore-scripts
+RUN npm install --ignore-scripts --legacy-peer-deps
 
 # Copy source code and prisma schema
 COPY backend/ ./
