@@ -1,0 +1,1997 @@
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../database/prisma.service';
+import { SessionConfigService } from '../session-config/session-config.service';
+import { HolidaysService } from '../holidays/holidays.service';
+import * as ExcelJS from 'exceljs';
+
+function toUTCMidnight(d: Date): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+}
+
+/** Format a UTC Date as Cambodia time (GMT+7) string */
+function toCambodiaTime(d: Date | null | undefined): string | null {
+  if (!d) return null;
+  return new Date(d.getTime() + 7 * 60 * 60 * 1000)
+    .toISOString()
+    .replace('T', ' ')
+    .replace('Z', '')
+    .slice(0, 19);
+}
+
+/** Format a UTC Date as Cambodia time HH:mm only */
+function toCambodiaTimeShort(d: Date | null | undefined): string | null {
+  if (!d) return null;
+  return new Date(d.getTime() + 7 * 60 * 60 * 1000)
+    .toISOString()
+    .slice(11, 16);
+}
+
+const SESSION_LABELS: Record<number, string> = {
+  1: 'Morning 1',
+  2: 'Morning 2',
+  3: 'Afternoon 1',
+  4: 'Afternoon 2',
+};
+
+/** Check if a session's end time has passed for a given date (Cambodia time) */
+function isSessionOvertime(
+  sessionNum: number,
+  configs: any[],
+  date: Date,
+  todayCambodia: Date,
+  cambodiaNowHHMM: string,
+): boolean {
+  const dayStart = toUTCMidnight(date);
+  if (dayStart.getTime() < todayCambodia.getTime()) return true;   // past date
+  if (dayStart.getTime() > todayCambodia.getTime()) return false;  // future date
+  // Today: compare current Cambodia time with session endTime
+  const cfg = configs.find((c: any) => c.session === sessionNum);
+  if (!cfg) return false;
+  return cambodiaNowHHMM > cfg.endTime;
+}
+
+@Injectable()
+export class ReportsService {
+  constructor(
+    private prisma: PrismaService,
+    private sessionConfigService: SessionConfigService,
+    private holidaysService: HolidaysService,
+  ) {}
+
+  async getSystemStatus() {
+    const lastAttendance = await this.prisma.attendance.findFirst({
+      orderBy: { timestamp: 'desc' },
+      select: { timestamp: true },
+    });
+    const lastUser = await this.prisma.user.findFirst({
+      orderBy: { updatedAt: 'desc' },
+      select: { updatedAt: true },
+    });
+    const totalStudents = await this.prisma.student.count();
+    const totalClasses = await this.prisma.class.count();
+    const totalUsers = await this.prisma.user.count();
+
+    const dates = [lastAttendance?.timestamp, lastUser?.updatedAt].filter(Boolean) as Date[];
+    const lastUpdated = dates.length > 0 ? new Date(Math.max(...dates.map(d => d.getTime()))) : null;
+
+    return {
+      lastUpdated: lastUpdated?.toISOString() || null,
+      totalStudents,
+      totalClasses,
+      totalUsers,
+    };
+  }
+
+  async getAttendanceSummary(classId?: string, date?: Date) {
+    const where: any = {};
+    if (classId) where.classId = classId;
+    if (date) {
+      const dayStart = toUTCMidnight(date);
+      const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+      where.date = { gte: dayStart, lt: dayEnd };
+    }
+
+    const attendances = await this.prisma.attendance.findMany({
+      where,
+      include: { student: true },
+    });
+
+    const total = attendances.length;
+    const present = attendances.filter(a => a.status === 'PRESENT').length;
+    const absent = attendances.filter(a => a.status === 'ABSENT').length;
+    const late = attendances.filter(a => a.status === 'LATE').length;
+
+    return {
+      total,
+      present,
+      absent,
+      late,
+      attendanceRate: total > 0 ? (present / total) * 100 : 0,
+    };
+  }
+
+  async getStudentAttendance(studentId: string) {
+    const attendances = await this.prisma.attendance.findMany({
+      where: { studentId },
+      orderBy: { date: 'desc' },
+      include: { class: { select: { name: true } } },
+    });
+
+    return attendances.map(a => ({
+      date: a.date,
+      status: a.status,
+      classId: a.classId,
+      className: a.class.name,
+      session: a.session,
+      sessionLabel: SESSION_LABELS[a.session] || `Session ${a.session}`,
+      checkInTime: toCambodiaTime(a.checkInTime),
+      checkOutTime: toCambodiaTime(a.checkOutTime),
+    }));
+  }
+
+  async getAuditLogs() {
+    return this.prisma.attendance.findMany({
+      include: { student: { include: { user: true } }, markedBy: true, class: true },
+      orderBy: { timestamp: 'desc' },
+    });
+  }
+
+  async getClassSummaries(teacherId: string, date?: Date, session?: number) {
+    const classes = await this.prisma.class.findMany({
+      where: { teacherId },
+      include: { students: { include: { user: { select: { name: true } } } } },
+    });
+
+    const targetDate = date || new Date();
+    const dayStart = toUTCMidnight(targetDate);
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+    const results = [];
+    for (const cls of classes) {
+      const attWhere: any = {
+        classId: cls.id,
+        date: { gte: dayStart, lt: dayEnd },
+      };
+      if (session) attWhere.session = session;
+
+      const attendances = await this.prisma.attendance.findMany({
+        where: attWhere,
+        include: { student: { include: { user: { select: { name: true } } } } },
+      });
+
+      const totalStudents = cls.students.length;
+      const present = attendances.filter(a => a.status === 'PRESENT').length;
+      const absent = attendances.filter(a => a.status === 'ABSENT').length;
+      const late = attendances.filter(a => a.status === 'LATE').length;
+
+      results.push({
+        classId: cls.id,
+        className: cls.name,
+        subject: cls.subject,
+        totalStudents,
+        present,
+        absent,
+        late,
+        attendanceRate: totalStudents > 0 ? (present / totalStudents) * 100 : 0,
+        students: cls.students.map(s => {
+          const records = attendances.filter(a => a.studentId === s.id);
+          const latestRecord = records.length > 0 ? records[records.length - 1] : null;
+          return {
+            id: s.id,
+            name: s.user.name,
+            status: latestRecord?.status || 'NOT_RECORDED',
+            session: latestRecord?.session,
+            sessionLabel: latestRecord ? (SESSION_LABELS[latestRecord.session] || `Session ${latestRecord.session}`) : null,
+            checkInTime: toCambodiaTime(latestRecord?.checkInTime),
+            checkOutTime: toCambodiaTime(latestRecord?.checkOutTime),
+          };
+        }),
+      });
+    }
+    return results;
+  }
+
+  async getDailySummary(date?: Date) {
+    const targetDate = date || new Date();
+    const dayStart = toUTCMidnight(targetDate);
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+    const attendances = await this.prisma.attendance.findMany({
+      where: { date: { gte: dayStart, lt: dayEnd } },
+      include: {
+        student: { include: { user: { select: { name: true } } } },
+        class: { select: { name: true } },
+      },
+    });
+
+    const total = attendances.length;
+    const present = attendances.filter(a => a.status === 'PRESENT').length;
+    const absent = attendances.filter(a => a.status === 'ABSENT').length;
+    const late = attendances.filter(a => a.status === 'LATE').length;
+
+    const byClass: Record<string, { className: string; present: number; absent: number; late: number; total: number }> = {};
+    for (const a of attendances) {
+      if (!byClass[a.classId]) {
+        byClass[a.classId] = { className: a.class.name, present: 0, absent: 0, late: 0, total: 0 };
+      }
+      byClass[a.classId].total++;
+      if (a.status === 'PRESENT') byClass[a.classId].present++;
+      else if (a.status === 'ABSENT') byClass[a.classId].absent++;
+      else if (a.status === 'LATE') byClass[a.classId].late++;
+    }
+
+    return {
+      date: dayStart.toISOString(),
+      total,
+      present,
+      absent,
+      late,
+      attendanceRate: total > 0 ? (present / total) * 100 : 0,
+      classSummaries: Object.entries(byClass).map(([classId, data]) => ({
+        classId,
+        ...data,
+        attendanceRate: data.total > 0 ? (data.present / data.total) * 100 : 0,
+      })),
+      absentStudents: attendances
+        .filter(a => a.status === 'ABSENT')
+        .map(a => ({ studentId: a.studentId, name: a.student.user.name, className: a.class.name })),
+    };
+  }
+
+  /** Get individual student attendance detail for a class with all sessions and times */
+  async getClassStudentDetail(classId: string, startDate: Date, endDate: Date) {
+    const start = toUTCMidnight(startDate);
+    const end = new Date(toUTCMidnight(endDate).getTime() + 24 * 60 * 60 * 1000);
+
+    const attendances = await this.prisma.attendance.findMany({
+      where: {
+        classId,
+        date: { gte: start, lt: end },
+      },
+      include: {
+        student: { include: { user: { select: { name: true } } } },
+      },
+      orderBy: [{ date: 'asc' }, { session: 'asc' }],
+    });
+
+    return attendances.map(a => ({
+      studentId: a.studentId,
+      studentName: a.student.user.name,
+      date: a.date.toISOString().split('T')[0],
+      session: a.session,
+      sessionLabel: SESSION_LABELS[a.session] || `Session ${a.session}`,
+      status: a.status,
+      checkInTime: toCambodiaTime(a.checkInTime),
+      checkOutTime: toCambodiaTime(a.checkOutTime),
+    }));
+  }
+
+  /** Get attendance grid: one row per student, all 4 sessions as columns */
+  async getAttendanceGrid(classId: string, date: Date) {
+    const dayStart = toUTCMidnight(date);
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+    const isHoliday = await this.holidaysService.isHoliday(date);
+
+    const cls = await this.prisma.class.findUnique({
+      where: { id: classId },
+      include: { students: { include: { user: { select: { name: true } } } } },
+    });
+    if (!cls) return [];
+
+    const attendances = await this.prisma.attendance.findMany({
+      where: { classId, date: { gte: dayStart, lt: dayEnd } },
+    });
+
+    // Load session configs to determine CHECK_IN / CHECK_OUT pairing
+    const configs = await this.sessionConfigService.getConfigs(classId);
+    const s2Cfg = configs.find((c: any) => c.session === 2);
+    const s4Cfg = configs.find((c: any) => c.session === 4);
+    // By default session 2 and 4 are CHECK_OUT, paired with session 1 and 3
+    const s2IsCheckOut = !s2Cfg || s2Cfg.type === 'CHECK_OUT';
+    const s4IsCheckOut = !s4Cfg || s4Cfg.type === 'CHECK_OUT';
+
+    // Cambodia time for overtime detection
+    const now = new Date();
+    const cambodiaNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+    const todayCambodia = new Date(Date.UTC(cambodiaNow.getUTCFullYear(), cambodiaNow.getUTCMonth(), cambodiaNow.getUTCDate()));
+    const cambodiaNowHHMM = cambodiaNow.toISOString().slice(11, 16);
+
+    return cls.students.map((s, idx) => {
+      const recs = attendances.filter(a => a.studentId === s.id);
+      const s1 = recs.find(a => a.session === 1);
+      const s2 = recs.find(a => a.session === 2);
+      const s3 = recs.find(a => a.session === 3);
+      const s4 = recs.find(a => a.session === 4);
+
+      const allAbsent = recs.length === 0 || recs.every(a => a.status === 'ABSENT');
+      const hasDayOff = recs.some(a => a.status === 'DAY_OFF');
+
+      // Compute session statuses
+      let session1Status = s1?.status || null;
+      let session2Status = s2IsCheckOut
+        ? (s1?.checkOutTime ? (s1.status || 'PRESENT') : null)
+        : (s2?.status || null);
+      let session3Status = s3?.status || null;
+      let session4Status = s4IsCheckOut
+        ? (s3?.checkOutTime ? (s3.status || 'PRESENT') : null)
+        : (s4?.status || null);
+
+      // Mark overtime sessions as ABSENT (past sessions with no record)
+      if (!isHoliday) {
+        if (!session1Status && isSessionOvertime(1, configs, dayStart, todayCambodia, cambodiaNowHHMM)) session1Status = 'ABSENT';
+        if (!session2Status && isSessionOvertime(2, configs, dayStart, todayCambodia, cambodiaNowHHMM)) session2Status = 'ABSENT';
+        if (!session3Status && isSessionOvertime(3, configs, dayStart, todayCambodia, cambodiaNowHHMM)) session3Status = 'ABSENT';
+        if (!session4Status && isSessionOvertime(4, configs, dayStart, todayCambodia, cambodiaNowHHMM)) session4Status = 'ABSENT';
+      }
+
+      return {
+        studentId: s.id,
+        studentNumber: s.studentNumber || String(idx + 1).padStart(4, '0'),
+        studentName: s.user.name,
+        checkInMorning: s1 && s1.status !== 'ABSENT' && s1.status !== 'DAY_OFF' ? toCambodiaTimeShort(s1.checkInTime) : null,
+        checkOutMorning: s2IsCheckOut
+          ? (s1?.checkOutTime ? toCambodiaTimeShort(s1.checkOutTime) : null)
+          : (s2 && s2.status !== 'ABSENT' && s2.status !== 'DAY_OFF' ? toCambodiaTimeShort(s2.checkOutTime || s2.checkInTime) : null),
+        checkInAfternoon: s3 && s3.status !== 'ABSENT' && s3.status !== 'DAY_OFF' ? toCambodiaTimeShort(s3.checkInTime) : null,
+        checkOutAfternoon: s4IsCheckOut
+          ? (s3?.checkOutTime ? toCambodiaTimeShort(s3.checkOutTime) : null)
+          : (s4 && s4.status !== 'ABSENT' && s4.status !== 'DAY_OFF' ? toCambodiaTimeShort(s4.checkOutTime || s4.checkInTime) : null),
+        dayOff: hasDayOff || allAbsent,
+        isHoliday,
+        session1Status,
+        session2Status,
+        session3Status,
+        session4Status,
+      };
+    });
+  }
+
+  /** Get attendance totals per student for week, month, year */
+  async getAttendanceTotals(classId: string, date: Date) {
+    const d = toUTCMidnight(date);
+    const y = d.getUTCFullYear();
+    const m = d.getUTCMonth();
+    const day = d.getUTCDate();
+    const dow = d.getUTCDay();
+
+    // Week (Mon-Sun)
+    const weekStart = new Date(Date.UTC(y, m, day - ((dow + 6) % 7)));
+    const weekEnd = new Date(Date.UTC(y, m, day - ((dow + 6) % 7) + 7));
+
+    // Month
+    const monthStart = new Date(Date.UTC(y, m, 1));
+    const monthEnd = new Date(Date.UTC(y, m + 1, 1));
+
+    // Year
+    const yearStart = new Date(Date.UTC(y, 0, 1));
+    const yearEnd = new Date(Date.UTC(y + 1, 0, 1));
+
+    const cls = await this.prisma.class.findUnique({
+      where: { id: classId },
+      include: { students: { include: { user: { select: { name: true } } } } },
+    });
+    if (!cls) return [];
+
+    const [weekRecs, monthRecs, yearRecs] = await Promise.all([
+      this.prisma.attendance.findMany({ where: { classId, date: { gte: weekStart, lt: weekEnd } } }),
+      this.prisma.attendance.findMany({ where: { classId, date: { gte: monthStart, lt: monthEnd } } }),
+      this.prisma.attendance.findMany({ where: { classId, date: { gte: yearStart, lt: yearEnd } } }),
+    ]);
+
+    // Fetch holidays for the year range to exclude from absent counts
+    const yearHolidays = await this.holidaysService.getHolidaysInRange(yearStart, yearEnd);
+    const holidayDateSet = new Set(yearHolidays.map(h => h.date.toISOString().split('T')[0]));
+
+    const countFor = (recs: any[], studentId: string) => {
+      const studentRecs = recs.filter(r => r.studentId === studentId);
+      return {
+        present: studentRecs.filter(r => r.status === 'PRESENT').length,
+        late: studentRecs.filter(r => r.status === 'LATE').length,
+        absent: studentRecs.filter(r => r.status === 'ABSENT' && !holidayDateSet.has(r.date.toISOString().split('T')[0])).length,
+        dayOff: studentRecs.filter(r => r.status === 'DAY_OFF').length,
+      };
+    };
+
+    return cls.students.map((s, idx) => ({
+      studentId: s.id,
+      studentNumber: s.studentNumber || String(idx + 1).padStart(4, '0'),
+      studentName: s.user.name,
+      week: countFor(weekRecs, s.id),
+      month: countFor(monthRecs, s.id),
+      year: countFor(yearRecs, s.id),
+    }));
+  }
+
+  /** Export attendance data as CSV string for a class in a date range */
+  async exportClassAttendance(classId: string, startDate: Date, endDate: Date): Promise<string> {
+    const records = await this.getClassStudentDetail(classId, startDate, endDate);
+    const header = 'Student Name,Date,Session,Status,Check-In Time (GMT+7),Check-Out Time (GMT+7)';
+    const rows = records.map(r =>
+      `"${r.studentName}","${r.date}","${r.sessionLabel}","${r.status}","${r.checkInTime || ''}","${r.checkOutTime || ''}"`,
+    );
+    return [header, ...rows].join('\n');
+  }
+
+  /** Export attendance grid as CSV for a single day — matches the report UI */
+  async exportAttendanceGrid(classId: string, date: Date): Promise<string> {
+    const grid = await this.getAttendanceGrid(classId, date);
+    const totals = await this.getAttendanceTotals(classId, date);
+    const configs = await this.sessionConfigService.getConfigs(classId);
+
+    const d = toUTCMidnight(date);
+    const dayName = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getUTCDay()];
+
+    // Determine active sessions from configs
+    const allSessions = [
+      { session: 1, field: 'checkInMorning', statusField: 'session1Status', defaultLabel: 'CheckIn Morning' },
+      { session: 2, field: 'checkOutMorning', statusField: 'session2Status', defaultLabel: 'CheckOut Morning' },
+      { session: 3, field: 'checkInAfternoon', statusField: 'session3Status', defaultLabel: 'CheckIn Afternoon' },
+      { session: 4, field: 'checkOutAfternoon', statusField: 'session4Status', defaultLabel: 'CheckOut Afternoon' },
+    ];
+    const active = configs.length > 0
+      ? allSessions.filter(s => {
+          const cfg = configs.find((c: any) => c.session === s.session);
+          return cfg && cfg.startTime !== cfg.endTime;
+        })
+      : allSessions;
+
+    const getLabel = (sessionNum: number, defaultLabel: string) => {
+      const cfg = configs.find((c: any) => c.session === sessionNum);
+      if (!cfg) return defaultLabel;
+      const h = parseInt(cfg.startTime.split(':')[0]);
+      const period = h < 12 ? 'Morning' : h < 17 ? 'Afternoon' : h < 21 ? 'Evening' : 'Night';
+      return `${cfg.type === 'CHECK_OUT' ? 'CheckOut' : 'CheckIn'} ${period}`;
+    };
+
+    // --- Daily Attendance sheet ---
+    const sessionHeaders = active.map(s => getLabel(s.session, s.defaultLabel)).join(',');
+    const dailyHeader = `Day,ID,Student Name,${sessionHeaders},Permission`;
+    const fmtCell = (time: string | null, status: string | null) => {
+      if (!status || status === 'ABSENT') return 'Absent';
+      if (status === 'DAY_OFF') return 'Day Off';
+      if (status === 'LATE') return time ? `${time} (Late)` : 'Late';
+      return time || 'Present';
+    };
+    const dailyRows = grid.map(r => {
+      const sessionCells = active.map(s => `"${fmtCell((r as any)[s.field], (r as any)[s.statusField])}"`).join(',');
+      return `"${dayName}","${r.studentNumber}","${r.studentName}",${sessionCells},"${r.dayOff ? 'Yes' : 'No'}"`;
+    });
+
+    const late = grid.filter(r => !r.dayOff && active.some(s => (r as any)[s.statusField] === 'LATE')).length;
+    const present = grid.filter(r => !r.dayOff).length - late;
+    const absent = grid.filter(r => r.dayOff).length;
+    const dailySummary = `\n"Total Students: ${grid.length}","Present: ${present}","Late: ${late}","Absent / Permission: ${absent}"`;
+
+    // --- Totals sheet ---
+    const totalsHeader = '\nID,Student Name,Week Present,Week Late,Week Absent,Week Permission,Month Present,Month Late,Month Absent,Month Permission,Year Present,Year Late,Year Absent,Year Permission';
+    const totalsRows = totals.map(r =>
+      `"${r.studentNumber}","${r.studentName}","${r.week.present}","${r.week.late || 0}","${r.week.absent}","${r.week.dayOff || 0}","${r.month.present}","${r.month.late || 0}","${r.month.absent}","${r.month.dayOff || 0}","${r.year.present}","${r.year.late || 0}","${r.year.absent}","${r.year.dayOff || 0}"`,
+    );
+    const totalsFooter = `"Total","","${totals.reduce((s, r) => s + r.week.present, 0)}","${totals.reduce((s, r) => s + (r.week.late || 0), 0)}","${totals.reduce((s, r) => s + r.week.absent, 0)}","${totals.reduce((s, r) => s + (r.week.dayOff || 0), 0)}","${totals.reduce((s, r) => s + r.month.present, 0)}","${totals.reduce((s, r) => s + (r.month.late || 0), 0)}","${totals.reduce((s, r) => s + r.month.absent, 0)}","${totals.reduce((s, r) => s + (r.month.dayOff || 0), 0)}","${totals.reduce((s, r) => s + r.year.present, 0)}","${totals.reduce((s, r) => s + (r.year.late || 0), 0)}","${totals.reduce((s, r) => s + r.year.absent, 0)}","${totals.reduce((s, r) => s + (r.year.dayOff || 0), 0)}"`;
+
+    return [
+      dailyHeader, ...dailyRows, dailySummary,
+      totalsHeader, ...totalsRows, totalsFooter,
+    ].join('\n');
+  }
+
+  // ========== STAFF ATTENDANCE REPORTS ==========
+
+  /** Get all staff attendance records for a given date (all sessions) */
+  async getStaffAttendanceGrid(date: Date) {
+    const dayStart = toUTCMidnight(date);
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+    const records = await this.prisma.staffAttendance.findMany({
+      where: { date: { gte: dayStart, lt: dayEnd } },
+      include: { user: { select: { name: true, email: true, role: true } } },
+    });
+
+    return records.map(r => ({
+      id: r.id,
+      userId: r.userId,
+      name: r.user.name,
+      email: r.user.email,
+      role: r.user.role,
+      date: r.date,
+      session: r.session,
+      status: r.status,
+      checkInTime: r.checkInTime?.toISOString() || null,
+      checkOutTime: r.checkOutTime?.toISOString() || null,
+    }));
+  }
+
+  /** Get staff attendance daily grid: one row per staff, 4 session columns */
+  async getStaffAttendanceDailyGrid(date: Date) {
+    const dayStart = toUTCMidnight(date);
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+    const isHoliday = await this.holidaysService.isHoliday(date);
+
+    const staff = await this.prisma.user.findMany({
+      where: { role: { notIn: ['STUDENT', 'PARENT'] } },
+      orderBy: { name: 'asc' },
+    });
+
+    const records = await this.prisma.staffAttendance.findMany({
+      where: { date: { gte: dayStart, lt: dayEnd } },
+    });
+
+    // Load staff session configs and Cambodia time for overtime detection
+    const staffConfigs = await this.sessionConfigService.getStaffDefaults();
+    const now = new Date();
+    const cambodiaNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+    const todayCambodia = new Date(Date.UTC(cambodiaNow.getUTCFullYear(), cambodiaNow.getUTCMonth(), cambodiaNow.getUTCDate()));
+    const cambodiaNowHHMM = cambodiaNow.toISOString().slice(11, 16);
+
+    return staff.map((u, idx) => {
+      const recs = records.filter(r => r.userId === u.id);
+      const s1 = recs.find(r => r.session === 1);
+      const s3 = recs.find(r => r.session === 3);
+
+      // With auto-scan, CHECK_OUT updates the paired CHECK_IN record's checkOutTime
+      // Session 1 holds both morning check-in and check-out times
+      // Session 3 holds both afternoon check-in and check-out times
+      // Collect location from whichever session has it (prefer session 1)
+      const locRecord = s1?.scanLocation ? s1 : s3?.scanLocation ? s3 : s1 || s3;
+
+      // Compute session statuses
+      let session1Status = s1?.status || null;
+      let session2Status = s1?.checkOutTime ? (s1.status || 'PRESENT') : null;
+      let session3Status = s3?.status || null;
+      let session4Status = s3?.checkOutTime ? (s3.status || 'PRESENT') : null;
+
+      // Mark overtime sessions as ABSENT (past sessions with no record)
+      if (!isHoliday) {
+        if (!session1Status && isSessionOvertime(1, staffConfigs, dayStart, todayCambodia, cambodiaNowHHMM)) session1Status = 'ABSENT';
+        if (!session2Status && isSessionOvertime(2, staffConfigs, dayStart, todayCambodia, cambodiaNowHHMM)) session2Status = 'ABSENT';
+        if (!session3Status && isSessionOvertime(3, staffConfigs, dayStart, todayCambodia, cambodiaNowHHMM)) session3Status = 'ABSENT';
+        if (!session4Status && isSessionOvertime(4, staffConfigs, dayStart, todayCambodia, cambodiaNowHHMM)) session4Status = 'ABSENT';
+      }
+
+      return {
+        userId: u.id,
+        staffNumber: String(idx + 1).padStart(4, '0'),
+        staffName: u.name,
+        role: u.role,
+        checkInMorning: s1 && s1.status !== 'ABSENT' ? toCambodiaTimeShort(s1.checkInTime) : null,
+        checkOutMorning: s1 ? toCambodiaTimeShort(s1.checkOutTime) : null,
+        checkInAfternoon: s3 && s3.status !== 'ABSENT' ? toCambodiaTimeShort(s3.checkInTime) : null,
+        checkOutAfternoon: s3 ? toCambodiaTimeShort(s3.checkOutTime) : null,
+        session1Status,
+        session2Status,
+        session3Status,
+        session4Status,
+        isHoliday,
+        scanLatitude: locRecord?.scanLatitude || null,
+        scanLongitude: locRecord?.scanLongitude || null,
+        scanLocation: locRecord?.scanLocation || null,
+      };
+    });
+  }
+
+  /** Get staff attendance totals: week/month/year counts per staff */
+  async getStaffAttendanceTotals(date: Date) {
+    const d = toUTCMidnight(date);
+    const y = d.getUTCFullYear();
+    const m = d.getUTCMonth();
+    const day = d.getUTCDate();
+    const dow = d.getUTCDay();
+
+    const weekStart = new Date(Date.UTC(y, m, day - ((dow + 6) % 7)));
+    const weekEnd = new Date(Date.UTC(y, m, day - ((dow + 6) % 7) + 7));
+    const monthStart = new Date(Date.UTC(y, m, 1));
+    const monthEnd = new Date(Date.UTC(y, m + 1, 1));
+    const yearStart = new Date(Date.UTC(y, 0, 1));
+    const yearEnd = new Date(Date.UTC(y + 1, 0, 1));
+
+    const staff = await this.prisma.user.findMany({
+      where: { role: { notIn: ['STUDENT', 'PARENT'] } },
+      orderBy: { name: 'asc' },
+    });
+
+    const [weekRecs, monthRecs, yearRecs] = await Promise.all([
+      this.prisma.staffAttendance.findMany({ where: { date: { gte: weekStart, lt: weekEnd } } }),
+      this.prisma.staffAttendance.findMany({ where: { date: { gte: monthStart, lt: monthEnd } } }),
+      this.prisma.staffAttendance.findMany({ where: { date: { gte: yearStart, lt: yearEnd } } }),
+    ]);
+
+    // Fetch holidays for the year range to exclude from absent counts
+    const yearHolidays = await this.holidaysService.getHolidaysInRange(yearStart, yearEnd);
+    const holidayDateSet = new Set(yearHolidays.map(h => h.date.toISOString().split('T')[0]));
+
+    const countFor = (recs: any[], userId: string) => {
+      const userRecs = recs.filter(r => r.userId === userId);
+      return {
+        present: userRecs.filter(r => r.status === 'PRESENT').length,
+        late: userRecs.filter(r => r.status === 'LATE').length,
+        absent: userRecs.filter(r => r.status === 'ABSENT' && !holidayDateSet.has(r.date.toISOString().split('T')[0])).length,
+        dayOff: userRecs.filter(r => r.status === 'DAY_OFF').length,
+      };
+    };
+
+    return staff.map((u, idx) => ({
+      userId: u.id,
+      staffNumber: String(idx + 1).padStart(4, '0'),
+      staffName: u.name,
+      role: u.role,
+      week: countFor(weekRecs, u.id),
+      month: countFor(monthRecs, u.id),
+      year: countFor(yearRecs, u.id),
+    }));
+  }
+
+  /** Export staff attendance for a date range as CSV */
+  async exportStaffPeriod(startDate: Date, endDate: Date): Promise<string> {
+    const start = toUTCMidnight(startDate);
+    const end = new Date(toUTCMidnight(endDate).getTime() + 24 * 60 * 60 * 1000);
+
+    const staff = await this.prisma.user.findMany({
+      where: { role: { notIn: ['STUDENT', 'PARENT'] } },
+      orderBy: { name: 'asc' },
+    });
+
+    const records = await this.prisma.staffAttendance.findMany({
+      where: { date: { gte: start, lt: end } },
+      orderBy: [{ date: 'asc' }, { session: 'asc' }],
+    });
+
+    const header = 'Staff Name,Role,Date,Session,Status,Check-In Time (GMT+7),Check-Out Time (GMT+7)';
+    const rows: string[] = [];
+    for (const rec of records) {
+      const u = staff.find(s => s.id === rec.userId);
+      if (!u) continue;
+      const sessionLabel = rec.session === 1 ? 'Morning' : rec.session === 3 ? 'Afternoon' : `Session ${rec.session}`;
+      rows.push(
+        `"${u.name}","${u.role}","${rec.date.toISOString().split('T')[0]}","${sessionLabel}","${rec.status}","${toCambodiaTime(rec.checkInTime) || ''}","${toCambodiaTime(rec.checkOutTime) || ''}"`
+      );
+    }
+    return [header, ...rows].join('\n');
+  }
+
+  // ========== ATTENDANCE STATUS DETERMINATION ==========
+
+  /**
+   * Determine the daily attendance status for a student based on session records.
+   * Rules:
+   * - Morning CheckIn-Out + Afternoon CheckIn-Out → Present
+   * - Late twice in a day → Present (Late)
+   * - Late three times → Absent (Exceeded Late Limit)
+   * - Attend morning + miss afternoon → Half-Day Present (Morning Only)
+   * - Miss morning + attend afternoon → Half-Day Present (Afternoon Only)
+   * - No check-in/out → Absent
+   */
+  private determineDailyStatus(sessions: {
+    session1Status: string | null;
+    session2Status: string | null;
+    session3Status: string | null;
+    session4Status: string | null;
+  }): string {
+    const { session1Status, session2Status, session3Status, session4Status } = sessions;
+
+    const morningIn = session1Status && session1Status !== 'ABSENT' && session1Status !== 'DAY_OFF';
+    const morningOut = session2Status && session2Status !== 'ABSENT' && session2Status !== 'DAY_OFF';
+    const afternoonIn = session3Status && session3Status !== 'ABSENT' && session3Status !== 'DAY_OFF';
+    const afternoonOut = session4Status && session4Status !== 'ABSENT' && session4Status !== 'DAY_OFF';
+
+    const hasMorning = morningIn || morningOut;
+    const hasAfternoon = afternoonIn || afternoonOut;
+
+    // No attendance at all
+    if (!hasMorning && !hasAfternoon) return 'Absent';
+
+    // LATE + 3 ABSENT = Absent (only LATE with no PRESENT and 3+ absent sessions)
+    const allStatuses = [session1Status, session2Status, session3Status, session4Status];
+    const hasPresent = allStatuses.some(s => s === 'PRESENT');
+    const absentCount = allStatuses.filter(s => s === 'ABSENT').length;
+    if (!hasPresent && absentCount >= 3) return 'Absent';
+
+    // Check for DAY_OFF
+    if ([session1Status, session2Status, session3Status, session4Status].some(s => s === 'DAY_OFF')) {
+      return 'Day Off';
+    }
+
+    // Count late sessions
+    const lateCount = [session1Status, session2Status, session3Status, session4Status]
+      .filter(s => s === 'LATE').length;
+
+    // Late three times → Absent (Exceeded Late Limit)
+    if (lateCount >= 3) return 'Absent (Exceeded Late Limit)';
+
+    // Full attendance (both morning and afternoon)
+    if (hasMorning && hasAfternoon) {
+      if (lateCount >= 2) return 'Present (Late)';
+      if (lateCount === 1) return 'Present (Late)';
+      return 'Present';
+    }
+
+    // Half-day
+    if (hasMorning && !hasAfternoon) return 'Half-Day Present (Morning Only)';
+    if (!hasMorning && hasAfternoon) return 'Half-Day Present (Afternoon Only)';
+
+    return 'Absent';
+  }
+
+  // ========== XLSX EXPORT WITH 4 SHEETS ==========
+
+  /** Helper: apply header styling to a worksheet row */
+  private styleHeaderRow(row: ExcelJS.Row, bgColor: string = 'CFE2F3') {
+    row.eachCell(cell => {
+      cell.font = { bold: true, size: 10, name: 'Arial' };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bgColor } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+      cell.border = {
+        top: { style: 'thin' }, bottom: { style: 'thin' },
+        left: { style: 'thin' }, right: { style: 'thin' },
+      };
+    });
+  }
+
+  /** Helper: apply data styling to a worksheet row */
+  private styleDataRow(row: ExcelJS.Row) {
+    row.eachCell(cell => {
+      cell.font = { size: 10, name: 'Arial' };
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      cell.border = {
+        top: { style: 'thin' }, bottom: { style: 'thin' },
+        left: { style: 'thin' }, right: { style: 'thin' },
+      };
+    });
+  }
+
+  /** Export attendance as XLSX — filtered by period: daily, weekly, monthly, yearly, or all */
+  async exportAttendanceXlsx(classId: string, date: Date, period?: string): Promise<Buffer> {
+    const workbook = new ExcelJS.Workbook();
+    const d = toUTCMidnight(date);
+    const y = d.getUTCFullYear();
+    const m = d.getUTCMonth();
+    const day = d.getUTCDate();
+    const dow = d.getUTCDay();
+
+    const cls = await this.prisma.class.findUnique({
+      where: { id: classId },
+      include: { students: { include: { user: { select: { name: true } } } } },
+    });
+    if (!cls) return Buffer.from('');
+
+    const configs = await this.sessionConfigService.getConfigs(classId);
+
+    // Fetch holidays for the year
+    const yearStart = new Date(Date.UTC(y, 0, 1));
+    const yearEnd = new Date(Date.UTC(y + 1, 0, 1));
+    const yearHolidays = await this.holidaysService.getHolidaysInRange(yearStart, yearEnd);
+    const holidayDateSet = new Set(yearHolidays.map(h => h.date.toISOString().split('T')[0]));
+
+    const p = (period || 'daily').toLowerCase();
+
+    if (p === 'daily') {
+      await this.buildDailySheet(workbook, cls, configs, d, holidayDateSet);
+    } else if (p === 'weekly') {
+      await this.buildWeeklySheet(workbook, cls, d, holidayDateSet);
+    } else if (p === 'monthly') {
+      await this.buildMonthlySheet(workbook, cls, d, holidayDateSet);
+    } else if (p === 'yearly') {
+      await this.buildYearlySheet(workbook, cls, d, holidayDateSet);
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer);
+  }
+
+  /** Build the Daily attendance sheet */
+  private async buildDailySheet(
+    workbook: ExcelJS.Workbook, cls: any, configs: any[], date: Date, holidayDateSet: Set<string>,
+  ) {
+    const ws = workbook.addWorksheet('Daily');
+    const dayStart = toUTCMidnight(date);
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+    const dayName = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][dayStart.getUTCDay()];
+
+    const attendances = await this.prisma.attendance.findMany({
+      where: { classId: cls.id, date: { gte: dayStart, lt: dayEnd } },
+    });
+
+    // Session config for pairing
+    const s2Cfg = configs.find((c: any) => c.session === 2);
+    const s4Cfg = configs.find((c: any) => c.session === 4);
+    const s2IsCheckOut = !s2Cfg || s2Cfg.type === 'CHECK_OUT';
+    const s4IsCheckOut = !s4Cfg || s4Cfg.type === 'CHECK_OUT';
+
+    // Row 1: Header merged cells
+    // Day | ID | Student Name | CheckIn Morning | CheckOut Afternoon | CheckIn Afternoon | CheckOut Evening | Total(4 cols)
+    const headerRow1 = ws.addRow([
+      'Day', 'ID', 'Student Name',
+      'CheckIn Morning', 'CheckOut Afternoon', 'CheckIn Afternoon', 'CheckOut Evening',
+      'Total', '', '', '',
+    ]);
+    // Merge "Total" across H1:K1
+    ws.mergeCells('A1:A2');
+    ws.mergeCells('B1:B2');
+    ws.mergeCells('C1:C2');
+    ws.mergeCells('D1:D2');
+    ws.mergeCells('E1:E2');
+    ws.mergeCells('F1:F2');
+    ws.mergeCells('G1:G2');
+    ws.mergeCells('H1:K1');
+    this.styleHeaderRow(headerRow1);
+
+    // Row 2: Sub-headers for Total
+    const headerRow2 = ws.addRow(['', '', '', '', '', '', '', 'Present', 'Absent', 'Late', 'Permission']);
+    this.styleHeaderRow(headerRow2, 'FFFFFF');
+
+    // Cambodia "today" for future-date blank logic
+    const now = new Date();
+    const cambodiaNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+    const todayCambodia = new Date(Date.UTC(cambodiaNow.getUTCFullYear(), cambodiaNow.getUTCMonth(), cambodiaNow.getUTCDate()));
+    const cambodiaNowHHMM = cambodiaNow.toISOString().slice(11, 16);
+    const isFutureDay = dayStart > todayCambodia;
+    const isHoliday = holidayDateSet.has(dayStart.toISOString().split('T')[0]);
+
+    // Data rows
+    for (const [idx, student] of cls.students.entries()) {
+      if (isFutureDay) {
+        const row = ws.addRow([
+          dayName,
+          student.studentNumber || String(idx + 1).padStart(4, '0'),
+          student.user.name,
+          '', '', '', '', '', '', '', '',
+        ]);
+        this.styleDataRow(row);
+        continue;
+      }
+
+      const recs = attendances.filter((a: any) => a.studentId === student.id);
+      const s1 = recs.find((a: any) => a.session === 1);
+      const s2 = recs.find((a: any) => a.session === 2);
+      const s3 = recs.find((a: any) => a.session === 3);
+      const s4 = recs.find((a: any) => a.session === 4);
+
+      let s1Status = s1?.status || null;
+      let s2Status = s2IsCheckOut ? (s1?.checkOutTime ? (s1.status || 'PRESENT') : null) : (s2?.status || null);
+      let s3Status = s3?.status || null;
+      let s4Status = s4IsCheckOut ? (s3?.checkOutTime ? (s3.status || 'PRESENT') : null) : (s4?.status || null);
+
+      // Mark overtime sessions as ABSENT
+      if (!isHoliday) {
+        if (!s1Status && isSessionOvertime(1, configs, dayStart, todayCambodia, cambodiaNowHHMM)) s1Status = 'ABSENT';
+        if (!s2Status && isSessionOvertime(2, configs, dayStart, todayCambodia, cambodiaNowHHMM)) s2Status = 'ABSENT';
+        if (!s3Status && isSessionOvertime(3, configs, dayStart, todayCambodia, cambodiaNowHHMM)) s3Status = 'ABSENT';
+        if (!s4Status && isSessionOvertime(4, configs, dayStart, todayCambodia, cambodiaNowHHMM)) s4Status = 'ABSENT';
+      }
+
+      const fmtCell = (time: Date | null, status: string | null) => {
+        if (!status) return '';
+        if (status === 'ABSENT') return 'Absent';
+        if (status === 'DAY_OFF') return 'Day Off';
+        if (status === 'LATE') return time ? `${toCambodiaTimeShort(time)} (Late)` : 'Late';
+        return time ? toCambodiaTimeShort(time) || 'Present' : 'Present';
+      };
+
+      const dailyStatus = this.determineDailyStatus({ session1Status: s1Status, session2Status: s2Status, session3Status: s3Status, session4Status: s4Status });
+
+      // Count totals for this student this day
+      const isPresent = dailyStatus === 'Present' || dailyStatus.startsWith('Half-Day') ? 1 : 0;
+      const isAbsent = dailyStatus === 'Absent' || dailyStatus === 'Absent (Exceeded Late Limit)' ? 1 : 0;
+      const isLate = dailyStatus.includes('Late') && !dailyStatus.includes('Exceeded') ? 1 : 0;
+      const isPermission = dailyStatus === 'Day Off' ? 1 : 0;
+
+      const checkInMorning = s1 && s1.status !== 'ABSENT' && s1.status !== 'DAY_OFF' ? s1.checkInTime : null;
+      const checkOutMorning = s2IsCheckOut ? (s1?.checkOutTime || null) : (s2 && s2.status !== 'ABSENT' ? (s2.checkOutTime || s2.checkInTime) : null);
+      const checkInAfternoon = s3 && s3.status !== 'ABSENT' && s3.status !== 'DAY_OFF' ? s3.checkInTime : null;
+      const checkOutAfternoon = s4IsCheckOut ? (s3?.checkOutTime || null) : (s4 && s4.status !== 'ABSENT' ? (s4.checkOutTime || s4.checkInTime) : null);
+
+      const row = ws.addRow([
+        dayName,
+        student.studentNumber || String(idx + 1).padStart(4, '0'),
+        student.user.name,
+        fmtCell(checkInMorning, s1Status),
+        fmtCell(checkOutMorning, s2Status),
+        fmtCell(checkInAfternoon, s3Status),
+        fmtCell(checkOutAfternoon, s4Status),
+        isPresent, isAbsent, isLate, isPermission,
+      ]);
+      this.styleDataRow(row);
+    }
+
+    // Auto-fit column widths
+    ws.columns = [
+      { width: 12 }, { width: 10 }, { width: 20 },
+      { width: 18 }, { width: 18 }, { width: 18 }, { width: 18 },
+      { width: 10 }, { width: 10 }, { width: 10 }, { width: 12 },
+    ];
+  }
+
+  /** Build the Weekly attendance sheet */
+  private async buildWeeklySheet(
+    workbook: ExcelJS.Workbook, cls: any, date: Date, holidayDateSet: Set<string>,
+  ) {
+    const ws = workbook.addWorksheet('Weekly');
+    const d = toUTCMidnight(date);
+    const dow = d.getUTCDay(); // 0=Sun, 6=Sat
+    // Find Monday of the week (Mon-Sun)
+    const mondayOffset = dow === 0 ? 6 : (dow - 1);
+    const monday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - mondayOffset));
+
+    const configs = await this.sessionConfigService.getConfigs(cls.id);
+    const s2Cfg = configs.find((c: any) => c.session === 2);
+    const s4Cfg = configs.find((c: any) => c.session === 4);
+    const s2IsCheckOut = !s2Cfg || s2Cfg.type === 'CHECK_OUT';
+    const s4IsCheckOut = !s4Cfg || s4Cfg.type === 'CHECK_OUT';
+
+    // Fetch the full week of attendance (Mon-Sun)
+    const weekEnd = new Date(monday.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const attendances = await this.prisma.attendance.findMany({
+      where: { classId: cls.id, date: { gte: monday, lt: weekEnd } },
+    });
+
+    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    // Build day headers with actual dates: "Mon (YYYY-MM-DD)"
+    const dayHeaders: string[] = [];
+    for (let i = 0; i < 7; i++) {
+      const dayDate = new Date(monday.getTime() + i * 24 * 60 * 60 * 1000);
+      const dateStr = dayDate.toISOString().split('T')[0];
+      dayHeaders.push(`${dayNames[i]} (${dateStr})`);
+    }
+
+    // Row 1: ID | Student Name | Mon(4cols) | Tue(4cols) | ... | Sun(4cols) | Total(4cols)
+    const headerValues: any[] = ['ID', 'Student Name'];
+    for (const dh of dayHeaders) headerValues.push(dh, '', '', '');
+    headerValues.push('Total', '', '', '');
+    const headerRow1 = ws.addRow(headerValues);
+
+    // Merge day headers
+    ws.mergeCells('A1:A2'); ws.mergeCells('B1:B2');
+    let col = 3;
+    for (let i = 0; i < 7; i++) {
+      ws.mergeCells(1, col, 1, col + 3);
+      col += 4;
+    }
+    ws.mergeCells(1, col, 1, col + 3); // Total
+    this.styleHeaderRow(headerRow1);
+
+    // Row 2: Sub-headers
+    const subValues: any[] = ['', ''];
+    for (let i = 0; i < 8; i++) subValues.push('Present', 'Absent', 'Late', 'Permission');
+    const headerRow2 = ws.addRow(subValues);
+    this.styleHeaderRow(headerRow2, 'FFFFFF');
+
+    // Cambodia "today" for future-date blank logic
+    const now = new Date();
+    const cambodiaNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+    const todayCambodia = new Date(Date.UTC(cambodiaNow.getUTCFullYear(), cambodiaNow.getUTCMonth(), cambodiaNow.getUTCDate()));
+    const cambodiaNowHHMM = cambodiaNow.toISOString().slice(11, 16);
+
+    // Data rows
+    for (const [idx, student] of cls.students.entries()) {
+      const rowVals: any[] = [
+        student.studentNumber || String(idx + 1).padStart(4, '0'),
+        student.user.name,
+      ];
+      let totalP = 0, totalA = 0, totalL = 0, totalPerm = 0;
+      let hasPastDays = false;
+
+      for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
+        const dayDate = new Date(monday.getTime() + dayIdx * 24 * 60 * 60 * 1000);
+        const dayStart = toUTCMidnight(dayDate);
+        const dayDateEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+        if (dayStart > todayCambodia) {
+          rowVals.push('', '', '', '');
+          continue;
+        }
+        hasPastDays = true;
+
+        const dayRecs = attendances.filter((a: any) =>
+          a.studentId === student.id && a.date >= dayStart && a.date < dayDateEnd
+        );
+
+        const s1 = dayRecs.find((a: any) => a.session === 1);
+        const s2 = dayRecs.find((a: any) => a.session === 2);
+        const s3 = dayRecs.find((a: any) => a.session === 3);
+        const s4 = dayRecs.find((a: any) => a.session === 4);
+
+        let s1Status = s1?.status || null;
+        let s2Status = s2IsCheckOut ? (s1?.checkOutTime ? (s1.status || 'PRESENT') : null) : (s2?.status || null);
+        let s3Status = s3?.status || null;
+        let s4Status = s4IsCheckOut ? (s3?.checkOutTime ? (s3.status || 'PRESENT') : null) : (s4?.status || null);
+
+        const isHoliday = holidayDateSet.has(dayStart.toISOString().split('T')[0]);
+        if (isHoliday) {
+          rowVals.push(0, 0, 0, 0);
+          continue;
+        }
+
+        // Mark overtime sessions as ABSENT
+        if (!s1Status && isSessionOvertime(1, configs, dayStart, todayCambodia, cambodiaNowHHMM)) s1Status = 'ABSENT';
+        if (!s2Status && isSessionOvertime(2, configs, dayStart, todayCambodia, cambodiaNowHHMM)) s2Status = 'ABSENT';
+        if (!s3Status && isSessionOvertime(3, configs, dayStart, todayCambodia, cambodiaNowHHMM)) s3Status = 'ABSENT';
+        if (!s4Status && isSessionOvertime(4, configs, dayStart, todayCambodia, cambodiaNowHHMM)) s4Status = 'ABSENT';
+
+        const dailyStatus = this.determineDailyStatus({ session1Status: s1Status, session2Status: s2Status, session3Status: s3Status, session4Status: s4Status });
+
+        const p = dailyStatus === 'Present' || dailyStatus.startsWith('Half-Day') ? 1 : 0;
+        const a = dailyStatus === 'Absent' || dailyStatus === 'Absent (Exceeded Late Limit)' ? 1 : 0;
+        const l = dailyStatus.includes('Late') && !dailyStatus.includes('Exceeded') ? 1 : 0;
+        const perm = dailyStatus === 'Day Off' ? 1 : 0;
+
+        rowVals.push(p, a, l, perm);
+        totalP += p; totalA += a; totalL += l; totalPerm += perm;
+      }
+
+      rowVals.push(hasPastDays ? totalP : '', hasPastDays ? totalA : '', hasPastDays ? totalL : '', hasPastDays ? totalPerm : '');
+      const row = ws.addRow(rowVals);
+      this.styleDataRow(row);
+    }
+
+    // Column widths
+    const colWidths = [{ width: 10 }, { width: 20 }];
+    for (let i = 0; i < 32; i++) colWidths.push({ width: 10 });
+    ws.columns = colWidths;
+  }
+
+  /** Build the Monthly attendance sheet */
+  private async buildMonthlySheet(
+    workbook: ExcelJS.Workbook, cls: any, date: Date, holidayDateSet: Set<string>,
+  ) {
+    const ws = workbook.addWorksheet('Monthly');
+    const d = toUTCMidnight(date);
+    const y = d.getUTCFullYear();
+    const m = d.getUTCMonth();
+    const monthStart = new Date(Date.UTC(y, m, 1));
+    const monthEnd = new Date(Date.UTC(y, m + 1, 1));
+    const monthName = monthStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+
+    const configs = await this.sessionConfigService.getConfigs(cls.id);
+    const s2Cfg = configs.find((c: any) => c.session === 2);
+    const s4Cfg = configs.find((c: any) => c.session === 4);
+    const s2IsCheckOut = !s2Cfg || s2Cfg.type === 'CHECK_OUT';
+    const s4IsCheckOut = !s4Cfg || s4Cfg.type === 'CHECK_OUT';
+
+    // Divide the month into weeks (Sun-Sat)
+    const weeks: { start: Date; end: Date; label: string }[] = [];
+    let cursor = new Date(monthStart);
+    while (cursor < monthEnd) {
+      const weekStart = new Date(cursor);
+      const dayOfWeek = weekStart.getUTCDay(); // 0=Sun, 6=Sat
+      const daysToSaturday = dayOfWeek === 6 ? 0 : (6 - dayOfWeek);
+      const saturday = new Date(weekStart);
+      saturday.setUTCDate(saturday.getUTCDate() + daysToSaturday);
+      // Week end is exclusive (day after Saturday), clamped to month end
+      const weekEnd = new Date(Math.min(saturday.getTime() + 24 * 60 * 60 * 1000, monthEnd.getTime()));
+      const endDisplay = new Date(weekEnd.getTime() - 24 * 60 * 60 * 1000);
+      weeks.push({
+        start: weekStart,
+        end: weekEnd,
+        label: `Week ${weeks.length + 1} (${weekStart.toISOString().split('T')[0]} to ${endDisplay.toISOString().split('T')[0]})`,
+      });
+      cursor = weekEnd;
+    }
+
+    // Fetch month attendance
+    const attendances = await this.prisma.attendance.findMany({
+      where: { classId: cls.id, date: { gte: monthStart, lt: monthEnd } },
+    });
+
+    // Row 1 header
+    const headerValues: any[] = ['Month', 'ID', 'Student Name'];
+    for (const w of weeks) headerValues.push(w.label, '', '', '');
+    headerValues.push('Total', '', '', '');
+    const headerRow1 = ws.addRow(headerValues);
+
+    // Merges
+    ws.mergeCells('A1:A2'); ws.mergeCells('B1:B2'); ws.mergeCells('C1:C2');
+    let col = 4;
+    for (let i = 0; i < weeks.length; i++) {
+      ws.mergeCells(1, col, 1, col + 3);
+      col += 4;
+    }
+    ws.mergeCells(1, col, 1, col + 3);
+    this.styleHeaderRow(headerRow1);
+
+    // Row 2 sub-headers
+    const subValues: any[] = ['', '', ''];
+    for (let i = 0; i < weeks.length + 1; i++) subValues.push('Present', 'Absent', 'Late', 'Permission');
+    const headerRow2 = ws.addRow(subValues);
+    this.styleHeaderRow(headerRow2, 'FFFFFF');
+
+    // Cambodia "today" for future-date blank logic
+    const now = new Date();
+    const cambodiaNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+    const todayCambodia = new Date(Date.UTC(cambodiaNow.getUTCFullYear(), cambodiaNow.getUTCMonth(), cambodiaNow.getUTCDate()));
+    const cambodiaNowHHMM = cambodiaNow.toISOString().slice(11, 16);
+
+    // Data
+    for (const [idx, student] of cls.students.entries()) {
+      const rowVals: any[] = [
+        monthName,
+        student.studentNumber || String(idx + 1).padStart(4, '0'),
+        student.user.name,
+      ];
+      let totalP = 0, totalA = 0, totalL = 0, totalPerm = 0;
+      let hasPastDays = false;
+
+      for (const week of weeks) {
+        let wp = 0, wa = 0, wl = 0, wperm = 0;
+        let weekHasPast = false;
+        let cursor = new Date(week.start);
+        while (cursor < week.end) {
+          const dayStart = toUTCMidnight(cursor);
+          const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+          if (dayStart > todayCambodia) {
+            cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
+            continue;
+          }
+          weekHasPast = true;
+          hasPastDays = true;
+
+          const isHoliday = holidayDateSet.has(dayStart.toISOString().split('T')[0]);
+
+          if (!isHoliday) {
+            const dayRecs = attendances.filter((a: any) =>
+              a.studentId === student.id && a.date >= dayStart && a.date < dayEnd
+            );
+            const s1 = dayRecs.find((a: any) => a.session === 1);
+            const s2 = dayRecs.find((a: any) => a.session === 2);
+            const s3 = dayRecs.find((a: any) => a.session === 3);
+            const s4 = dayRecs.find((a: any) => a.session === 4);
+            let s1Status = s1?.status || null;
+            let s2Status = s2IsCheckOut ? (s1?.checkOutTime ? (s1.status || 'PRESENT') : null) : (s2?.status || null);
+            let s3Status = s3?.status || null;
+            let s4Status = s4IsCheckOut ? (s3?.checkOutTime ? (s3.status || 'PRESENT') : null) : (s4?.status || null);
+
+            // Mark overtime sessions as ABSENT
+            if (!s1Status && isSessionOvertime(1, configs, dayStart, todayCambodia, cambodiaNowHHMM)) s1Status = 'ABSENT';
+            if (!s2Status && isSessionOvertime(2, configs, dayStart, todayCambodia, cambodiaNowHHMM)) s2Status = 'ABSENT';
+            if (!s3Status && isSessionOvertime(3, configs, dayStart, todayCambodia, cambodiaNowHHMM)) s3Status = 'ABSENT';
+            if (!s4Status && isSessionOvertime(4, configs, dayStart, todayCambodia, cambodiaNowHHMM)) s4Status = 'ABSENT';
+
+            const dailyStatus = this.determineDailyStatus({ session1Status: s1Status, session2Status: s2Status, session3Status: s3Status, session4Status: s4Status });
+
+            if (dailyStatus === 'Present' || dailyStatus.startsWith('Half-Day')) wp++;
+            else if (dailyStatus === 'Absent' || dailyStatus === 'Absent (Exceeded Late Limit)') wa++;
+            if (dailyStatus.includes('Late') && !dailyStatus.includes('Exceeded')) wl++;
+            if (dailyStatus === 'Day Off') wperm++;
+          }
+
+          cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
+        }
+        rowVals.push(weekHasPast ? wp : '', weekHasPast ? wa : '', weekHasPast ? wl : '', weekHasPast ? wperm : '');
+        if (weekHasPast) { totalP += wp; totalA += wa; totalL += wl; totalPerm += wperm; }
+      }
+
+      rowVals.push(hasPastDays ? totalP : '', hasPastDays ? totalA : '', hasPastDays ? totalL : '', hasPastDays ? totalPerm : '');
+      const row = ws.addRow(rowVals);
+      this.styleDataRow(row);
+    }
+
+    // Column widths
+    const colWidths = [{ width: 14 }, { width: 10 }, { width: 20 }];
+    for (let i = 0; i < (weeks.length + 1) * 4; i++) colWidths.push({ width: 10 });
+    ws.columns = colWidths;
+  }
+
+  /** Build the Yearly attendance sheet */
+  private async buildYearlySheet(
+    workbook: ExcelJS.Workbook, cls: any, date: Date, holidayDateSet: Set<string>,
+  ) {
+    const ws = workbook.addWorksheet('Yearly');
+    const d = toUTCMidnight(date);
+    const y = d.getUTCFullYear();
+    const yearStart = new Date(Date.UTC(y, 0, 1));
+    const yearEnd = new Date(Date.UTC(y + 1, 0, 1));
+
+    const configs = await this.sessionConfigService.getConfigs(cls.id);
+    const s2Cfg = configs.find((c: any) => c.session === 2);
+    const s4Cfg = configs.find((c: any) => c.session === 4);
+    const s2IsCheckOut = !s2Cfg || s2Cfg.type === 'CHECK_OUT';
+    const s4IsCheckOut = !s4Cfg || s4Cfg.type === 'CHECK_OUT';
+
+    // Fetch full year of attendance
+    const attendances = await this.prisma.attendance.findMany({
+      where: { classId: cls.id, date: { gte: yearStart, lt: yearEnd } },
+    });
+
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    // Row 1 header
+    const headerValues: any[] = ['Year', 'ID', 'Student Name'];
+    for (const mn of months) headerValues.push(mn, '', '', '');
+    headerValues.push('Total', '', '', '');
+    const headerRow1 = ws.addRow(headerValues);
+
+    // Merges
+    ws.mergeCells('A1:A2'); ws.mergeCells('B1:B2'); ws.mergeCells('C1:C2');
+    let col = 4;
+    for (let i = 0; i < 13; i++) { // 12 months + 1 total
+      ws.mergeCells(1, col, 1, col + 3);
+      col += 4;
+    }
+    this.styleHeaderRow(headerRow1);
+
+    // Row 2 sub-headers
+    const subValues: any[] = ['', '', ''];
+    for (let i = 0; i < 13; i++) subValues.push('Present', 'Absent', 'Late', 'Permission');
+    const headerRow2 = ws.addRow(subValues);
+    this.styleHeaderRow(headerRow2, 'FFFFFF');
+
+    // Cambodia "today" for future-date blank logic
+    const now = new Date();
+    const cambodiaNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+    const todayCambodia = new Date(Date.UTC(cambodiaNow.getUTCFullYear(), cambodiaNow.getUTCMonth(), cambodiaNow.getUTCDate()));
+    const cambodiaNowHHMM = cambodiaNow.toISOString().slice(11, 16);
+
+    // Data
+    for (const [idx, student] of cls.students.entries()) {
+      const rowVals: any[] = [
+        String(y),
+        student.studentNumber || String(idx + 1).padStart(4, '0'),
+        student.user.name,
+      ];
+      let totalP = 0, totalA = 0, totalL = 0, totalPerm = 0;
+      let hasPastDays = false;
+
+      for (let mi = 0; mi < 12; mi++) {
+        const mStart = new Date(Date.UTC(y, mi, 1));
+        const mEnd = new Date(Date.UTC(y, mi + 1, 1));
+        let mp = 0, ma = 0, ml = 0, mperm = 0;
+
+        let monthHasPast = false;
+        let cursor = new Date(mStart);
+        while (cursor < mEnd) {
+          const dayStart = toUTCMidnight(cursor);
+          const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+          if (dayStart > todayCambodia) {
+            cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
+            continue;
+          }
+          monthHasPast = true;
+          hasPastDays = true;
+
+          const isHoliday = holidayDateSet.has(dayStart.toISOString().split('T')[0]);
+
+          if (!isHoliday) {
+            const dayRecs = attendances.filter((a: any) =>
+              a.studentId === student.id && a.date >= dayStart && a.date < dayEnd
+            );
+            const s1 = dayRecs.find((a: any) => a.session === 1);
+            const s2 = dayRecs.find((a: any) => a.session === 2);
+            const s3 = dayRecs.find((a: any) => a.session === 3);
+            const s4 = dayRecs.find((a: any) => a.session === 4);
+            let s1Status = s1?.status || null;
+            let s2Status = s2IsCheckOut ? (s1?.checkOutTime ? (s1.status || 'PRESENT') : null) : (s2?.status || null);
+            let s3Status = s3?.status || null;
+            let s4Status = s4IsCheckOut ? (s3?.checkOutTime ? (s3.status || 'PRESENT') : null) : (s4?.status || null);
+
+            // Mark overtime sessions as ABSENT
+            if (!s1Status && isSessionOvertime(1, configs, dayStart, todayCambodia, cambodiaNowHHMM)) s1Status = 'ABSENT';
+            if (!s2Status && isSessionOvertime(2, configs, dayStart, todayCambodia, cambodiaNowHHMM)) s2Status = 'ABSENT';
+            if (!s3Status && isSessionOvertime(3, configs, dayStart, todayCambodia, cambodiaNowHHMM)) s3Status = 'ABSENT';
+            if (!s4Status && isSessionOvertime(4, configs, dayStart, todayCambodia, cambodiaNowHHMM)) s4Status = 'ABSENT';
+
+            const dailyStatus = this.determineDailyStatus({ session1Status: s1Status, session2Status: s2Status, session3Status: s3Status, session4Status: s4Status });
+
+            if (dailyStatus === 'Present' || dailyStatus.startsWith('Half-Day')) mp++;
+            else if (dailyStatus === 'Absent' || dailyStatus === 'Absent (Exceeded Late Limit)') ma++;
+            if (dailyStatus.includes('Late') && !dailyStatus.includes('Exceeded')) ml++;
+            if (dailyStatus === 'Day Off') mperm++;
+          }
+
+          cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
+        }
+
+        rowVals.push(monthHasPast ? mp : '', monthHasPast ? ma : '', monthHasPast ? ml : '', monthHasPast ? mperm : '');
+        if (monthHasPast) { totalP += mp; totalA += ma; totalL += ml; totalPerm += mperm; }
+      }
+
+      rowVals.push(hasPastDays ? totalP : '', hasPastDays ? totalA : '', hasPastDays ? totalL : '', hasPastDays ? totalPerm : '');
+      const row = ws.addRow(rowVals);
+      this.styleDataRow(row);
+    }
+
+    // Column widths
+    const colWidths = [{ width: 10 }, { width: 10 }, { width: 20 }];
+    for (let i = 0; i < 52; i++) colWidths.push({ width: 10 });
+    ws.columns = colWidths;
+  }
+
+  /** Export staff attendance grid as CSV */
+  async exportStaffAttendanceGrid(date: Date): Promise<string> {
+    const grid = await this.getStaffAttendanceDailyGrid(date);
+    const totals = await this.getStaffAttendanceTotals(date);
+
+    const d = toUTCMidnight(date);
+    const dayName = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getUTCDay()];
+
+    const dailyHeader = 'Day,ID,Staff Name,Role,CheckIn Morning,CheckOut Morning,CheckIn Afternoon,CheckOut Afternoon,Location';
+    const fmtCell = (time: string | null, status: string | null) => {
+      if (!status) return '';
+      if (status === 'ABSENT') return 'Absent';
+      if (status === 'DAY_OFF') return 'Permission';
+      if (status === 'LATE') return time ? `${time} (Late)` : 'Late';
+      return time || 'Present';
+    };
+    const dailyRows = grid.map(r =>
+      `"${dayName}","${r.staffNumber}","${r.staffName}","${r.role}","${fmtCell(r.checkInMorning, r.session1Status)}","${fmtCell(r.checkOutMorning, r.session2Status)}","${fmtCell(r.checkInAfternoon, r.session3Status)}","${fmtCell(r.checkOutAfternoon, r.session4Status)}","${r.scanLocation || ''}"`,
+    );
+
+    const hasAtt = (r: any) => [r.session1Status, r.session2Status, r.session3Status, r.session4Status].some((s: string) => s === 'PRESENT' || s === 'LATE');
+    const isLate = (r: any) => [r.session1Status, r.session2Status, r.session3Status, r.session4Status].some((s: string) => s === 'LATE');
+    const present = grid.filter(r => hasAtt(r) && !isLate(r)).length;
+    const late = grid.filter(r => hasAtt(r) && isLate(r)).length;
+    const permission = grid.filter(r => [r.session1Status, r.session2Status, r.session3Status, r.session4Status].some((s: string) => s === 'DAY_OFF')).length;
+    const absent = grid.length - present - late - permission;
+    const dailySummary = `\n"Total Staff: ${grid.length}","Present: ${present}","Present (Late): ${late}","Absent: ${absent}","Permission: ${permission}"`;
+
+    const totalsHeader = '\nID,Staff Name,Role,Week Present,Week Present (Late),Week Absent,Week Permission,Month Present,Month Present (Late),Month Absent,Month Permission,Year Present,Year Present (Late),Year Absent,Year Permission';
+    const totalsRows = totals.map(r =>
+      `"${r.staffNumber}","${r.staffName}","${r.role}","${r.week.present}","${r.week.late}","${r.week.absent}","${r.week.dayOff || 0}","${r.month.present}","${r.month.late}","${r.month.absent}","${r.month.dayOff || 0}","${r.year.present}","${r.year.late}","${r.year.absent}","${r.year.dayOff || 0}"`,
+    );
+
+    return [dailyHeader, ...dailyRows, dailySummary, totalsHeader, ...totalsRows].join('\n');
+  }
+
+  // ========== STAFF XLSX EXPORT ==========
+
+  /** Export staff attendance as XLSX — filtered by period */
+  async exportStaffAttendanceXlsx(date: Date, period?: string): Promise<Buffer> {
+    const workbook = new ExcelJS.Workbook();
+    const d = toUTCMidnight(date);
+    const y = d.getUTCFullYear();
+    const m = d.getUTCMonth();
+
+    const staff = await this.prisma.user.findMany({
+      where: { role: { notIn: ['STUDENT', 'PARENT'] } },
+      orderBy: { name: 'asc' },
+    });
+
+    const yearStart = new Date(Date.UTC(y, 0, 1));
+    const yearEnd = new Date(Date.UTC(y + 1, 0, 1));
+    const yearHolidays = await this.holidaysService.getHolidaysInRange(yearStart, yearEnd);
+    const holidayDateSet = new Set(yearHolidays.map(h => h.date.toISOString().split('T')[0]));
+
+    const p = (period || 'daily').toLowerCase();
+
+    if (p === 'daily') {
+      await this.buildStaffDailySheet(workbook, staff, d, holidayDateSet);
+    } else if (p === 'weekly') {
+      await this.buildStaffWeeklySheet(workbook, staff, d, holidayDateSet);
+    } else if (p === 'monthly') {
+      await this.buildStaffMonthlySheet(workbook, staff, d, holidayDateSet);
+    } else if (p === 'yearly') {
+      await this.buildStaffYearlySheet(workbook, staff, d, holidayDateSet);
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer);
+  }
+
+  /** Staff Daily XLSX sheet */
+  private async buildStaffDailySheet(
+    workbook: ExcelJS.Workbook, staff: any[], date: Date, holidayDateSet: Set<string>,
+  ) {
+    const ws = workbook.addWorksheet('Daily');
+    const dayStart = toUTCMidnight(date);
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+    const dayName = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][dayStart.getUTCDay()];
+
+    const records = await this.prisma.staffAttendance.findMany({
+      where: { date: { gte: dayStart, lt: dayEnd } },
+    });
+
+    // Headers
+    const headerRow1 = ws.addRow([
+      'Day', 'ID', 'Staff Name', 'Role',
+      'CheckIn Morning', 'CheckOut Afternoon', 'CheckIn Afternoon', 'CheckOut Evening',
+      'Total', '', '', '',
+    ]);
+    ws.mergeCells('A1:A2'); ws.mergeCells('B1:B2'); ws.mergeCells('C1:C2'); ws.mergeCells('D1:D2');
+    ws.mergeCells('E1:E2'); ws.mergeCells('F1:F2'); ws.mergeCells('G1:G2'); ws.mergeCells('H1:H2');
+    ws.mergeCells('I1:L1');
+    this.styleHeaderRow(headerRow1);
+
+    const headerRow2 = ws.addRow(['', '', '', '', '', '', '', '', 'Present', 'Absent', 'Late', 'Permission']);
+    this.styleHeaderRow(headerRow2, 'FFFFFF');
+
+    const now = new Date();
+    const cambodiaNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+    const todayCambodia = new Date(Date.UTC(cambodiaNow.getUTCFullYear(), cambodiaNow.getUTCMonth(), cambodiaNow.getUTCDate()));
+    const cambodiaNowHHMM = cambodiaNow.toISOString().slice(11, 16);
+    const isFutureDay = dayStart > todayCambodia;
+    const isHoliday = holidayDateSet.has(dayStart.toISOString().split('T')[0]);
+    const staffConfigs = await this.sessionConfigService.getStaffDefaults();
+
+    const fmtCell = (time: Date | null, status: string | null) => {
+      if (!status) return '';
+      if (status === 'ABSENT') return 'Absent';
+      if (status === 'DAY_OFF') return 'Permission';
+      if (status === 'LATE') return time ? `${toCambodiaTimeShort(time)} (Late)` : 'Late';
+      return time ? toCambodiaTimeShort(time) || 'Present' : 'Present';
+    };
+
+    for (const [idx, user] of staff.entries()) {
+      if (isFutureDay) {
+        const row = ws.addRow([dayName, String(idx + 1).padStart(4, '0'), user.name, user.role, '', '', '', '', '', '', '', '']);
+        this.styleDataRow(row);
+        continue;
+      }
+
+      const recs = records.filter((r: any) => r.userId === user.id);
+      const s1 = recs.find((r: any) => r.session === 1);
+      const s3 = recs.find((r: any) => r.session === 3);
+
+      let s1Status = s1?.status || null;
+      let s2Status = s1?.checkOutTime ? (s1.status || 'PRESENT') : null;
+      let s3Status = s3?.status || null;
+      let s4Status = s3?.checkOutTime ? (s3.status || 'PRESENT') : null;
+
+      // Mark overtime sessions as ABSENT
+      if (!isHoliday) {
+        if (!s1Status && isSessionOvertime(1, staffConfigs, dayStart, todayCambodia, cambodiaNowHHMM)) s1Status = 'ABSENT';
+        if (!s2Status && isSessionOvertime(2, staffConfigs, dayStart, todayCambodia, cambodiaNowHHMM)) s2Status = 'ABSENT';
+        if (!s3Status && isSessionOvertime(3, staffConfigs, dayStart, todayCambodia, cambodiaNowHHMM)) s3Status = 'ABSENT';
+        if (!s4Status && isSessionOvertime(4, staffConfigs, dayStart, todayCambodia, cambodiaNowHHMM)) s4Status = 'ABSENT';
+      }
+
+      const dailyStatus = this.determineDailyStatus({ session1Status: s1Status, session2Status: s2Status, session3Status: s3Status, session4Status: s4Status });
+
+      const isPresent = dailyStatus === 'Present' || dailyStatus.startsWith('Half-Day') ? 1 : 0;
+      const isAbsent = dailyStatus === 'Absent' || dailyStatus === 'Absent (Exceeded Late Limit)' ? 1 : 0;
+      const isLate = dailyStatus.includes('Late') && !dailyStatus.includes('Exceeded') ? 1 : 0;
+      const isPermission = dailyStatus === 'Day Off' ? 1 : 0;
+
+      const row = ws.addRow([
+        dayName,
+        String(idx + 1).padStart(4, '0'),
+        user.name,
+        user.role,
+        fmtCell(s1?.checkInTime, s1Status),
+        fmtCell(s1?.checkOutTime, s2Status),
+        fmtCell(s3?.checkInTime, s3Status),
+        fmtCell(s3?.checkOutTime, s4Status),
+        isPresent, isAbsent, isLate, isPermission,
+      ]);
+      this.styleDataRow(row);
+    }
+
+    ws.columns = [
+      { width: 12 }, { width: 10 }, { width: 20 }, { width: 12 },
+      { width: 18 }, { width: 18 }, { width: 18 }, { width: 18 },
+      { width: 10 }, { width: 10 }, { width: 10 }, { width: 12 },
+    ];
+  }
+
+  /** Staff Weekly XLSX sheet */
+  private async buildStaffWeeklySheet(
+    workbook: ExcelJS.Workbook, staff: any[], date: Date, holidayDateSet: Set<string>,
+  ) {
+    const ws = workbook.addWorksheet('Weekly');
+    const d = toUTCMidnight(date);
+    const dow = d.getUTCDay();
+    const mondayOffset = dow === 0 ? 6 : (dow - 1);
+    const monday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - mondayOffset));
+
+    const weekEnd = new Date(monday.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const records = await this.prisma.staffAttendance.findMany({
+      where: { date: { gte: monday, lt: weekEnd } },
+    });
+
+    const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const dayHeaders: string[] = [];
+    for (let i = 0; i < 7; i++) {
+      const dayDate = new Date(monday.getTime() + i * 24 * 60 * 60 * 1000);
+      dayHeaders.push(`${dayNames[i]} (${dayDate.toISOString().split('T')[0]})`);
+    }
+
+    const headerValues: any[] = ['ID', 'Staff Name'];
+    for (const dh of dayHeaders) headerValues.push(dh, '', '', '');
+    headerValues.push('Total', '', '', '');
+    const headerRow1 = ws.addRow(headerValues);
+
+    ws.mergeCells('A1:A2'); ws.mergeCells('B1:B2');
+    let col = 3;
+    for (let i = 0; i < 7; i++) { ws.mergeCells(1, col, 1, col + 3); col += 4; }
+    ws.mergeCells(1, col, 1, col + 3);
+    this.styleHeaderRow(headerRow1);
+
+    const subValues: any[] = ['', ''];
+    for (let i = 0; i < 8; i++) subValues.push('Present', 'Absent', 'Late', 'Permission');
+    const headerRow2 = ws.addRow(subValues);
+    this.styleHeaderRow(headerRow2, 'FFFFFF');
+
+    const now = new Date();
+    const cambodiaNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+    const todayCambodia = new Date(Date.UTC(cambodiaNow.getUTCFullYear(), cambodiaNow.getUTCMonth(), cambodiaNow.getUTCDate()));
+    const cambodiaNowHHMM = cambodiaNow.toISOString().slice(11, 16);
+    const staffConfigs = await this.sessionConfigService.getStaffDefaults();
+
+    for (const [idx, user] of staff.entries()) {
+      const rowVals: any[] = [String(idx + 1).padStart(4, '0'), user.name];
+      let totalP = 0, totalA = 0, totalL = 0, totalPerm = 0;
+      let hasPastDays = false;
+
+      for (let dayIdx = 0; dayIdx < 7; dayIdx++) {
+        const dayDate = new Date(monday.getTime() + dayIdx * 24 * 60 * 60 * 1000);
+        const dayStart = toUTCMidnight(dayDate);
+        const dayDateEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+        if (dayStart > todayCambodia) { rowVals.push('', '', '', ''); continue; }
+        hasPastDays = true;
+
+        if (holidayDateSet.has(dayStart.toISOString().split('T')[0])) { rowVals.push(0, 0, 0, 0); continue; }
+
+        const dayRecs = records.filter((r: any) => r.userId === user.id && r.date >= dayStart && r.date < dayDateEnd);
+        const s1 = dayRecs.find((r: any) => r.session === 1);
+        const s3 = dayRecs.find((r: any) => r.session === 3);
+
+        let s1Status = s1?.status || null;
+        let s2Status = s1?.checkOutTime ? (s1.status || 'PRESENT') : null;
+        let s3Status = s3?.status || null;
+        let s4Status = s3?.checkOutTime ? (s3.status || 'PRESENT') : null;
+
+        // Mark overtime sessions as ABSENT
+        if (!s1Status && isSessionOvertime(1, staffConfigs, dayStart, todayCambodia, cambodiaNowHHMM)) s1Status = 'ABSENT';
+        if (!s2Status && isSessionOvertime(2, staffConfigs, dayStart, todayCambodia, cambodiaNowHHMM)) s2Status = 'ABSENT';
+        if (!s3Status && isSessionOvertime(3, staffConfigs, dayStart, todayCambodia, cambodiaNowHHMM)) s3Status = 'ABSENT';
+        if (!s4Status && isSessionOvertime(4, staffConfigs, dayStart, todayCambodia, cambodiaNowHHMM)) s4Status = 'ABSENT';
+
+        const dailyStatus = this.determineDailyStatus({ session1Status: s1Status, session2Status: s2Status, session3Status: s3Status, session4Status: s4Status });
+
+        const p = dailyStatus === 'Present' || dailyStatus.startsWith('Half-Day') ? 1 : 0;
+        const a = dailyStatus === 'Absent' || dailyStatus === 'Absent (Exceeded Late Limit)' ? 1 : 0;
+        const l = dailyStatus.includes('Late') && !dailyStatus.includes('Exceeded') ? 1 : 0;
+        const perm = dailyStatus === 'Day Off' ? 1 : 0;
+
+        rowVals.push(p, a, l, perm);
+        totalP += p; totalA += a; totalL += l; totalPerm += perm;
+      }
+
+      rowVals.push(hasPastDays ? totalP : '', hasPastDays ? totalA : '', hasPastDays ? totalL : '', hasPastDays ? totalPerm : '');
+      const row = ws.addRow(rowVals);
+      this.styleDataRow(row);
+    }
+
+    const colWidths = [{ width: 10 }, { width: 20 }];
+    for (let i = 0; i < 32; i++) colWidths.push({ width: 10 });
+    ws.columns = colWidths;
+  }
+
+  /** Staff Monthly XLSX sheet */
+  private async buildStaffMonthlySheet(
+    workbook: ExcelJS.Workbook, staff: any[], date: Date, holidayDateSet: Set<string>,
+  ) {
+    const ws = workbook.addWorksheet('Monthly');
+    const d = toUTCMidnight(date);
+    const y = d.getUTCFullYear();
+    const m = d.getUTCMonth();
+    const monthStart = new Date(Date.UTC(y, m, 1));
+    const monthEnd = new Date(Date.UTC(y, m + 1, 1));
+    const monthName = monthStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+
+    const records = await this.prisma.staffAttendance.findMany({
+      where: { date: { gte: monthStart, lt: monthEnd } },
+    });
+
+    // Divide month into Sun-Sat weeks
+    const weeks: { start: Date; end: Date; label: string }[] = [];
+    let cur = new Date(monthStart);
+    while (cur < monthEnd) {
+      const wkStart = new Date(cur);
+      const daysUntilSat = (6 - wkStart.getUTCDay() + 7) % 7;
+      let wkEnd = new Date(Date.UTC(wkStart.getUTCFullYear(), wkStart.getUTCMonth(), wkStart.getUTCDate() + daysUntilSat));
+      if (wkEnd >= monthEnd) wkEnd = new Date(monthEnd.getTime() - 24 * 60 * 60 * 1000);
+      weeks.push({ start: wkStart, end: wkEnd, label: `${wkStart.toISOString().split('T')[0]} to ${wkEnd.toISOString().split('T')[0]}` });
+      cur = new Date(wkEnd.getTime() + 24 * 60 * 60 * 1000);
+    }
+
+    const headerValues: any[] = ['Month', 'ID', 'Staff Name'];
+    for (let i = 0; i < weeks.length; i++) headerValues.push(`Week ${i + 1} (${weeks[i].label})`, '', '', '');
+    headerValues.push('Total', '', '', '');
+    const headerRow1 = ws.addRow(headerValues);
+
+    ws.mergeCells('A1:A2'); ws.mergeCells('B1:B2'); ws.mergeCells('C1:C2');
+    let col2 = 4;
+    for (let i = 0; i < weeks.length; i++) { ws.mergeCells(1, col2, 1, col2 + 3); col2 += 4; }
+    ws.mergeCells(1, col2, 1, col2 + 3);
+    this.styleHeaderRow(headerRow1);
+
+    const subValues: any[] = ['', '', ''];
+    for (let i = 0; i < weeks.length + 1; i++) subValues.push('Present', 'Absent', 'Late', 'Permission');
+    const headerRow2 = ws.addRow(subValues);
+    this.styleHeaderRow(headerRow2, 'FFFFFF');
+
+    const now = new Date();
+    const cambodiaNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+    const todayCambodia = new Date(Date.UTC(cambodiaNow.getUTCFullYear(), cambodiaNow.getUTCMonth(), cambodiaNow.getUTCDate()));
+    const cambodiaNowHHMM = cambodiaNow.toISOString().slice(11, 16);
+    const staffConfigs = await this.sessionConfigService.getStaffDefaults();
+
+    for (const [idx, user] of staff.entries()) {
+      const rowVals: any[] = [monthName, String(idx + 1).padStart(4, '0'), user.name];
+      let totalP = 0, totalA = 0, totalL = 0, totalPerm = 0;
+
+      for (const week of weeks) {
+        let wP = 0, wA = 0, wL = 0, wPerm = 0;
+        let daysCounted = 0;
+        let curDay = new Date(week.start);
+        const wkEndNext = new Date(week.end.getTime() + 24 * 60 * 60 * 1000);
+        while (curDay < wkEndNext && curDay < monthEnd) {
+          const dayStart = toUTCMidnight(curDay);
+          if (dayStart > todayCambodia) { curDay = new Date(curDay.getTime() + 24 * 60 * 60 * 1000); continue; }
+          if (holidayDateSet.has(dayStart.toISOString().split('T')[0])) { curDay = new Date(curDay.getTime() + 24 * 60 * 60 * 1000); continue; }
+          daysCounted++;
+          const dayDateEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+          const dayRecs = records.filter((r: any) => r.userId === user.id && r.date >= dayStart && r.date < dayDateEnd);
+          const s1 = dayRecs.find((r: any) => r.session === 1);
+          const s3 = dayRecs.find((r: any) => r.session === 3);
+
+          let s1Status = s1?.status || null;
+          let s2Status = s1?.checkOutTime ? (s1.status || 'PRESENT') : null;
+          let s3Status = s3?.status || null;
+          let s4Status = s3?.checkOutTime ? (s3.status || 'PRESENT') : null;
+
+          // Mark overtime sessions as ABSENT
+          if (!s1Status && isSessionOvertime(1, staffConfigs, dayStart, todayCambodia, cambodiaNowHHMM)) s1Status = 'ABSENT';
+          if (!s2Status && isSessionOvertime(2, staffConfigs, dayStart, todayCambodia, cambodiaNowHHMM)) s2Status = 'ABSENT';
+          if (!s3Status && isSessionOvertime(3, staffConfigs, dayStart, todayCambodia, cambodiaNowHHMM)) s3Status = 'ABSENT';
+          if (!s4Status && isSessionOvertime(4, staffConfigs, dayStart, todayCambodia, cambodiaNowHHMM)) s4Status = 'ABSENT';
+
+          const dailyStatus = this.determineDailyStatus({ session1Status: s1Status, session2Status: s2Status, session3Status: s3Status, session4Status: s4Status });
+          if (dailyStatus === 'Present' || dailyStatus.startsWith('Half-Day')) wP++;
+          else if (dailyStatus === 'Absent' || dailyStatus === 'Absent (Exceeded Late Limit)') wA++;
+          if (dailyStatus.includes('Late') && !dailyStatus.includes('Exceeded')) wL++;
+          if (dailyStatus === 'Day Off') wPerm++;
+
+          curDay = new Date(curDay.getTime() + 24 * 60 * 60 * 1000);
+        }
+        rowVals.push(daysCounted > 0 ? wP : '', daysCounted > 0 ? wA : '', daysCounted > 0 ? wL : '', daysCounted > 0 ? wPerm : '');
+        totalP += wP; totalA += wA; totalL += wL; totalPerm += wPerm;
+      }
+
+      rowVals.push(totalP, totalA, totalL, totalPerm);
+      const row = ws.addRow(rowVals);
+      this.styleDataRow(row);
+    }
+
+    const colWidths = [{ width: 12 }, { width: 10 }, { width: 20 }];
+    for (let i = 0; i < (weeks.length + 1) * 4; i++) colWidths.push({ width: 10 });
+    ws.columns = colWidths;
+  }
+
+  /** Staff Yearly XLSX sheet */
+  private async buildStaffYearlySheet(
+    workbook: ExcelJS.Workbook, staff: any[], date: Date, holidayDateSet: Set<string>,
+  ) {
+    const ws = workbook.addWorksheet('Yearly');
+    const d = toUTCMidnight(date);
+    const y = d.getUTCFullYear();
+
+    const yearStart = new Date(Date.UTC(y, 0, 1));
+    const yearEnd = new Date(Date.UTC(y + 1, 0, 1));
+    const records = await this.prisma.staffAttendance.findMany({
+      where: { date: { gte: yearStart, lt: yearEnd } },
+    });
+
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+    const headerValues: any[] = ['Year', 'ID', 'Staff Name'];
+    for (const mn of monthNames) headerValues.push(mn, '', '', '');
+    headerValues.push('Total', '', '', '');
+    const headerRow1 = ws.addRow(headerValues);
+
+    ws.mergeCells('A1:A2'); ws.mergeCells('B1:B2'); ws.mergeCells('C1:C2');
+    let col3 = 4;
+    for (let i = 0; i < 12; i++) { ws.mergeCells(1, col3, 1, col3 + 3); col3 += 4; }
+    ws.mergeCells(1, col3, 1, col3 + 3);
+    this.styleHeaderRow(headerRow1);
+
+    const subValues: any[] = ['', '', ''];
+    for (let i = 0; i < 13; i++) subValues.push('Present', 'Absent', 'Late', 'Permission');
+    const headerRow2 = ws.addRow(subValues);
+    this.styleHeaderRow(headerRow2, 'FFFFFF');
+
+    const now = new Date();
+    const cambodiaNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+    const todayCambodia = new Date(Date.UTC(cambodiaNow.getUTCFullYear(), cambodiaNow.getUTCMonth(), cambodiaNow.getUTCDate()));
+    const cambodiaNowHHMM = cambodiaNow.toISOString().slice(11, 16);
+    const staffConfigs = await this.sessionConfigService.getStaffDefaults();
+
+    for (const [idx, user] of staff.entries()) {
+      const rowVals: any[] = [String(y), String(idx + 1).padStart(4, '0'), user.name];
+      let totalP = 0, totalA = 0, totalL = 0, totalPerm = 0;
+
+      for (let mi = 0; mi < 12; mi++) {
+        const mStart = new Date(Date.UTC(y, mi, 1));
+        const mEnd = new Date(Date.UTC(y, mi + 1, 1));
+
+        if (mStart > todayCambodia) { rowVals.push('', '', '', ''); continue; }
+
+        let mP = 0, mA = 0, mL = 0, mPerm = 0;
+        let curDay = new Date(mStart);
+        while (curDay < mEnd) {
+          const dayStart = toUTCMidnight(curDay);
+          if (dayStart > todayCambodia) { curDay = new Date(curDay.getTime() + 24 * 60 * 60 * 1000); continue; }
+          if (holidayDateSet.has(dayStart.toISOString().split('T')[0])) { curDay = new Date(curDay.getTime() + 24 * 60 * 60 * 1000); continue; }
+
+          const dayDateEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+          const dayRecs = records.filter((r: any) => r.userId === user.id && r.date >= dayStart && r.date < dayDateEnd);
+          const s1 = dayRecs.find((r: any) => r.session === 1);
+          const s3 = dayRecs.find((r: any) => r.session === 3);
+
+          let s1Status = s1?.status || null;
+          let s2Status = s1?.checkOutTime ? (s1.status || 'PRESENT') : null;
+          let s3Status = s3?.status || null;
+          let s4Status = s3?.checkOutTime ? (s3.status || 'PRESENT') : null;
+
+          // Mark overtime sessions as ABSENT
+          if (!s1Status && isSessionOvertime(1, staffConfigs, dayStart, todayCambodia, cambodiaNowHHMM)) s1Status = 'ABSENT';
+          if (!s2Status && isSessionOvertime(2, staffConfigs, dayStart, todayCambodia, cambodiaNowHHMM)) s2Status = 'ABSENT';
+          if (!s3Status && isSessionOvertime(3, staffConfigs, dayStart, todayCambodia, cambodiaNowHHMM)) s3Status = 'ABSENT';
+          if (!s4Status && isSessionOvertime(4, staffConfigs, dayStart, todayCambodia, cambodiaNowHHMM)) s4Status = 'ABSENT';
+
+          const dailyStatus = this.determineDailyStatus({ session1Status: s1Status, session2Status: s2Status, session3Status: s3Status, session4Status: s4Status });
+          if (dailyStatus === 'Present' || dailyStatus.startsWith('Half-Day')) mP++;
+          else if (dailyStatus === 'Absent' || dailyStatus === 'Absent (Exceeded Late Limit)') mA++;
+          if (dailyStatus.includes('Late') && !dailyStatus.includes('Exceeded')) mL++;
+          if (dailyStatus === 'Day Off') mPerm++;
+
+          curDay = new Date(curDay.getTime() + 24 * 60 * 60 * 1000);
+        }
+        rowVals.push(mP, mA, mL, mPerm);
+        totalP += mP; totalA += mA; totalL += mL; totalPerm += mPerm;
+      }
+
+      rowVals.push(totalP, totalA, totalL, totalPerm);
+      const row = ws.addRow(rowVals);
+      this.styleDataRow(row);
+    }
+
+    const colWidths = [{ width: 10 }, { width: 10 }, { width: 20 }];
+    for (let i = 0; i < 52; i++) colWidths.push({ width: 10 });
+    ws.columns = colWidths;
+  }
+
+  // ========== EMPLOYEE SELF-SERVICE REPORTS ==========
+
+  /** Get daily grid for a single employee (same shape as staff grid, single row) */
+  async getEmployeeDailyGrid(userId: string, date: Date) {
+    const dayStart = toUTCMidnight(date);
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+    const isHoliday = await this.holidaysService.isHoliday(date);
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return [];
+
+    const records = await this.prisma.staffAttendance.findMany({
+      where: { userId, date: { gte: dayStart, lt: dayEnd } },
+    });
+
+    const staffConfigs = await this.sessionConfigService.getStaffDefaults();
+    const now = new Date();
+    const cambodiaNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+    const todayCambodia = new Date(Date.UTC(cambodiaNow.getUTCFullYear(), cambodiaNow.getUTCMonth(), cambodiaNow.getUTCDate()));
+    const cambodiaNowHHMM = cambodiaNow.toISOString().slice(11, 16);
+
+    const s1 = records.find(r => r.session === 1);
+    const s3 = records.find(r => r.session === 3);
+
+    const locRecord = s1?.scanLocation ? s1 : s3?.scanLocation ? s3 : s1 || s3;
+
+    let session1Status = s1?.status || null;
+    let session2Status = s1?.checkOutTime ? (s1.status || 'PRESENT') : null;
+    let session3Status = s3?.status || null;
+    let session4Status = s3?.checkOutTime ? (s3.status || 'PRESENT') : null;
+
+    if (!isHoliday) {
+      if (!session1Status && isSessionOvertime(1, staffConfigs, dayStart, todayCambodia, cambodiaNowHHMM)) session1Status = 'ABSENT';
+      if (!session2Status && isSessionOvertime(2, staffConfigs, dayStart, todayCambodia, cambodiaNowHHMM)) session2Status = 'ABSENT';
+      if (!session3Status && isSessionOvertime(3, staffConfigs, dayStart, todayCambodia, cambodiaNowHHMM)) session3Status = 'ABSENT';
+      if (!session4Status && isSessionOvertime(4, staffConfigs, dayStart, todayCambodia, cambodiaNowHHMM)) session4Status = 'ABSENT';
+    }
+
+    return [{
+      userId: user.id,
+      staffName: user.name,
+      role: user.role,
+      checkInMorning: s1 && s1.status !== 'ABSENT' ? toCambodiaTimeShort(s1.checkInTime) : null,
+      checkOutMorning: s1 ? toCambodiaTimeShort(s1.checkOutTime) : null,
+      checkInAfternoon: s3 && s3.status !== 'ABSENT' ? toCambodiaTimeShort(s3.checkInTime) : null,
+      checkOutAfternoon: s3 ? toCambodiaTimeShort(s3.checkOutTime) : null,
+      session1Status,
+      session2Status,
+      session3Status,
+      session4Status,
+      isHoliday,
+      scanLatitude: locRecord?.scanLatitude || null,
+      scanLongitude: locRecord?.scanLongitude || null,
+      scanLocation: locRecord?.scanLocation || null,
+    }];
+  }
+
+  /** Get attendance totals for a single employee: week/month/year */
+  async getEmployeeTotals(userId: string, date: Date) {
+    const d = toUTCMidnight(date);
+    const y = d.getUTCFullYear();
+    const m = d.getUTCMonth();
+    const day = d.getUTCDate();
+    const dow = d.getUTCDay();
+
+    const weekStart = new Date(Date.UTC(y, m, day - ((dow + 6) % 7)));
+    const weekEnd = new Date(Date.UTC(y, m, day - ((dow + 6) % 7) + 7));
+    const monthStart = new Date(Date.UTC(y, m, 1));
+    const monthEnd = new Date(Date.UTC(y, m + 1, 1));
+    const yearStart = new Date(Date.UTC(y, 0, 1));
+    const yearEnd = new Date(Date.UTC(y + 1, 0, 1));
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return [];
+
+    const [weekRecs, monthRecs, yearRecs] = await Promise.all([
+      this.prisma.staffAttendance.findMany({ where: { userId, date: { gte: weekStart, lt: weekEnd } } }),
+      this.prisma.staffAttendance.findMany({ where: { userId, date: { gte: monthStart, lt: monthEnd } } }),
+      this.prisma.staffAttendance.findMany({ where: { userId, date: { gte: yearStart, lt: yearEnd } } }),
+    ]);
+
+    const yearHolidays = await this.holidaysService.getHolidaysInRange(yearStart, yearEnd);
+    const holidayDateSet = new Set(yearHolidays.map(h => h.date.toISOString().split('T')[0]));
+
+    const countFor = (recs: any[]) => ({
+      present: recs.filter(r => r.status === 'PRESENT').length,
+      late: recs.filter(r => r.status === 'LATE').length,
+      absent: recs.filter(r => r.status === 'ABSENT' && !holidayDateSet.has(r.date.toISOString().split('T')[0])).length,
+      dayOff: recs.filter(r => r.status === 'DAY_OFF').length,
+    });
+
+    return [{
+      userId: user.id,
+      staffName: user.name,
+      role: user.role,
+      week: countFor(weekRecs),
+      month: countFor(monthRecs),
+      year: countFor(yearRecs),
+    }];
+  }
+
+  /** Export single employee attendance XLSX */
+  async exportEmployeeXlsx(userId: string, date: Date, period?: string): Promise<Buffer> {
+    const workbook = new ExcelJS.Workbook();
+    const d = toUTCMidnight(date);
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new Error('User not found');
+
+    const y = d.getUTCFullYear();
+    const yearStart = new Date(Date.UTC(y, 0, 1));
+    const yearEnd = new Date(Date.UTC(y + 1, 0, 1));
+    const yearHolidays = await this.holidaysService.getHolidaysInRange(yearStart, yearEnd);
+    const holidayDateSet = new Set(yearHolidays.map(h => h.date.toISOString().split('T')[0]));
+
+    const p = (period || 'daily').toLowerCase();
+
+    if (p === 'daily') {
+      await this.buildEmployeeDailySheet(workbook, user, d, holidayDateSet);
+    } else if (p === 'weekly') {
+      await this.buildEmployeePeriodSheet(workbook, user, d, holidayDateSet, 'weekly');
+    } else if (p === 'monthly') {
+      await this.buildEmployeePeriodSheet(workbook, user, d, holidayDateSet, 'monthly');
+    } else if (p === 'yearly') {
+      await this.buildEmployeePeriodSheet(workbook, user, d, holidayDateSet, 'yearly');
+    }
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer);
+  }
+
+  private async buildEmployeeDailySheet(
+    workbook: ExcelJS.Workbook, user: any, date: Date, holidayDateSet: Set<string>,
+  ) {
+    const ws = workbook.addWorksheet('Daily');
+    const dayStart = toUTCMidnight(date);
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+    const dayName = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][dayStart.getUTCDay()];
+
+    const headerRow = ws.addRow(['Day', 'Name', 'Role', 'Morning In', 'Morning Out', 'Afternoon In', 'Afternoon Out', 'Status']);
+    this.styleHeaderRow(headerRow);
+
+    const records = await this.prisma.staffAttendance.findMany({
+      where: { userId: user.id, date: { gte: dayStart, lt: dayEnd } },
+    });
+
+    const s1 = records.find(r => r.session === 1);
+    const s3 = records.find(r => r.session === 3);
+
+    const staffConfigs = await this.sessionConfigService.getStaffDefaults();
+    const now = new Date();
+    const cambodiaNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+    const todayCambodia = new Date(Date.UTC(cambodiaNow.getUTCFullYear(), cambodiaNow.getUTCMonth(), cambodiaNow.getUTCDate()));
+    const cambodiaNowHHMM = cambodiaNow.toISOString().slice(11, 16);
+    const isHoliday = holidayDateSet.has(dayStart.toISOString().split('T')[0]);
+
+    let s1Status = s1?.status || null;
+    let s2Status = s1?.checkOutTime ? (s1.status || 'PRESENT') : null;
+    let s3Status = s3?.status || null;
+    let s4Status = s3?.checkOutTime ? (s3.status || 'PRESENT') : null;
+
+    if (!isHoliday) {
+      if (!s1Status && isSessionOvertime(1, staffConfigs, dayStart, todayCambodia, cambodiaNowHHMM)) s1Status = 'ABSENT';
+      if (!s2Status && isSessionOvertime(2, staffConfigs, dayStart, todayCambodia, cambodiaNowHHMM)) s2Status = 'ABSENT';
+      if (!s3Status && isSessionOvertime(3, staffConfigs, dayStart, todayCambodia, cambodiaNowHHMM)) s3Status = 'ABSENT';
+      if (!s4Status && isSessionOvertime(4, staffConfigs, dayStart, todayCambodia, cambodiaNowHHMM)) s4Status = 'ABSENT';
+    }
+
+    const fmtCell = (time: Date | null, status: string | null) => {
+      if (!status) return '';
+      if (status === 'ABSENT') return 'Absent';
+      if (status === 'DAY_OFF') return 'Permission';
+      if (status === 'LATE') return time ? `${toCambodiaTimeShort(time)} (Late)` : 'Late';
+      return time ? toCambodiaTimeShort(time) || 'Present' : 'Present';
+    };
+
+    const dailyStatus = this.determineDailyStatus({ session1Status: s1Status, session2Status: s2Status, session3Status: s3Status, session4Status: s4Status });
+
+    const row = ws.addRow([
+      dayName, user.name, user.role,
+      fmtCell(s1?.checkInTime, s1Status),
+      fmtCell(s1?.checkOutTime, s2Status),
+      fmtCell(s3?.checkInTime, s3Status),
+      fmtCell(s3?.checkOutTime, s4Status),
+      dailyStatus,
+    ]);
+    this.styleDataRow(row);
+
+    ws.columns = [
+      { width: 12 }, { width: 25 }, { width: 15 },
+      { width: 15 }, { width: 15 }, { width: 15 }, { width: 15 }, { width: 20 },
+    ];
+  }
+
+  private async buildEmployeePeriodSheet(
+    workbook: ExcelJS.Workbook, user: any, date: Date, holidayDateSet: Set<string>, period: string,
+  ) {
+    const ws = workbook.addWorksheet(period.charAt(0).toUpperCase() + period.slice(1));
+    const d = toUTCMidnight(date);
+    const y = d.getUTCFullYear();
+    const m = d.getUTCMonth();
+    const day = d.getUTCDate();
+    const dow = d.getUTCDay();
+
+    let start: Date, end: Date, label: string;
+    if (period === 'weekly') {
+      start = new Date(Date.UTC(y, m, day - ((dow + 6) % 7)));
+      end = new Date(Date.UTC(y, m, day - ((dow + 6) % 7) + 7));
+      label = `Week of ${start.toISOString().split('T')[0]}`;
+    } else if (period === 'monthly') {
+      start = new Date(Date.UTC(y, m, 1));
+      end = new Date(Date.UTC(y, m + 1, 1));
+      label = `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][m]} ${y}`;
+    } else {
+      start = new Date(Date.UTC(y, 0, 1));
+      end = new Date(Date.UTC(y + 1, 0, 1));
+      label = `Year ${y}`;
+    }
+
+    const headerRow = ws.addRow(['Period', 'Name', 'Role', 'Present', 'Late', 'Absent', 'Permission']);
+    this.styleHeaderRow(headerRow);
+
+    const recs = await this.prisma.staffAttendance.findMany({
+      where: { userId: user.id, date: { gte: start, lt: end } },
+    });
+
+    const present = recs.filter(r => r.status === 'PRESENT').length;
+    const late = recs.filter(r => r.status === 'LATE').length;
+    const absent = recs.filter(r => r.status === 'ABSENT' && !holidayDateSet.has(r.date.toISOString().split('T')[0])).length;
+    const dayOff = recs.filter(r => r.status === 'DAY_OFF').length;
+
+    const row = ws.addRow([label, user.name, user.role, present, late, absent, dayOff]);
+    this.styleDataRow(row);
+
+    ws.columns = [
+      { width: 25 }, { width: 25 }, { width: 15 },
+      { width: 12 }, { width: 12 }, { width: 12 }, { width: 12 },
+    ];
+  }
+}

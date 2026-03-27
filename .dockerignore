@@ -6,5 +6,6 @@ build
 .env*
 *.md
 docker-compose.yml
-apps/web
-apps/mobile
+frontend
+apps
+packages
