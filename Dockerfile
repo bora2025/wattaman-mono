@@ -1,5 +1,7 @@
 FROM node:20-alpine AS builder
 
+RUN apk add --no-cache openssl
+
 WORKDIR /app
 
 # Copy root package files
@@ -9,12 +11,15 @@ COPY package.json package-lock.json* turbo.json ./
 COPY apps/api/package.json apps/api/
 COPY packages/database/package.json packages/database/
 
-# Install all dependencies
-RUN npm install
+# Install all dependencies (--ignore-scripts to skip postinstall prisma generate before schema is copied)
+RUN npm install --ignore-scripts
 
 # Copy source code
 COPY packages/database/ packages/database/
 COPY apps/api/ apps/api/
+
+# Now run postinstall scripts (e.g. esbuild binary setup)
+RUN npm rebuild
 
 # Generate Prisma client
 RUN npx prisma generate --schema=packages/database/schema.prisma
@@ -25,6 +30,8 @@ RUN npm run --workspace=apps/api build
 
 # --- Production stage ---
 FROM node:20-alpine AS runner
+
+RUN apk add --no-cache openssl
 
 WORKDIR /app
 
