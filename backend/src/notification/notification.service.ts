@@ -5,14 +5,16 @@ import { PrismaService } from '../database/prisma.service';
 
 @Injectable()
 export class NotificationService {
-  private twilioClient: twilio.Twilio;
+  private twilioClient: twilio.Twilio | null = null;
 
   constructor(private prisma: PrismaService) {
     sgMail.setApiKey(process.env.SENDGRID_API_KEY || '');
-    this.twilioClient = twilio(
-      process.env.TWILIO_ACCOUNT_SID,
-      process.env.TWILIO_AUTH_TOKEN,
-    );
+    if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
+      this.twilioClient = twilio(
+        process.env.TWILIO_ACCOUNT_SID,
+        process.env.TWILIO_AUTH_TOKEN,
+      );
+    }
   }
 
   async sendAbsenceNotification(studentId: string) {
@@ -44,7 +46,7 @@ export class NotificationService {
     }
 
     // Send SMS (skip if no credentials configured)
-    if (parent.phone && process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_PHONE_NUMBER) {
+    if (parent.phone && this.twilioClient && process.env.TWILIO_PHONE_NUMBER) {
       try {
         await this.twilioClient.messages.create({
           body: message,
