@@ -45,7 +45,7 @@ async function bootstrap() {
   app.enableShutdownHooks();
 
   const port = process.env.PORT || 3001;
-  await app.listen(port);
-  console.log(`API server running on http://localhost:${port}`);
+  await app.listen(port, '0.0.0.0');
+  console.log(`API server running on port ${port}`);
 }
 bootstrap();
