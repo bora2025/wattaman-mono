@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import * as sgMail from '@sendgrid/mail';
-import * as twilio from 'twilio';
+import sgMail from '@sendgrid/mail';
+import twilio from 'twilio';
 import { PrismaService } from '../database/prisma.service';
 
 @Injectable()
@@ -8,7 +8,10 @@ export class NotificationService {
   private twilioClient: twilio.Twilio | null = null;
 
   constructor(private prisma: PrismaService) {
-    sgMail.setApiKey(process.env.SENDGRID_API_KEY || '');
+    const apiKey = process.env.SENDGRID_API_KEY;
+    if (apiKey) {
+      sgMail.setApiKey(apiKey);
+    }
     if (process.env.TWILIO_ACCOUNT_SID && process.env.TWILIO_AUTH_TOKEN) {
       this.twilioClient = twilio(
         process.env.TWILIO_ACCOUNT_SID,
