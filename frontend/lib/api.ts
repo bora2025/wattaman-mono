@@ -4,12 +4,17 @@
  * Automatically retries with a token refresh on 401.
  */
 
+/** Returns the backend base URL, falling back to '' (relative) for local dev. */
+function getApiBase(): string {
+  return process.env.NEXT_PUBLIC_API_URL ?? '';
+}
+
 let isRefreshing = false;
 let refreshPromise: Promise<boolean> | null = null;
 
 async function refreshAccessToken(): Promise<boolean> {
   try {
-    const res = await fetch('/api/auth/refresh', {
+    const res = await fetch(`${getApiBase()}/api/auth/refresh`, {
       method: 'POST',
       credentials: 'include',
     });
@@ -20,7 +25,8 @@ async function refreshAccessToken(): Promise<boolean> {
 }
 
 export async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
-  const res = await fetch(path, {
+  const url = `${getApiBase()}${path}`;
+  const res = await fetch(url, {
     ...options,
     credentials: 'include',
     headers: {
@@ -40,7 +46,7 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
 
     if (refreshed) {
       // Retry the original request
-      return fetch(path, {
+      return fetch(url, {
         ...options,
         credentials: 'include',
         headers: {
