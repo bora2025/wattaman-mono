@@ -45,6 +45,8 @@ async function bootstrap() {
       if (allowedOrigins.includes(origin)) return callback(null, true);
       // Allow any Railway subdomain
       if (origin.endsWith('.up.railway.app')) return callback(null, true);
+      // Allow Vercel deployments
+      if (origin.endsWith('.vercel.app')) return callback(null, true);
       callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
