@@ -9,3 +9,5 @@ docker-compose.yml
 frontend
 apps
 packages
+frontend/node_modules
+backend/node_modules
