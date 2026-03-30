@@ -5,7 +5,7 @@ const prisma = new PrismaClient();
 
 async function seed() {
   // Only seed if no admin user exists
-  const existing = await prisma.user.findUnique({ where: { email: 'admin' } });
+  const existing = await prisma.user.findUnique({ where: { email: 'admin@gmail.com' } });
   if (existing) {
     console.log('Admin user already exists, skipping seed');
     return;
@@ -33,7 +33,7 @@ async function seed() {
 
   const admin = await prisma.user.create({
     data: {
-      email: 'admin',
+      email: 'admin@gmail.com',
       password: await bcrypt.hash('Abc2026m3', 10),
       name: 'Admin',
       role: 'ADMIN',
