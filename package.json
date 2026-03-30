@@ -3,17 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "description": "A modernized school attendance system using QR codes.",
-  "workspaces": [
-    "backend",
-    "frontend"
-  ],
   "scripts": {
-    "dev:backend": "npm run dev --workspace=backend",
-    "dev:frontend": "npm run dev --workspace=frontend",
-    "build:backend": "npm run build --workspace=backend",
-    "build:frontend": "npm run build --workspace=frontend",
-    "dev": "npm run dev:backend & npm run dev:frontend",
-    "build": "npm run build:backend && npm run build:frontend"
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build:backend": "cd backend && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "install:all": "cd backend && npm install && cd ../frontend && npm install"
   },
   "keywords": [],
   "author": "",
