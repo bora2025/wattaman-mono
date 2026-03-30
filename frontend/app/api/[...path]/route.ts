@@ -1,0 +1,58 @@
+import { NextRequest, NextResponse } from 'next/server';
+
+/** Runtime API proxy — forwards /api/* requests to the backend */
+function getBackendUrl(): string {
+  // API_URL is a server-side env var (not NEXT_PUBLIC_), available at runtime
+  return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+}
+
+async function proxyRequest(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  const { path } = await params;
+  const backendUrl = getBackendUrl();
+  const target = `${backendUrl}/${path.join('/')}`;
+
+  // Forward query string
+  const url = new URL(req.url);
+  const qs = url.search;
+
+  const headers = new Headers(req.headers);
+  // Remove host header so it doesn't conflict
+  headers.delete('host');
+
+  const fetchOptions: RequestInit = {
+    method: req.method,
+    headers,
+    // @ts-ignore - duplex needed for streaming request bodies
+    duplex: 'half',
+  };
+
+  // Forward body for non-GET/HEAD requests
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    fetchOptions.body = req.body;
+  }
+
+  try {
+    const response = await fetch(`${target}${qs}`, fetchOptions);
+
+    // Forward all response headers including Set-Cookie
+    const responseHeaders = new Headers();
+    response.headers.forEach((value, key) => {
+      responseHeaders.append(key, value);
+    });
+
+    return new NextResponse(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: responseHeaders,
+    });
+  } catch (error) {
+    console.error('API proxy error:', error);
+    return NextResponse.json({ error: 'Backend unavailable' }, { status: 502 });
+  }
+}
+
+export const GET = proxyRequest;
+export const POST = proxyRequest;
+export const PUT = proxyRequest;
+export const DELETE = proxyRequest;
+export const PATCH = proxyRequest;
