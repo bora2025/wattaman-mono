@@ -4,17 +4,15 @@ RUN apk add --no-cache openssl
 
 WORKDIR /app
 
-# Copy package files
+# Copy package files and prisma schema first (needed for postinstall prisma generate)
 COPY package.json package-lock.json ./
+COPY prisma/schema.prisma prisma/schema.prisma
 
-# Install all dependencies (--ignore-scripts to skip postinstall prisma generate before schema is copied)
-RUN npm install --ignore-scripts --legacy-peer-deps
+# Install all dependencies (postinstall runs prisma generate with schema available)
+RUN npm ci --legacy-peer-deps
 
-# Copy source code and prisma schema
-COPY . ./
-
-# Generate Prisma client
-RUN ./node_modules/.bin/prisma generate --schema=prisma/schema.prisma
+# Copy rest of source code
+COPY . .
 
 # Build NestJS
 RUN npm run build
@@ -26,15 +24,11 @@ RUN apk add --no-cache openssl
 
 WORKDIR /app
 
+# Copy only what's needed for production
 COPY --from=builder /app/package.json ./
-COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
-COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
+COPY --from=builder /app/node_modules ./node_modules
 
 ENV NODE_ENV=production
 
