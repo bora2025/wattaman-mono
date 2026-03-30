@@ -44,7 +44,7 @@ export default function AuditLogs() {
   return (
     <AuthGuard requiredRole="ADMIN">
       <div className="page-shell">
-        <Sidebar title="Admin Panel" subtitle="SchoolSync" navItems={adminNav} accentColor="indigo" />
+        <Sidebar title="Admin Panel" subtitle="Wattanman" navItems={adminNav} accentColor="indigo" />
         <div className="page-content">
           <div className="h-14 lg:hidden" />
           <div className="page-header">

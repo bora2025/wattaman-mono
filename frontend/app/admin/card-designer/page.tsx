@@ -9,7 +9,7 @@ export default function CardDesignerPage() {
       <div className="page-shell">
         <Sidebar
           title="Admin Panel"
-          subtitle="SchoolSync"
+          subtitle="Wattanman"
           navItems={adminNav}
           accentColor="indigo"
         />

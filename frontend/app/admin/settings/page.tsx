@@ -40,7 +40,7 @@ function getCacheItems(): CacheItem[] {
   const known: Record<string, { label: string; description: string; removable: boolean }> = {
     token: { label: 'Auth Token', description: 'JWT authentication token (clearing will log you out)', removable: false },
     role: { label: 'User Role', description: 'Current user role (clearing will log you out)', removable: false },
-    'schoolsync-card-designs': { label: 'Card Designs', description: 'Saved student & staff card design templates', removable: false },
+    'Wattanman-card-designs': { label: 'Card Designs', description: 'Saved student & staff card design templates', removable: false },
     notificationSettings: { label: 'Notification Settings', description: 'Alert preferences and configuration', removable: true },
   }
 
@@ -87,7 +87,7 @@ export default function SettingsPage() {
   }
 
   const clearAllCache = () => {
-    const protectedKeys = ['token', 'role', 'schoolsync-card-designs']
+    const protectedKeys = ['token', 'role', 'Wattanman-card-designs']
     // Remove everything except auth and card designs
     const keysToRemove: string[] = []
     for (let i = 0; i < localStorage.length; i++) {
@@ -118,7 +118,7 @@ export default function SettingsPage() {
   return (
     <AuthGuard requiredRole="ADMIN">
       <div className="page-shell">
-        <Sidebar title="Admin Panel" subtitle="SchoolSync" navItems={adminNav} accentColor="indigo" />
+        <Sidebar title="Admin Panel" subtitle="Wattanman" navItems={adminNav} accentColor="indigo" />
         <div className="page-content">
           <div className="h-14 lg:hidden" />
           <div className="page-header">

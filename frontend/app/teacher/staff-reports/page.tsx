@@ -97,7 +97,7 @@ export default function TeacherStaffReports() {
 
   return (
     <div className="page-shell">
-      <Sidebar title="Teacher Panel" subtitle="SchoolSync" navItems={teacherNav} accentColor="emerald" />
+      <Sidebar title="Teacher Panel" subtitle="Wattanman" navItems={teacherNav} accentColor="emerald" />
       <div className="page-content">
         <div className="h-14 lg:hidden" />
         <div className="page-header">

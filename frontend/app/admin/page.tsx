@@ -121,7 +121,7 @@ export default function AdminDashboard() {
       <div className="page-shell">
         <Sidebar
           title="Admin Panel"
-          subtitle="SchoolSync"
+          subtitle="Wattanman"
           navItems={adminNav}
           accentColor="indigo"
         />

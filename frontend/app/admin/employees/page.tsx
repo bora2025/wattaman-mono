@@ -318,7 +318,7 @@ export default function ManageEmployees() {
 
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <Sidebar title="Admin" subtitle="SchoolSync" navItems={adminNav} accentColor="indigo" />
+      <Sidebar title="Admin" subtitle="Wattanman" navItems={adminNav} accentColor="indigo" />
 
       <main className="flex-1 lg:ml-0">
         <div className="lg:hidden h-14" />

@@ -196,7 +196,7 @@ export default function HolidaysPage() {
   return (
     <AuthGuard requiredRole="ADMIN">
       <div className="page-shell">
-        <Sidebar title="Admin Panel" subtitle="SchoolSync" navItems={adminNav} accentColor="indigo" />
+        <Sidebar title="Admin Panel" subtitle="Wattanman" navItems={adminNav} accentColor="indigo" />
         <div className="page-content lg:ml-0">
           <div className="h-14 lg:hidden" />
           <div className="page-header">

@@ -634,7 +634,7 @@ export default function GenerateQRCodes() {
       ctx.fillStyle = '#94a3b8';
       ctx.font = '12px Arial, sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText('SchoolSync Attendance System · Print and place at scan station', W / 2, H - 20);
+      ctx.fillText('Wattanman Attendance System · Print and place at scan station', W / 2, H - 20);
 
       // Bottom accent bar
       ctx.fillStyle = grad;
@@ -703,7 +703,7 @@ export default function GenerateQRCodes() {
   if (loading) {
     return (
       <div className="page-shell">
-        <Sidebar title="Admin Panel" subtitle="SchoolSync" navItems={adminNav} accentColor="indigo" />
+        <Sidebar title="Admin Panel" subtitle="Wattanman" navItems={adminNav} accentColor="indigo" />
         <div className="page-content">
           <div className="flex min-h-screen items-center justify-center">
             <div className="text-center">
@@ -726,7 +726,7 @@ export default function GenerateQRCodes() {
           </div>
         </div>
       )}
-      <Sidebar title="Admin Panel" subtitle="SchoolSync" navItems={adminNav} accentColor="indigo" />
+      <Sidebar title="Admin Panel" subtitle="Wattanman" navItems={adminNav} accentColor="indigo" />
       <div className="page-content">
         <div className="h-14 lg:hidden" />
         <div className="page-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

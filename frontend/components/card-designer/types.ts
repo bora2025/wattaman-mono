@@ -118,8 +118,8 @@ export const CARD_SIZE_PRESETS: Record<Exclude<CardSize, 'custom'>, { width: num
   'a7': { width: 298, height: 420, label: 'A7 (74 × 105 mm)' },
 };
 
-export const DESIGN_STORAGE_KEY = 'schoolsync-card-designs';
-export const TEMPLATES_STORAGE_KEY = 'schoolsync-card-templates';
+export const DESIGN_STORAGE_KEY = 'Wattanman-card-designs';
+export const TEMPLATES_STORAGE_KEY = 'Wattanman-card-templates';
 
 export interface SavedTemplate {
   id: string;
@@ -267,7 +267,7 @@ export const STUDENT_TEMPLATE: CardDesign = {
   photo: { x: 15, y: 55, width: 70, height: 85, borderRadius: 6, borderColor: '#4f46e5', borderWidth: 2, zIndex: 5 },
   qr: { x: 250, y: 55, size: 80, width: 80, height: 80, borderRadius: 0, borderColor: '#cbd5e1', borderWidth: 1, zIndex: 5 },
   texts: [
-    { id: 'st-school', content: 'SchoolSync Academy', x: 90, y: 12, fontSize: 14, color: '#312e81', fontWeight: 'bold', fontStyle: 'normal', textAlign: 'left' },
+    { id: 'st-school', content: 'Wattanman Academy', x: 90, y: 12, fontSize: 14, color: '#312e81', fontWeight: 'bold', fontStyle: 'normal', textAlign: 'left' },
     { id: 'st-title', content: 'STUDENT ID CARD', x: 90, y: 32, fontSize: 11, color: '#4f46e5', fontWeight: 'bold', fontStyle: 'normal', textAlign: 'left' },
     { id: 'st-name', content: '{{Student Name}}', x: 100, y: 65, fontSize: 15, color: '#1e293b', fontWeight: 'bold', fontStyle: 'normal', textAlign: 'left' },
     { id: 'st-id', content: 'ID: {{Student ID}}', x: 100, y: 88, fontSize: 11, color: '#475569', fontWeight: 'normal', fontStyle: 'normal', textAlign: 'left' },
@@ -290,7 +290,7 @@ export const STAFF_TEMPLATE: CardDesign = {
   photo: { x: 15, y: 55, width: 70, height: 85, borderRadius: 6, borderColor: '#059669', borderWidth: 2, zIndex: 5 },
   qr: { x: 250, y: 55, size: 80, width: 80, height: 80, borderRadius: 0, borderColor: '#cbd5e1', borderWidth: 1, zIndex: 5 },
   texts: [
-    { id: 'sf-school', content: 'SchoolSync Academy', x: 90, y: 12, fontSize: 14, color: '#064e3b', fontWeight: 'bold', fontStyle: 'normal', textAlign: 'left' },
+    { id: 'sf-school', content: 'Wattanman Academy', x: 90, y: 12, fontSize: 14, color: '#064e3b', fontWeight: 'bold', fontStyle: 'normal', textAlign: 'left' },
     { id: 'sf-title', content: 'OFFICER ID CARD', x: 90, y: 32, fontSize: 11, color: '#059669', fontWeight: 'bold', fontStyle: 'normal', textAlign: 'left' },
     { id: 'sf-name', content: '{{Staff Name}}', x: 100, y: 65, fontSize: 15, color: '#1e293b', fontWeight: 'bold', fontStyle: 'normal', textAlign: 'left' },
     { id: 'sf-id', content: 'Employee ID: {{Emp ID}}', x: 100, y: 88, fontSize: 11, color: '#475569', fontWeight: 'normal', fontStyle: 'normal', textAlign: 'left' },

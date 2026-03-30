@@ -301,7 +301,7 @@ export default function TeacherSessionSettingsPage() {
   return (
     <AuthGuard requiredRole="TEACHER">
       <div className="page-shell">
-        <Sidebar title="Teacher Portal" subtitle="SchoolSync" navItems={teacherNav} accentColor="emerald" />
+        <Sidebar title="Teacher Portal" subtitle="Wattanman" navItems={teacherNav} accentColor="emerald" />
         <div className="page-content">
           <div className="h-14 lg:hidden" />
           <div className="page-header">
