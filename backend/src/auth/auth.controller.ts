@@ -12,7 +12,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 const COOKIE_OPTIONS = {
   httpOnly: true,
   secure: isProduction || process.env.COOKIE_SECURE === 'true',
-  sameSite: isProduction ? 'strict' as const : 'lax' as const,
+  sameSite: 'none' as const,
   path: '/',
 };
 
