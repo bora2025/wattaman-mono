@@ -14,7 +14,7 @@ RUN npm install --ignore-scripts --legacy-peer-deps
 COPY . ./
 
 # Generate Prisma client
-RUN npx prisma generate --schema=prisma/schema.prisma
+RUN ./node_modules/.bin/prisma generate --schema=prisma/schema.prisma
 
 # Build NestJS
 RUN npm run build
@@ -32,10 +32,12 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=builder /app/node_modules/.bin/prisma ./node_modules/.bin/prisma
 COPY --from=builder /app/node_modules/bcryptjs ./node_modules/bcryptjs
 
 ENV NODE_ENV=production
 
 EXPOSE 3001
 
-CMD ["sh", "-c", "npx prisma db push --schema=prisma/schema.prisma --skip-generate --accept-data-loss || true; node prisma/seed-prod.js; node dist/main"]
+CMD ["sh", "-c", "./node_modules/.bin/prisma db push --schema=prisma/schema.prisma --skip-generate --accept-data-loss || true; node prisma/seed-prod.js; node dist/main"]
