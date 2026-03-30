@@ -2,8 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 
 /** Runtime API proxy — forwards /api/* requests to the backend */
 function getBackendUrl(): string {
-  // API_URL is a server-side env var (not NEXT_PUBLIC_), available at runtime
-  return process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  let url = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  // Ensure protocol is present
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = `https://${url}`;
+  }
+  // Remove trailing slash
+  return url.replace(/\/+$/, '');
 }
 
 async function proxyRequest(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
