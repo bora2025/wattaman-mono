@@ -21,8 +21,9 @@ async function proxyRequest(req: NextRequest, { params }: { params: Promise<{ pa
   const qs = url.search;
 
   const headers = new Headers(req.headers);
-  // Remove host header so it doesn't conflict
+  // Remove headers that conflict with the proxy layer
   headers.delete('host');
+  headers.delete('accept-encoding');
 
   const fetchOptions: RequestInit = {
     method: req.method,
@@ -40,8 +41,11 @@ async function proxyRequest(req: NextRequest, { params }: { params: Promise<{ pa
     const response = await fetch(`${target}${qs}`, fetchOptions);
 
     // Forward all response headers including Set-Cookie
+    // Strip content-encoding & content-length because fetch() auto-decompresses
     const responseHeaders = new Headers();
     response.headers.forEach((value, key) => {
+      const k = key.toLowerCase();
+      if (k === 'content-encoding' || k === 'content-length' || k === 'transfer-encoding') return;
       responseHeaders.append(key, value);
     });
 
