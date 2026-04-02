@@ -58,7 +58,7 @@ export default function Login() {
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white font-bold text-sm shadow-sm">
               S
             </div>
-            <span className="font-bold text-slate-800 text-lg">Wattanman</span>
+            <span className="font-bold text-slate-800 text-lg">Wattaman</span>
           </Link>
         </div>
       </header>

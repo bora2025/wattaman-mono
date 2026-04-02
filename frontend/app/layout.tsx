@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ['latin'] })
 const khmerFontsUrl = 'https://fonts.googleapis.com/css2?family=Battambang:wght@400;700&family=Bokor&family=Chenla&family=Content&family=Hanuman:wght@400;700&family=Khmer&family=Koulen&family=Moul&family=Noto+Sans+Khmer:wght@400;700&family=Siemreap&display=swap';
 
 export const metadata: Metadata = {
-  title: 'Wattanman',
+  title: 'Wattaman',
   description: 'Modern school attendance management system',
   icons: {
     icon: '/favicon.svg',

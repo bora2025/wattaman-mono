@@ -175,7 +175,9 @@ export default function EmployeeScanPage() {
         const reader = new BrowserMultiFormatReader()
         readerRef.current = reader
 
-        await reader.decodeFromVideoDevice(null, videoEl, (result) => {
+        // Use rear camera on mobile devices for QR scanning
+        const constraints = { video: { facingMode: { ideal: 'environment' } } }
+        await reader.decodeFromConstraints(constraints, videoEl, (result) => {
           if (cancelled) return
           if (result && !scanningRef.current) {
             handleSelfScan()

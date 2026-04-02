@@ -45,7 +45,7 @@ export default function Home() {
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white font-bold text-sm shadow-sm">
               S
             </div>
-            <span className="font-bold text-slate-800 text-lg">Wattanman</span>
+            <span className="font-bold text-slate-800 text-lg">Wattaman</span>
           </div>
           <Link href="/login" className="btn-primary btn-sm">
             Sign In
@@ -114,7 +114,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-slate-200 bg-white">
         <div className="max-w-6xl mx-auto px-6 py-6 text-center text-sm text-slate-400">
-          &copy; 2026 Wattanman &middot; Attendance Management System
+          &copy; 2026 Wattaman &middot; Attendance Management System
         </div>
       </footer>
     </div>

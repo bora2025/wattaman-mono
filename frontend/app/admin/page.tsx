@@ -121,7 +121,7 @@ export default function AdminDashboard() {
       <div className="page-shell">
         <Sidebar
           title="Admin Panel"
-          subtitle="Wattanman"
+          subtitle="Wattaman"
           navItems={adminNav}
           accentColor="indigo"
         />
