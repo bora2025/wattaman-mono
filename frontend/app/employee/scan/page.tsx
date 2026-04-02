@@ -66,6 +66,9 @@ export default function EmployeeScanPage() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const readerRef = useRef<BrowserMultiFormatReader | null>(null)
   const scanningRef = useRef(false)
+  const [rearCameras, setRearCameras] = useState<MediaDeviceInfo[]>([])
+  const [selectedCameraIdx, setSelectedCameraIdx] = useState(0)
+  const selectedCameraIdxRef = useRef(0)
 
   // Load user info
   useEffect(() => {
@@ -172,17 +175,38 @@ export default function EmployeeScanPage() {
         await new Promise(r => setTimeout(r, 100))
         if (cancelled) return
 
+        // Enumerate rear cameras for multi-lens phones (iPhone, Samsung, etc.)
+        let rearDevices: MediaDeviceInfo[] = []
+        try {
+          const tmpStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+          const devices = await navigator.mediaDevices.enumerateDevices()
+          tmpStream.getTracks().forEach(t => t.stop())
+          rearDevices = devices.filter(d => d.kind === 'videoinput')
+            .filter(d => {
+              const label = d.label.toLowerCase()
+              if (label.includes('front') || label.includes('facetime') || label.includes('selfie')) return false
+              return true
+            })
+          rearDevices.sort((a, b) => {
+            const al = a.label.toLowerCase()
+            const bl = b.label.toLowerCase()
+            const aScore = al.includes('ultra') || al.includes('tele') ? 1 : 0
+            const bScore = bl.includes('ultra') || bl.includes('tele') ? 1 : 0
+            return aScore - bScore
+          })
+        } catch { /* fallback below */ }
+        if (cancelled) return
+        setRearCameras(rearDevices)
+
         const reader = new BrowserMultiFormatReader()
         readerRef.current = reader
 
-        // Use rear camera on mobile with continuous autofocus for QR scanning
-        const constraints = {
-          video: {
-            facingMode: { ideal: 'environment' },
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-          } as MediaTrackConstraints,
-        }
+        const camIdx = selectedCameraIdxRef.current
+        const selectedDevice = rearDevices[camIdx]
+        const constraints: MediaStreamConstraints = selectedDevice
+          ? { video: { deviceId: { exact: selectedDevice.deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } } }
+          : { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } as MediaTrackConstraints }
+
         await reader.decodeFromConstraints(constraints, videoEl, (result) => {
           if (cancelled) return
           if (result && !scanningRef.current) {
@@ -221,7 +245,14 @@ export default function EmployeeScanPage() {
         videoEl.srcObject = null
       }
     }
-  }, [cameraActive, handleSelfScan])
+  }, [cameraActive, handleSelfScan, selectedCameraIdx])
+
+  const switchCamera = useCallback(() => {
+    if (rearCameras.length <= 1) return
+    const nextIdx = (selectedCameraIdx + 1) % rearCameras.length
+    setSelectedCameraIdx(nextIdx)
+    selectedCameraIdxRef.current = nextIdx
+  }, [rearCameras, selectedCameraIdx])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -349,10 +380,19 @@ export default function EmployeeScanPage() {
                               </div>
                             </div>
                           )}
-                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/50 to-transparent p-4">
-                            <p className="text-white text-center text-sm font-medium">
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/50 to-transparent p-4 flex items-center justify-between">
+                            <p className="text-white text-sm font-medium">
                               Point camera at QR code
                             </p>
+                            {rearCameras.length > 1 && (
+                              <button
+                                onClick={switchCamera}
+                                className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white active:scale-95 transition-transform"
+                                title={`Switch camera (${selectedCameraIdx + 1}/${rearCameras.length})`}
+                              >
+                                🔄
+                              </button>
+                            )}
                           </div>
                         </div>
                       ) : (

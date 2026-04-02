@@ -210,6 +210,9 @@ function TakeAttendance() {
   const sessionConfigsRef = useRef<Array<{session: number; type: string; startTime: string; endTime: string}>>([])
   const sessionRef = useRef<number>(1)
   const scanModeRef = useRef<'check-in' | 'check-out'>('check-in')
+  const [rearCameras, setRearCameras] = useState<MediaDeviceInfo[]>([])
+  const [selectedCameraIdx, setSelectedCameraIdx] = useState(0)
+  const selectedCameraIdxRef = useRef(0)
 
   useEffect(() => { showStudentInfoRef.current = showStudentInfo }, [showStudentInfo])
   useEffect(() => { scanningRef.current = scanning }, [scanning])
@@ -532,16 +535,45 @@ function TakeAttendance() {
         // Small delay to let the video element fully release
         await new Promise(r => setTimeout(r, 100))
         if (cancelled) return
+
+        // Enumerate rear cameras for multi-lens phones (iPhone, Samsung, etc.)
+        let rearDevices: MediaDeviceInfo[] = []
+        try {
+          // Need a temporary stream to get labeled device list
+          const tmpStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+          const devices = await navigator.mediaDevices.enumerateDevices()
+          tmpStream.getTracks().forEach(t => t.stop())
+          rearDevices = devices.filter(d => d.kind === 'videoinput')
+            .filter(d => {
+              const label = d.label.toLowerCase()
+              // Exclude front cameras
+              if (label.includes('front') || label.includes('facetime') || label.includes('selfie')) return false
+              // Include if labeled as back/rear/environment, or if no clear label (keep all)
+              return label.includes('back') || label.includes('rear') || label.includes('environment') || !label.includes('front')
+            })
+          // Sort: prefer main/wide camera (typically labeled "0" or "wide" or no qualifier)
+          // Ultrawide and telephoto are less useful for QR at close range
+          rearDevices.sort((a, b) => {
+            const al = a.label.toLowerCase()
+            const bl = b.label.toLowerCase()
+            const aScore = al.includes('ultra') || al.includes('tele') ? 1 : 0
+            const bScore = bl.includes('ultra') || bl.includes('tele') ? 1 : 0
+            return aScore - bScore
+          })
+        } catch { /* fallback: use facingMode below */ }
+        if (cancelled) return
+        setRearCameras(rearDevices)
+
         const reader = new BrowserMultiFormatReader()
         codeReaderRef.current = reader
-        // Use rear camera on mobile with continuous autofocus for QR scanning
-        const constraints = {
-          video: {
-            facingMode: { ideal: 'environment' },
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-          } as MediaTrackConstraints,
-        }
+
+        // Use selected camera device if available, otherwise fall back to facingMode
+        const camIdx = selectedCameraIdxRef.current
+        const selectedDevice = rearDevices[camIdx]
+        const constraints: MediaStreamConstraints = selectedDevice
+          ? { video: { deviceId: { exact: selectedDevice.deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } } }
+          : { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } as MediaTrackConstraints }
+
         await reader.decodeFromConstraints(constraints, videoEl, (result) => {
           if (cancelled) return
           if (result) handleQrScanned(result.getText())
@@ -579,7 +611,14 @@ function TakeAttendance() {
         videoEl.srcObject = null
       }
     }
-  }, [scanning, handleQrScanned])
+  }, [scanning, handleQrScanned, selectedCameraIdx])
+
+  const switchCamera = useCallback(() => {
+    if (rearCameras.length <= 1) return
+    const nextIdx = (selectedCameraIdx + 1) % rearCameras.length
+    setSelectedCameraIdx(nextIdx)
+    selectedCameraIdxRef.current = nextIdx
+  }, [rearCameras, selectedCameraIdx])
 
   const startScanning = () => {
     if (typeof navigator.mediaDevices?.getUserMedia !== 'function') { setMessage('Camera not supported'); return }
@@ -733,12 +772,23 @@ function TakeAttendance() {
               </div>
               <span className="text-white/80 text-xs font-medium">Session {session}</span>
             </div>
-            <button
-              onClick={stopScanning}
-              className="w-10 h-10 rounded-full bg-red-500/90 backdrop-blur-sm flex items-center justify-center text-white shadow-lg active:scale-95 transition-transform"
-            >
-              ✕
-            </button>
+            <div className="flex items-center gap-2">
+              {rearCameras.length > 1 && (
+                <button
+                  onClick={switchCamera}
+                  className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white shadow-lg active:scale-95 transition-transform"
+                  title={`Switch camera (${selectedCameraIdx + 1}/${rearCameras.length})`}
+                >
+                  🔄
+                </button>
+              )}
+              <button
+                onClick={stopScanning}
+                className="w-10 h-10 rounded-full bg-red-500/90 backdrop-blur-sm flex items-center justify-center text-white shadow-lg active:scale-95 transition-transform"
+              >
+                ✕
+              </button>
+            </div>
           </div>
           {/* Bottom info bar */}
           <div className="relative z-10 mt-auto bg-gradient-to-t from-black/80 to-transparent px-4 pb-6 pt-8">
