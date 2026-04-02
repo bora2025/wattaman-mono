@@ -66,8 +66,9 @@ export default function EmployeeScanPage() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const readerRef = useRef<BrowserMultiFormatReader | null>(null)
   const scanningRef = useRef(false)
-  const [useFrontCamera, setUseFrontCamera] = useState(false)
-  const useFrontCameraRef = useRef(false)
+  const [allCameras, setAllCameras] = useState<MediaDeviceInfo[]>([])
+  const [currentCamIdx, setCurrentCamIdx] = useState(0)
+  const currentCamIdxRef = useRef(0)
 
   // Load user info
   useEffect(() => {
@@ -171,50 +172,63 @@ export default function EmployeeScanPage() {
           (videoEl.srcObject as MediaStream).getTracks().forEach(t => t.stop())
           videoEl.srcObject = null
         }
-        await new Promise(r => setTimeout(r, 200))
+        await new Promise(r => setTimeout(r, 300))
         if (cancelled) return
 
+        // Step 1: Get camera permission and enumerate all cameras
+        let cameras = allCameras
+        if (cameras.length === 0) {
+          const permStream = await navigator.mediaDevices.getUserMedia({ video: true })
+          permStream.getTracks().forEach(t => t.stop())
+          const devices = await navigator.mediaDevices.enumerateDevices()
+          cameras = devices.filter(d => d.kind === 'videoinput')
+          if (!cancelled) setAllCameras(cameras)
+        }
+        if (cancelled) return
+
+        // Step 2: Pick camera by index
+        const camIdx = currentCamIdxRef.current
+        let deviceId: string | undefined
+        if (cameras.length > 0 && camIdx < cameras.length) {
+          deviceId = cameras[camIdx].deviceId
+        }
+
+        // Step 3: Get stream with proper constraints
+        const streamConstraints: MediaTrackConstraints = {
+          width: { ideal: 1920, min: 640 },
+          height: { ideal: 1080, min: 480 },
+          ...(deviceId
+            ? { deviceId: { exact: deviceId } }
+            : { facingMode: 'environment' }),
+        }
+        const stream = await navigator.mediaDevices.getUserMedia({ video: streamConstraints })
+        if (cancelled) { stream.getTracks().forEach(t => t.stop()); return }
+
+        // Step 4: Apply continuous autofocus
+        const track = stream.getVideoTracks()[0]
+        if (track) {
+          try {
+            const caps = track.getCapabilities?.() as any
+            const advancedConstraints: any[] = []
+            if (caps?.focusMode?.includes('continuous')) {
+              advancedConstraints.push({ focusMode: 'continuous' })
+            }
+            if (advancedConstraints.length > 0) {
+              await track.applyConstraints({ advanced: advancedConstraints } as any)
+            }
+          } catch { /* focus constraints not supported */ }
+        }
+
+        // Step 5: Start QR decoding using our pre-configured stream
         const reader = new BrowserMultiFormatReader()
         readerRef.current = reader
 
-        // Simple and reliable: use facingMode to pick front/back camera
-        const facing = useFrontCameraRef.current ? 'user' : 'environment'
-        const constraints: MediaStreamConstraints = {
-          video: {
-            facingMode: { exact: facing },
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-          } as MediaTrackConstraints,
-        }
-
-        try {
-          await reader.decodeFromConstraints(constraints, videoEl, (result) => {
-            if (cancelled) return
-            if (result && !scanningRef.current) {
-              handleSelfScan()
-            }
-          })
-        } catch {
-          // Fallback: if exact facingMode fails, try without exact
+        await reader.decodeFromStream(stream, videoEl, (result) => {
           if (cancelled) return
-          await reader.decodeFromConstraints(
-            { video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 } } as MediaTrackConstraints },
-            videoEl,
-            (result) => { if (!cancelled && result && !scanningRef.current) handleSelfScan() }
-          )
-        }
-
-        // Enable continuous autofocus if supported (critical for close-range QR scanning)
-        try {
-          const stream = videoEl.srcObject as MediaStream | null
-          const track = stream?.getVideoTracks()[0]
-          if (track) {
-            const caps = track.getCapabilities?.() as any
-            if (caps?.focusMode?.includes('continuous')) {
-              await track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as any] })
-            }
+          if (result && !scanningRef.current) {
+            handleSelfScan()
           }
-        } catch { /* focus mode not supported */ }
+        })
       } catch {
         if (cancelled) return
         setError('Cannot access camera. Please allow camera permission.')
@@ -236,15 +250,14 @@ export default function EmployeeScanPage() {
         videoEl.srcObject = null
       }
     }
-  }, [cameraActive, handleSelfScan, useFrontCamera])
+  }, [cameraActive, handleSelfScan, currentCamIdx])
 
   const switchCamera = useCallback(() => {
-    setUseFrontCamera(prev => {
-      const next = !prev
-      useFrontCameraRef.current = next
-      return next
-    })
-  }, [])
+    if (allCameras.length <= 1) return
+    const nextIdx = (currentCamIdx + 1) % allCameras.length
+    setCurrentCamIdx(nextIdx)
+    currentCamIdxRef.current = nextIdx
+  }, [allCameras, currentCamIdx])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -379,7 +392,7 @@ export default function EmployeeScanPage() {
                             <button
                               onClick={switchCamera}
                               className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white active:scale-95 transition-transform"
-                              title={useFrontCamera ? 'Switch to back camera' : 'Switch to front camera'}
+                              title={allCameras.length > 1 ? `Switch camera (${currentCamIdx + 1}/${allCameras.length})` : 'No other cameras'}
                             >
                               🔄
                             </button>
