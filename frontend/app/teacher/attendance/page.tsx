@@ -210,12 +210,11 @@ function TakeAttendance() {
   const sessionConfigsRef = useRef<Array<{session: number; type: string; startTime: string; endTime: string}>>([])
   const sessionRef = useRef<number>(1)
   const scanModeRef = useRef<'check-in' | 'check-out'>('check-in')
-  const [rearCameras, setRearCameras] = useState<MediaDeviceInfo[]>([])
-  const [selectedCameraIdx, setSelectedCameraIdx] = useState(0)
-  const selectedCameraIdxRef = useRef(0)
   const [allCameras, setAllCameras] = useState<MediaDeviceInfo[]>([])
+  const allCamerasRef = useRef<MediaDeviceInfo[]>([])
   const [currentCamIdx, setCurrentCamIdx] = useState(0)
   const currentCamIdxRef = useRef(0)
+  const [cameraLabel, setCameraLabel] = useState('')
 
   useEffect(() => { showStudentInfoRef.current = showStudentInfo }, [showStudentInfo])
   useEffect(() => { scanningRef.current = scanning }, [scanning])
@@ -529,76 +528,73 @@ function TakeAttendance() {
           codeReaderRef.current.reset()
           codeReaderRef.current = null
         }
-        // Ensure video element is fully stopped before starting new reader
         videoEl.pause()
         if (videoEl.srcObject) {
           (videoEl.srcObject as MediaStream).getTracks().forEach(t => t.stop())
           videoEl.srcObject = null
         }
-        await new Promise(r => setTimeout(r, 300))
+        await new Promise(r => setTimeout(r, 400))
         if (cancelled) return
 
-        // Step 1: Get camera permission and enumerate all cameras
-        let cameras = allCameras
-        if (cameras.length === 0) {
-          // Need permission first to get labeled device list
-          const permStream = await navigator.mediaDevices.getUserMedia({ video: true })
-          permStream.getTracks().forEach(t => t.stop())
-          const devices = await navigator.mediaDevices.enumerateDevices()
-          cameras = devices.filter(d => d.kind === 'videoinput')
-          if (!cancelled) setAllCameras(cameras)
-        }
-        if (cancelled) return
-
-        // Step 2: Pick camera — start with back camera (environment) if first time
-        const camIdx = currentCamIdxRef.current
-        let deviceId: string | undefined
-
-        if (cameras.length > 0 && camIdx < cameras.length) {
-          deviceId = cameras[camIdx].deviceId
-        }
-
-        // Step 3: Get stream manually with proper constraints for focus
-        const streamConstraints: MediaTrackConstraints = {
-          width: { ideal: 1920, min: 640 },
-          height: { ideal: 1080, min: 480 },
-          ...(deviceId
-            ? { deviceId: { exact: deviceId } }
-            : { facingMode: 'environment' }),
-        }
-        const stream = await navigator.mediaDevices.getUserMedia({ video: streamConstraints })
-        if (cancelled) { stream.getTracks().forEach(t => t.stop()); return }
-
-        // Step 4: Apply continuous autofocus and other optimizations
-        const track = stream.getVideoTracks()[0]
-        if (track) {
-          try {
-            const caps = track.getCapabilities?.() as any
-            const advancedConstraints: any[] = []
-            if (caps?.focusMode?.includes('continuous')) {
-              advancedConstraints.push({ focusMode: 'continuous' })
-            }
-            if (advancedConstraints.length > 0) {
-              await track.applyConstraints({ advanced: advancedConstraints } as any)
-            }
-          } catch { /* focus constraints not supported */ }
-        }
-
-        // Step 5: Start QR decoding using our pre-configured stream
         const reader = new BrowserMultiFormatReader()
         codeReaderRef.current = reader
 
-        await reader.decodeFromStream(stream, videoEl, (result) => {
+        // Step 1: Enumerate cameras (needs one-time permission)
+        let cameras = allCamerasRef.current
+        if (cameras.length === 0) {
+          cameras = await reader.listVideoInputDevices()
+          // Sort: back/environment cameras first, then others
+          cameras.sort((a, b) => {
+            const aBack = /back|rear|environment|後/i.test(a.label) ? 0 : 1
+            const bBack = /back|rear|environment|後/i.test(b.label) ? 0 : 1
+            return aBack - bBack
+          })
+          allCamerasRef.current = cameras
+          if (!cancelled) setAllCameras([...cameras])
+        }
+        if (cancelled) return
+
+        // Step 2: Pick camera by current index
+        const camIdx = currentCamIdxRef.current
+        const deviceId = cameras.length > 0 && camIdx < cameras.length
+          ? cameras[camIdx].deviceId
+          : undefined
+        const label = cameras.length > 0 && camIdx < cameras.length
+          ? cameras[camIdx].label || `Camera ${camIdx + 1}`
+          : 'Default'
+        if (!cancelled) setCameraLabel(label)
+
+        // Step 3: Use the library's native method — it manages its own stream
+        reader.timeBetweenDecodingAttempts = 150
+        await reader.decodeFromVideoDevice(deviceId || null, videoEl, (result) => {
           if (cancelled) return
           if (result) handleQrScanned(result.getText())
         })
 
-        if (!cancelled) setMessage('Camera ready — scan student or staff QR code')
+        // Step 4: After video starts, apply autofocus to the stream the library created
+        const applyFocus = () => {
+          try {
+            const stream = videoEl.srcObject as MediaStream | null
+            const track = stream?.getVideoTracks()[0]
+            if (track) {
+              const caps = track.getCapabilities?.() as any
+              if (caps?.focusMode?.includes('continuous')) {
+                track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as any] })
+              }
+            }
+          } catch { /* focus not supported */ }
+        }
+        if (videoEl.readyState >= 2) applyFocus()
+        else videoEl.addEventListener('playing', applyFocus, { once: true })
+
+        if (!cancelled) setMessage('Camera ready — scan QR code')
       } catch (error: any) {
         if (cancelled) return
+        console.error('Camera init error:', error)
         if (error.name === 'NotAllowedError') setMessage('Camera access denied. Please allow camera permissions.')
-        else if (error.name === 'NotFoundError' || error.name === 'OverconstrainedError') setMessage('Camera not available. Try switching camera.')
-        else setMessage('Failed to start camera. Please try again.')
+        else if (error.name === 'NotFoundError' || error.name === 'OverconstrainedError') {
+          setMessage('Camera not available. Try switching camera.')
+        } else setMessage('Failed to start camera. Please try again.')
         setScanning(false)
       }
     }
@@ -609,7 +605,6 @@ function TakeAttendance() {
         codeReaderRef.current.reset()
         codeReaderRef.current = null
       }
-      videoEl.pause()
       if (videoEl.srcObject) {
         (videoEl.srcObject as MediaStream).getTracks().forEach(t => t.stop())
         videoEl.srcObject = null
@@ -618,11 +613,12 @@ function TakeAttendance() {
   }, [scanning, handleQrScanned, currentCamIdx])
 
   const switchCamera = useCallback(() => {
-    if (allCameras.length <= 1) return
-    const nextIdx = (currentCamIdx + 1) % allCameras.length
-    setCurrentCamIdx(nextIdx)
+    const cameras = allCamerasRef.current
+    if (cameras.length <= 1) return
+    const nextIdx = (currentCamIdx + 1) % cameras.length
     currentCamIdxRef.current = nextIdx
-  }, [allCameras, currentCamIdx])
+    setCurrentCamIdx(nextIdx)
+  }, [currentCamIdx])
 
   const startScanning = () => {
     if (typeof navigator.mediaDevices?.getUserMedia !== 'function') { setMessage('Camera not supported'); return }
@@ -777,13 +773,15 @@ function TakeAttendance() {
               <span className="text-white/80 text-xs font-medium">Session {session}</span>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                onClick={switchCamera}
-                className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white shadow-lg active:scale-95 transition-transform"
-                title={allCameras.length > 1 ? `Switch camera (${currentCamIdx + 1}/${allCameras.length})` : 'No other cameras'}
-              >
-                🔄
-              </button>
+              {allCameras.length > 1 && (
+                <button
+                  onClick={switchCamera}
+                  className="h-10 px-3 rounded-full bg-white/20 backdrop-blur-sm flex items-center gap-1.5 text-white shadow-lg active:scale-95 transition-transform"
+                  title={`Switch camera (${currentCamIdx + 1}/${allCameras.length})`}
+                >
+                  🔄 <span className="text-xs max-w-[80px] truncate">{cameraLabel}</span>
+                </button>
+              )}
               <button
                 onClick={stopScanning}
                 className="w-10 h-10 rounded-full bg-red-500/90 backdrop-blur-sm flex items-center justify-center text-white shadow-lg active:scale-95 transition-transform"

@@ -100,6 +100,11 @@ function TeacherStaffAttendance() {
   const staffScanLockRef = useRef(false)
   const locationRef = useRef<{ latitude: number; longitude: number; locationName?: string } | null>(null)
   const [locationStatus, setLocationStatus] = useState<'pending' | 'granted' | 'denied' | 'unavailable'>('pending')
+  const [allCameras, setAllCameras] = useState<MediaDeviceInfo[]>([])
+  const allCamerasRef = useRef<MediaDeviceInfo[]>([])
+  const [currentCamIdx, setCurrentCamIdx] = useState(0)
+  const currentCamIdxRef = useRef(0)
+  const [cameraLabel, setCameraLabel] = useState('')
 
   useEffect(() => { sessionRef.current = session }, [session])
   useEffect(() => { scanModeRef.current = scanMode }, [scanMode])
@@ -355,14 +360,55 @@ function TeacherStaffAttendance() {
           (videoEl.srcObject as MediaStream).getTracks().forEach(t => t.stop())
           videoEl.srcObject = null
         }
-        await new Promise(r => setTimeout(r, 100))
+        await new Promise(r => setTimeout(r, 400))
         if (cancelled) return
+
         const reader = new BrowserMultiFormatReader()
         codeReaderRef.current = reader
-        await reader.decodeFromVideoDevice(null, videoEl, (result) => {
+
+        let cameras = allCamerasRef.current
+        if (cameras.length === 0) {
+          cameras = await reader.listVideoInputDevices()
+          cameras.sort((a, b) => {
+            const aBack = /back|rear|environment|後/i.test(a.label) ? 0 : 1
+            const bBack = /back|rear|environment|後/i.test(b.label) ? 0 : 1
+            return aBack - bBack
+          })
+          allCamerasRef.current = cameras
+          if (!cancelled) setAllCameras([...cameras])
+        }
+        if (cancelled) return
+
+        const camIdx = currentCamIdxRef.current
+        const deviceId = cameras.length > 0 && camIdx < cameras.length
+          ? cameras[camIdx].deviceId
+          : undefined
+        const label = cameras.length > 0 && camIdx < cameras.length
+          ? cameras[camIdx].label || `Camera ${camIdx + 1}`
+          : 'Default'
+        if (!cancelled) setCameraLabel(label)
+
+        reader.timeBetweenDecodingAttempts = 150
+        await reader.decodeFromVideoDevice(deviceId || null, videoEl, (result) => {
           if (cancelled) return
           if (result) handleQrScanned(result.getText())
         })
+
+        const applyFocus = () => {
+          try {
+            const stream = videoEl.srcObject as MediaStream | null
+            const track = stream?.getVideoTracks()[0]
+            if (track) {
+              const caps = track.getCapabilities?.() as any
+              if (caps?.focusMode?.includes('continuous')) {
+                track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as any] })
+              }
+            }
+          } catch { /* focus not supported */ }
+        }
+        if (videoEl.readyState >= 2) applyFocus()
+        else videoEl.addEventListener('playing', applyFocus, { once: true })
+
         if (!cancelled) setMessage('Camera ready — point at staff QR code')
       } catch (error: any) {
         if (cancelled) return
@@ -376,13 +422,20 @@ function TeacherStaffAttendance() {
     return () => {
       cancelled = true
       if (codeReaderRef.current) { codeReaderRef.current.reset(); codeReaderRef.current = null }
-      videoEl.pause()
       if (videoEl.srcObject) {
         (videoEl.srcObject as MediaStream).getTracks().forEach(t => t.stop())
         videoEl.srcObject = null
       }
     }
-  }, [scanning, handleQrScanned])
+  }, [scanning, handleQrScanned, currentCamIdx])
+
+  const switchCamera = useCallback(() => {
+    const cameras = allCamerasRef.current
+    if (cameras.length <= 1) return
+    const nextIdx = (currentCamIdx + 1) % cameras.length
+    currentCamIdxRef.current = nextIdx
+    setCurrentCamIdx(nextIdx)
+  }, [currentCamIdx])
 
   const startScanning = () => {
     if (typeof navigator.mediaDevices?.getUserMedia !== 'function') { setMessage('Camera not supported'); return }
@@ -431,9 +484,20 @@ function TeacherStaffAttendance() {
                 {(() => { const cfg = staffSessionConfigs.find(c => c.session === session); return cfg ? <span className="text-white/60 text-[11px]">⏰ {cfg.startTime} – {cfg.endTime}</span> : null })()}
               </div>
             </div>
-            <button onClick={() => { stopScanning(); router.push('/teacher') }} className="w-10 h-10 rounded-full bg-red-500/90 backdrop-blur-sm flex items-center justify-center text-white shadow-lg active:scale-95 transition-transform">
+            <div className="flex items-center gap-2">
+              {allCameras.length > 1 && (
+                <button
+                  onClick={switchCamera}
+                  className="h-10 px-3 rounded-full bg-white/20 backdrop-blur-sm flex items-center gap-1.5 text-white shadow-lg active:scale-95 transition-transform"
+                  title={`Switch camera (${currentCamIdx + 1}/${allCameras.length})`}
+                >
+                  🔄 <span className="text-xs max-w-[80px] truncate">{cameraLabel}</span>
+                </button>
+              )}
+              <button onClick={() => { stopScanning(); router.push('/teacher') }} className="w-10 h-10 rounded-full bg-red-500/90 backdrop-blur-sm flex items-center justify-center text-white shadow-lg active:scale-95 transition-transform">
               ✕
             </button>
+            </div>
           </div>
 
           {/* Session schedule cards (info-only) */}

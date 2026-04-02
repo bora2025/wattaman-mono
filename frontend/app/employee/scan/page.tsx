@@ -67,8 +67,10 @@ export default function EmployeeScanPage() {
   const readerRef = useRef<BrowserMultiFormatReader | null>(null)
   const scanningRef = useRef(false)
   const [allCameras, setAllCameras] = useState<MediaDeviceInfo[]>([])
+  const allCamerasRef = useRef<MediaDeviceInfo[]>([])
   const [currentCamIdx, setCurrentCamIdx] = useState(0)
   const currentCamIdxRef = useRef(0)
+  const [cameraLabel, setCameraLabel] = useState('')
 
   // Load user info
   useEffect(() => {
@@ -172,63 +174,60 @@ export default function EmployeeScanPage() {
           (videoEl.srcObject as MediaStream).getTracks().forEach(t => t.stop())
           videoEl.srcObject = null
         }
-        await new Promise(r => setTimeout(r, 300))
+        await new Promise(r => setTimeout(r, 400))
         if (cancelled) return
 
-        // Step 1: Get camera permission and enumerate all cameras
-        let cameras = allCameras
-        if (cameras.length === 0) {
-          const permStream = await navigator.mediaDevices.getUserMedia({ video: true })
-          permStream.getTracks().forEach(t => t.stop())
-          const devices = await navigator.mediaDevices.enumerateDevices()
-          cameras = devices.filter(d => d.kind === 'videoinput')
-          if (!cancelled) setAllCameras(cameras)
-        }
-        if (cancelled) return
-
-        // Step 2: Pick camera by index
-        const camIdx = currentCamIdxRef.current
-        let deviceId: string | undefined
-        if (cameras.length > 0 && camIdx < cameras.length) {
-          deviceId = cameras[camIdx].deviceId
-        }
-
-        // Step 3: Get stream with proper constraints
-        const streamConstraints: MediaTrackConstraints = {
-          width: { ideal: 1920, min: 640 },
-          height: { ideal: 1080, min: 480 },
-          ...(deviceId
-            ? { deviceId: { exact: deviceId } }
-            : { facingMode: 'environment' }),
-        }
-        const stream = await navigator.mediaDevices.getUserMedia({ video: streamConstraints })
-        if (cancelled) { stream.getTracks().forEach(t => t.stop()); return }
-
-        // Step 4: Apply continuous autofocus
-        const track = stream.getVideoTracks()[0]
-        if (track) {
-          try {
-            const caps = track.getCapabilities?.() as any
-            const advancedConstraints: any[] = []
-            if (caps?.focusMode?.includes('continuous')) {
-              advancedConstraints.push({ focusMode: 'continuous' })
-            }
-            if (advancedConstraints.length > 0) {
-              await track.applyConstraints({ advanced: advancedConstraints } as any)
-            }
-          } catch { /* focus constraints not supported */ }
-        }
-
-        // Step 5: Start QR decoding using our pre-configured stream
         const reader = new BrowserMultiFormatReader()
         readerRef.current = reader
 
-        await reader.decodeFromStream(stream, videoEl, (result) => {
+        // Step 1: Enumerate cameras (needs one-time permission)
+        let cameras = allCamerasRef.current
+        if (cameras.length === 0) {
+          cameras = await reader.listVideoInputDevices()
+          cameras.sort((a, b) => {
+            const aBack = /back|rear|environment|後/i.test(a.label) ? 0 : 1
+            const bBack = /back|rear|environment|後/i.test(b.label) ? 0 : 1
+            return aBack - bBack
+          })
+          allCamerasRef.current = cameras
+          if (!cancelled) setAllCameras([...cameras])
+        }
+        if (cancelled) return
+
+        // Step 2: Pick camera by current index
+        const camIdx = currentCamIdxRef.current
+        const deviceId = cameras.length > 0 && camIdx < cameras.length
+          ? cameras[camIdx].deviceId
+          : undefined
+        const label = cameras.length > 0 && camIdx < cameras.length
+          ? cameras[camIdx].label || `Camera ${camIdx + 1}`
+          : 'Default'
+        if (!cancelled) setCameraLabel(label)
+
+        // Step 3: Use the library's native method — it manages its own stream
+        reader.timeBetweenDecodingAttempts = 150
+        await reader.decodeFromVideoDevice(deviceId || null, videoEl, (result) => {
           if (cancelled) return
           if (result && !scanningRef.current) {
             handleSelfScan()
           }
         })
+
+        // Step 4: After video starts, apply autofocus
+        const applyFocus = () => {
+          try {
+            const stream = videoEl.srcObject as MediaStream | null
+            const track = stream?.getVideoTracks()[0]
+            if (track) {
+              const caps = track.getCapabilities?.() as any
+              if (caps?.focusMode?.includes('continuous')) {
+                track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as any] })
+              }
+            }
+          } catch { /* focus not supported */ }
+        }
+        if (videoEl.readyState >= 2) applyFocus()
+        else videoEl.addEventListener('playing', applyFocus, { once: true })
       } catch {
         if (cancelled) return
         setError('Cannot access camera. Please allow camera permission.')
@@ -244,7 +243,6 @@ export default function EmployeeScanPage() {
         readerRef.current.reset()
         readerRef.current = null
       }
-      videoEl.pause()
       if (videoEl.srcObject) {
         (videoEl.srcObject as MediaStream).getTracks().forEach(t => t.stop())
         videoEl.srcObject = null
@@ -253,11 +251,12 @@ export default function EmployeeScanPage() {
   }, [cameraActive, handleSelfScan, currentCamIdx])
 
   const switchCamera = useCallback(() => {
-    if (allCameras.length <= 1) return
-    const nextIdx = (currentCamIdx + 1) % allCameras.length
-    setCurrentCamIdx(nextIdx)
+    const cameras = allCamerasRef.current
+    if (cameras.length <= 1) return
+    const nextIdx = (currentCamIdx + 1) % cameras.length
     currentCamIdxRef.current = nextIdx
-  }, [allCameras, currentCamIdx])
+    setCurrentCamIdx(nextIdx)
+  }, [currentCamIdx])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -389,13 +388,15 @@ export default function EmployeeScanPage() {
                             <p className="text-white text-sm font-medium">
                               Point camera at QR code
                             </p>
-                            <button
-                              onClick={switchCamera}
-                              className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white active:scale-95 transition-transform"
-                              title={allCameras.length > 1 ? `Switch camera (${currentCamIdx + 1}/${allCameras.length})` : 'No other cameras'}
-                            >
-                              🔄
-                            </button>
+                            {allCameras.length > 1 && (
+                              <button
+                                onClick={switchCamera}
+                                className="h-9 px-3 rounded-full bg-white/20 backdrop-blur-sm flex items-center gap-1.5 text-white active:scale-95 transition-transform"
+                                title={`Switch camera (${currentCamIdx + 1}/${allCameras.length})`}
+                              >
+                                🔄 <span className="text-xs max-w-[80px] truncate">{cameraLabel}</span>
+                              </button>
+                            )}
                           </div>
                         </div>
                       ) : (
