@@ -213,6 +213,8 @@ function TakeAttendance() {
   const [rearCameras, setRearCameras] = useState<MediaDeviceInfo[]>([])
   const [selectedCameraIdx, setSelectedCameraIdx] = useState(0)
   const selectedCameraIdxRef = useRef(0)
+  const [useFrontCamera, setUseFrontCamera] = useState(false)
+  const useFrontCameraRef = useRef(false)
 
   useEffect(() => { showStudentInfoRef.current = showStudentInfo }, [showStudentInfo])
   useEffect(() => { scanningRef.current = scanning }, [scanning])
@@ -533,69 +535,38 @@ function TakeAttendance() {
           videoEl.srcObject = null
         }
         // Small delay to let the video element fully release
-        await new Promise(r => setTimeout(r, 100))
+        await new Promise(r => setTimeout(r, 200))
         if (cancelled) return
-
-        // Enumerate rear cameras for multi-lens phones (iPhone, Samsung, etc.)
-        let rearDevices: MediaDeviceInfo[] = []
-        try {
-          // Get a rear-facing stream to identify rear camera device IDs
-          const tmpStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-          const defaultRearId = tmpStream.getVideoTracks()[0]?.getSettings()?.deviceId
-          const devices = await navigator.mediaDevices.enumerateDevices()
-          tmpStream.getTracks().forEach(t => t.stop())
-          const allVideo = devices.filter(d => d.kind === 'videoinput')
-          // On iOS: labels like "Back Camera", "Back Ultra Wide Camera", "Back Telephoto Camera"
-          // On Android: labels vary, "camera2 0" or "Back Camera" etc.
-          // Strategy: if we have labels, filter by them. Otherwise use the default rear device.
-          const hasLabels = allVideo.some(d => d.label.length > 0)
-          if (hasLabels) {
-            rearDevices = allVideo.filter(d => {
-              const label = d.label.toLowerCase()
-              // Exclude clearly front-facing cameras
-              if (label.includes('front') || label.includes('facetime') || label.includes('selfie') || label.includes('user')) return false
-              // Include if labeled back/rear, or if it's the default rear device
-              if (label.includes('back') || label.includes('rear') || label.includes('environment')) return true
-              if (d.deviceId === defaultRearId) return true
-              return false
-            })
-          }
-          // Fallback: if no rear cameras found, just use the default rear device
-          if (rearDevices.length === 0 && defaultRearId) {
-            const defaultDev = allVideo.find(d => d.deviceId === defaultRearId)
-            if (defaultDev) rearDevices = [defaultDev]
-          }
-          // Sort: main/wide (1x) first, then others. Ultra-wide & telephoto can't focus QR at close range.
-          rearDevices.sort((a, b) => {
-            const al = a.label.toLowerCase()
-            const bl = b.label.toLowerCase()
-            // Penalize ultra-wide and telephoto lenses
-            const aScore = (al.includes('ultra') ? 2 : 0) + (al.includes('tele') ? 2 : 0) + (al.includes('wide') && !al.includes('ultra') ? 0 : 0)
-            const bScore = (bl.includes('ultra') ? 2 : 0) + (bl.includes('tele') ? 2 : 0) + (bl.includes('wide') && !bl.includes('ultra') ? 0 : 0)
-            // Boost the default rear camera (OS picks the best 1x lens)
-            const aDefault = a.deviceId === defaultRearId ? -1 : 0
-            const bDefault = b.deviceId === defaultRearId ? -1 : 0
-            return (aScore + aDefault) - (bScore + bDefault)
-          })
-        } catch { /* fallback: use facingMode below */ }
-        if (cancelled) return
-        setRearCameras(rearDevices)
 
         const reader = new BrowserMultiFormatReader()
         codeReaderRef.current = reader
 
-        // Use selected camera device if available, otherwise fall back to facingMode
-        const camIdx = selectedCameraIdxRef.current
-        const selectedDevice = rearDevices[camIdx]
-        const constraints: MediaStreamConstraints = selectedDevice
-          ? { video: { deviceId: { exact: selectedDevice.deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } } }
-          : { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } as MediaTrackConstraints }
+        // Simple and reliable: use facingMode to pick front/back camera
+        const facing = useFrontCameraRef.current ? 'user' : 'environment'
+        const constraints: MediaStreamConstraints = {
+          video: {
+            facingMode: { exact: facing },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          } as MediaTrackConstraints,
+        }
 
-        await reader.decodeFromConstraints(constraints, videoEl, (result) => {
+        try {
+          await reader.decodeFromConstraints(constraints, videoEl, (result) => {
+            if (cancelled) return
+            if (result) handleQrScanned(result.getText())
+          })
+        } catch {
+          // Fallback: if exact facingMode fails, try without exact
           if (cancelled) return
-          if (result) handleQrScanned(result.getText())
-        })
-        // Enable continuous autofocus if supported
+          await reader.decodeFromConstraints(
+            { video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 } } as MediaTrackConstraints },
+            videoEl,
+            (result) => { if (!cancelled && result) handleQrScanned(result.getText()) }
+          )
+        }
+
+        // Enable continuous autofocus if supported (critical for close-range QR scanning)
         try {
           const stream = videoEl.srcObject as MediaStream | null
           const track = stream?.getVideoTracks()[0]
@@ -628,14 +599,15 @@ function TakeAttendance() {
         videoEl.srcObject = null
       }
     }
-  }, [scanning, handleQrScanned, selectedCameraIdx])
+  }, [scanning, handleQrScanned, useFrontCamera])
 
   const switchCamera = useCallback(() => {
-    if (rearCameras.length <= 1) return
-    const nextIdx = (selectedCameraIdx + 1) % rearCameras.length
-    setSelectedCameraIdx(nextIdx)
-    selectedCameraIdxRef.current = nextIdx
-  }, [rearCameras, selectedCameraIdx])
+    setUseFrontCamera(prev => {
+      const next = !prev
+      useFrontCameraRef.current = next
+      return next
+    })
+  }, [])
 
   const startScanning = () => {
     if (typeof navigator.mediaDevices?.getUserMedia !== 'function') { setMessage('Camera not supported'); return }
@@ -790,15 +762,13 @@ function TakeAttendance() {
               <span className="text-white/80 text-xs font-medium">Session {session}</span>
             </div>
             <div className="flex items-center gap-2">
-              {rearCameras.length > 1 && (
-                <button
-                  onClick={switchCamera}
-                  className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white shadow-lg active:scale-95 transition-transform"
-                  title={`Switch camera (${selectedCameraIdx + 1}/${rearCameras.length})`}
-                >
-                  🔄
-                </button>
-              )}
+              <button
+                onClick={switchCamera}
+                className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white shadow-lg active:scale-95 transition-transform"
+                title={useFrontCamera ? 'Switch to back camera' : 'Switch to front camera'}
+              >
+                🔄
+              </button>
               <button
                 onClick={stopScanning}
                 className="w-10 h-10 rounded-full bg-red-500/90 backdrop-blur-sm flex items-center justify-center text-white shadow-lg active:scale-95 transition-transform"

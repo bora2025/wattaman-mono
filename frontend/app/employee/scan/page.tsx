@@ -66,9 +66,8 @@ export default function EmployeeScanPage() {
   const videoRef = useRef<HTMLVideoElement>(null)
   const readerRef = useRef<BrowserMultiFormatReader | null>(null)
   const scanningRef = useRef(false)
-  const [rearCameras, setRearCameras] = useState<MediaDeviceInfo[]>([])
-  const [selectedCameraIdx, setSelectedCameraIdx] = useState(0)
-  const selectedCameraIdxRef = useRef(0)
+  const [useFrontCamera, setUseFrontCamera] = useState(false)
+  const useFrontCameraRef = useRef(false)
 
   // Load user info
   useEffect(() => {
@@ -172,60 +171,40 @@ export default function EmployeeScanPage() {
           (videoEl.srcObject as MediaStream).getTracks().forEach(t => t.stop())
           videoEl.srcObject = null
         }
-        await new Promise(r => setTimeout(r, 100))
+        await new Promise(r => setTimeout(r, 200))
         if (cancelled) return
-
-        // Enumerate rear cameras for multi-lens phones (iPhone, Samsung, etc.)
-        let rearDevices: MediaDeviceInfo[] = []
-        try {
-          const tmpStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-          const defaultRearId = tmpStream.getVideoTracks()[0]?.getSettings()?.deviceId
-          const devices = await navigator.mediaDevices.enumerateDevices()
-          tmpStream.getTracks().forEach(t => t.stop())
-          const allVideo = devices.filter(d => d.kind === 'videoinput')
-          const hasLabels = allVideo.some(d => d.label.length > 0)
-          if (hasLabels) {
-            rearDevices = allVideo.filter(d => {
-              const label = d.label.toLowerCase()
-              if (label.includes('front') || label.includes('facetime') || label.includes('selfie') || label.includes('user')) return false
-              if (label.includes('back') || label.includes('rear') || label.includes('environment')) return true
-              if (d.deviceId === defaultRearId) return true
-              return false
-            })
-          }
-          if (rearDevices.length === 0 && defaultRearId) {
-            const defaultDev = allVideo.find(d => d.deviceId === defaultRearId)
-            if (defaultDev) rearDevices = [defaultDev]
-          }
-          rearDevices.sort((a, b) => {
-            const al = a.label.toLowerCase()
-            const bl = b.label.toLowerCase()
-            const aScore = (al.includes('ultra') ? 2 : 0) + (al.includes('tele') ? 2 : 0)
-            const bScore = (bl.includes('ultra') ? 2 : 0) + (bl.includes('tele') ? 2 : 0)
-            const aDefault = a.deviceId === defaultRearId ? -1 : 0
-            const bDefault = b.deviceId === defaultRearId ? -1 : 0
-            return (aScore + aDefault) - (bScore + bDefault)
-          })
-        } catch { /* fallback below */ }
-        if (cancelled) return
-        setRearCameras(rearDevices)
 
         const reader = new BrowserMultiFormatReader()
         readerRef.current = reader
 
-        const camIdx = selectedCameraIdxRef.current
-        const selectedDevice = rearDevices[camIdx]
-        const constraints: MediaStreamConstraints = selectedDevice
-          ? { video: { deviceId: { exact: selectedDevice.deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } } }
-          : { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } as MediaTrackConstraints }
+        // Simple and reliable: use facingMode to pick front/back camera
+        const facing = useFrontCameraRef.current ? 'user' : 'environment'
+        const constraints: MediaStreamConstraints = {
+          video: {
+            facingMode: { exact: facing },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          } as MediaTrackConstraints,
+        }
 
-        await reader.decodeFromConstraints(constraints, videoEl, (result) => {
+        try {
+          await reader.decodeFromConstraints(constraints, videoEl, (result) => {
+            if (cancelled) return
+            if (result && !scanningRef.current) {
+              handleSelfScan()
+            }
+          })
+        } catch {
+          // Fallback: if exact facingMode fails, try without exact
           if (cancelled) return
-          if (result && !scanningRef.current) {
-            handleSelfScan()
-          }
-        })
-        // Enable continuous autofocus if supported
+          await reader.decodeFromConstraints(
+            { video: { facingMode: { ideal: facing }, width: { ideal: 1280 }, height: { ideal: 720 } } as MediaTrackConstraints },
+            videoEl,
+            (result) => { if (!cancelled && result && !scanningRef.current) handleSelfScan() }
+          )
+        }
+
+        // Enable continuous autofocus if supported (critical for close-range QR scanning)
         try {
           const stream = videoEl.srcObject as MediaStream | null
           const track = stream?.getVideoTracks()[0]
@@ -257,14 +236,15 @@ export default function EmployeeScanPage() {
         videoEl.srcObject = null
       }
     }
-  }, [cameraActive, handleSelfScan, selectedCameraIdx])
+  }, [cameraActive, handleSelfScan, useFrontCamera])
 
   const switchCamera = useCallback(() => {
-    if (rearCameras.length <= 1) return
-    const nextIdx = (selectedCameraIdx + 1) % rearCameras.length
-    setSelectedCameraIdx(nextIdx)
-    selectedCameraIdxRef.current = nextIdx
-  }, [rearCameras, selectedCameraIdx])
+    setUseFrontCamera(prev => {
+      const next = !prev
+      useFrontCameraRef.current = next
+      return next
+    })
+  }, [])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -396,15 +376,13 @@ export default function EmployeeScanPage() {
                             <p className="text-white text-sm font-medium">
                               Point camera at QR code
                             </p>
-                            {rearCameras.length > 1 && (
-                              <button
-                                onClick={switchCamera}
-                                className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white active:scale-95 transition-transform"
-                                title={`Switch camera (${selectedCameraIdx + 1}/${rearCameras.length})`}
-                              >
-                                🔄
-                              </button>
-                            )}
+                            <button
+                              onClick={switchCamera}
+                              className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white active:scale-95 transition-transform"
+                              title={useFrontCamera ? 'Switch to back camera' : 'Switch to front camera'}
+                            >
+                              🔄
+                            </button>
                           </div>
                         </div>
                       ) : (
