@@ -179,20 +179,32 @@ export default function EmployeeScanPage() {
         let rearDevices: MediaDeviceInfo[] = []
         try {
           const tmpStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+          const defaultRearId = tmpStream.getVideoTracks()[0]?.getSettings()?.deviceId
           const devices = await navigator.mediaDevices.enumerateDevices()
           tmpStream.getTracks().forEach(t => t.stop())
-          rearDevices = devices.filter(d => d.kind === 'videoinput')
-            .filter(d => {
+          const allVideo = devices.filter(d => d.kind === 'videoinput')
+          const hasLabels = allVideo.some(d => d.label.length > 0)
+          if (hasLabels) {
+            rearDevices = allVideo.filter(d => {
               const label = d.label.toLowerCase()
-              if (label.includes('front') || label.includes('facetime') || label.includes('selfie')) return false
-              return true
+              if (label.includes('front') || label.includes('facetime') || label.includes('selfie') || label.includes('user')) return false
+              if (label.includes('back') || label.includes('rear') || label.includes('environment')) return true
+              if (d.deviceId === defaultRearId) return true
+              return false
             })
+          }
+          if (rearDevices.length === 0 && defaultRearId) {
+            const defaultDev = allVideo.find(d => d.deviceId === defaultRearId)
+            if (defaultDev) rearDevices = [defaultDev]
+          }
           rearDevices.sort((a, b) => {
             const al = a.label.toLowerCase()
             const bl = b.label.toLowerCase()
-            const aScore = al.includes('ultra') || al.includes('tele') ? 1 : 0
-            const bScore = bl.includes('ultra') || bl.includes('tele') ? 1 : 0
-            return aScore - bScore
+            const aScore = (al.includes('ultra') ? 2 : 0) + (al.includes('tele') ? 2 : 0)
+            const bScore = (bl.includes('ultra') ? 2 : 0) + (bl.includes('tele') ? 2 : 0)
+            const aDefault = a.deviceId === defaultRearId ? -1 : 0
+            const bDefault = b.deviceId === defaultRearId ? -1 : 0
+            return (aScore + aDefault) - (bScore + bDefault)
           })
         } catch { /* fallback below */ }
         if (cancelled) return

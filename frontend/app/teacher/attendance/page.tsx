@@ -539,26 +539,43 @@ function TakeAttendance() {
         // Enumerate rear cameras for multi-lens phones (iPhone, Samsung, etc.)
         let rearDevices: MediaDeviceInfo[] = []
         try {
-          // Need a temporary stream to get labeled device list
+          // Get a rear-facing stream to identify rear camera device IDs
           const tmpStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+          const defaultRearId = tmpStream.getVideoTracks()[0]?.getSettings()?.deviceId
           const devices = await navigator.mediaDevices.enumerateDevices()
           tmpStream.getTracks().forEach(t => t.stop())
-          rearDevices = devices.filter(d => d.kind === 'videoinput')
-            .filter(d => {
+          const allVideo = devices.filter(d => d.kind === 'videoinput')
+          // On iOS: labels like "Back Camera", "Back Ultra Wide Camera", "Back Telephoto Camera"
+          // On Android: labels vary, "camera2 0" or "Back Camera" etc.
+          // Strategy: if we have labels, filter by them. Otherwise use the default rear device.
+          const hasLabels = allVideo.some(d => d.label.length > 0)
+          if (hasLabels) {
+            rearDevices = allVideo.filter(d => {
               const label = d.label.toLowerCase()
-              // Exclude front cameras
-              if (label.includes('front') || label.includes('facetime') || label.includes('selfie')) return false
-              // Include if labeled as back/rear/environment, or if no clear label (keep all)
-              return label.includes('back') || label.includes('rear') || label.includes('environment') || !label.includes('front')
+              // Exclude clearly front-facing cameras
+              if (label.includes('front') || label.includes('facetime') || label.includes('selfie') || label.includes('user')) return false
+              // Include if labeled back/rear, or if it's the default rear device
+              if (label.includes('back') || label.includes('rear') || label.includes('environment')) return true
+              if (d.deviceId === defaultRearId) return true
+              return false
             })
-          // Sort: prefer main/wide camera (typically labeled "0" or "wide" or no qualifier)
-          // Ultrawide and telephoto are less useful for QR at close range
+          }
+          // Fallback: if no rear cameras found, just use the default rear device
+          if (rearDevices.length === 0 && defaultRearId) {
+            const defaultDev = allVideo.find(d => d.deviceId === defaultRearId)
+            if (defaultDev) rearDevices = [defaultDev]
+          }
+          // Sort: main/wide (1x) first, then others. Ultra-wide & telephoto can't focus QR at close range.
           rearDevices.sort((a, b) => {
             const al = a.label.toLowerCase()
             const bl = b.label.toLowerCase()
-            const aScore = al.includes('ultra') || al.includes('tele') ? 1 : 0
-            const bScore = bl.includes('ultra') || bl.includes('tele') ? 1 : 0
-            return aScore - bScore
+            // Penalize ultra-wide and telephoto lenses
+            const aScore = (al.includes('ultra') ? 2 : 0) + (al.includes('tele') ? 2 : 0) + (al.includes('wide') && !al.includes('ultra') ? 0 : 0)
+            const bScore = (bl.includes('ultra') ? 2 : 0) + (bl.includes('tele') ? 2 : 0) + (bl.includes('wide') && !bl.includes('ultra') ? 0 : 0)
+            // Boost the default rear camera (OS picks the best 1x lens)
+            const aDefault = a.deviceId === defaultRearId ? -1 : 0
+            const bDefault = b.deviceId === defaultRearId ? -1 : 0
+            return (aScore + aDefault) - (bScore + bDefault)
           })
         } catch { /* fallback: use facingMode below */ }
         if (cancelled) return
