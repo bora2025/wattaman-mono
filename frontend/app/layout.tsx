@@ -1,10 +1,16 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './styles.css'
 
 const inter = Inter({ subsets: ['latin'] })
 
 const khmerFontsUrl = 'https://fonts.googleapis.com/css2?family=Battambang:wght@400;700&family=Bokor&family=Chenla&family=Content&family=Hanuman:wght@400;700&family=Khmer&family=Koulen&family=Moul&family=Noto+Sans+Khmer:wght@400;700&family=Siemreap&display=swap';
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+}
 
 export const metadata: Metadata = {
   title: 'Wattaman',
