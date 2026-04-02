@@ -175,14 +175,31 @@ export default function EmployeeScanPage() {
         const reader = new BrowserMultiFormatReader()
         readerRef.current = reader
 
-        // Use rear camera on mobile devices for QR scanning
-        const constraints = { video: { facingMode: { ideal: 'environment' } } }
+        // Use rear camera on mobile with continuous autofocus for QR scanning
+        const constraints = {
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          } as MediaTrackConstraints,
+        }
         await reader.decodeFromConstraints(constraints, videoEl, (result) => {
           if (cancelled) return
           if (result && !scanningRef.current) {
             handleSelfScan()
           }
         })
+        // Enable continuous autofocus if supported
+        try {
+          const stream = videoEl.srcObject as MediaStream
+          const track = stream?.getVideoTracks()[0]
+          if (track) {
+            const caps = track.getCapabilities?.() as any
+            if (caps?.focusMode?.includes('continuous')) {
+              await track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as any] })
+            }
+          }
+        } catch { /* focus mode not supported */ }
       } catch {
         if (cancelled) return
         setError('Cannot access camera. Please allow camera permission.')

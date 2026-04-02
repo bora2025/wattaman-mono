@@ -534,12 +534,29 @@ function TakeAttendance() {
         if (cancelled) return
         const reader = new BrowserMultiFormatReader()
         codeReaderRef.current = reader
-        // Use rear camera on mobile devices for QR scanning
-        const constraints = { video: { facingMode: { ideal: 'environment' } } }
+        // Use rear camera on mobile with continuous autofocus for QR scanning
+        const constraints = {
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          } as MediaTrackConstraints,
+        }
         await reader.decodeFromConstraints(constraints, videoEl, (result) => {
           if (cancelled) return
           if (result) handleQrScanned(result.getText())
         })
+        // Enable continuous autofocus if supported
+        try {
+          const stream = videoEl.srcObject as MediaStream
+          const track = stream?.getVideoTracks()[0]
+          if (track) {
+            const caps = track.getCapabilities?.() as any
+            if (caps?.focusMode?.includes('continuous')) {
+              await track.applyConstraints({ advanced: [{ focusMode: 'continuous' } as any] })
+            }
+          }
+        } catch { /* focus mode not supported */ }
         if (!cancelled) setMessage('Camera ready — scan student or staff QR code')
       } catch (error: any) {
         if (cancelled) return
