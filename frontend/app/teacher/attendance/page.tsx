@@ -580,7 +580,7 @@ function TakeAttendance() {
         })
         // Enable continuous autofocus if supported
         try {
-          const stream = videoEl.srcObject as MediaStream
+          const stream = videoEl.srcObject as MediaStream | null
           const track = stream?.getVideoTracks()[0]
           if (track) {
             const caps = track.getCapabilities?.() as any
