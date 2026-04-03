@@ -17,7 +17,6 @@ interface User {
 
 const roleLabels: Record<string, string> = {
   ADMIN: 'Admin',
-  TEACHER: 'គ្រូ-Teacher',
   STUDENT: 'Student',
   PARENT: 'Parent',
   PRIMARY_SCHOOL_PRINCIPAL: 'នាយកសាលាបឋម',
@@ -115,7 +114,7 @@ export default function ManageUsers() {
       const res = await apiFetch('/api/auth/users')
       const data = await res.json()
       // Show only admin/system roles here; employees are managed in /admin/employees
-      const adminRoles = ['ADMIN', 'TEACHER', 'PARENT']
+      const adminRoles = ['ADMIN', 'PARENT']
       setUsers(data.filter((u: User) => adminRoles.includes(u.role)))
     } catch (error) {
       console.error('Error fetching users:', error)

@@ -26,9 +26,10 @@ interface User {
   createdAt: string
 }
 
-const ADMIN_ROLES = ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT']
+const ADMIN_ROLES = ['ADMIN', 'STUDENT', 'PARENT']
 
 const roleLabels: Record<string, string> = {
+  TEACHER: 'គ្រូ-Teacher',
   PRIMARY_SCHOOL_PRINCIPAL: 'នាយកសាលាបឋម',
   SECONDARY_SCHOOL_PRINCIPAL: 'នាយកសាលាអនុវិទ្យាល័យ',
   HIGH_SCHOOL_PRINCIPAL: 'នាយកសាលាវិទ្យាល័យ',
