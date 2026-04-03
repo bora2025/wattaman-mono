@@ -18,8 +18,12 @@ interface Student {
   userId: string;
   name: string;
   email: string;
+  phone: string;
   qrCode: string | null;
   photo: string | null;
+  sex: string | null;
+  dateOfBirth: string | null;
+  address: string;
 }
 
 interface StaffUser {
@@ -349,12 +353,17 @@ export default function GenerateQRCodes() {
     subtitle: string,
     displayId: string,
     role: 'student' | 'staff',
+    extra?: { dateOfBirth?: string | null; address?: string; phone?: string; sex?: string | null },
   ): Record<string, string> => {
     if (role === 'student') {
       return {
         'Student Name': name,
         'Student ID': displayId,
         'Class Name': subtitle,
+        'Date of Birth': extra?.dateOfBirth ? new Date(extra.dateOfBirth).toLocaleDateString() : '',
+        'Address': extra?.address || '',
+        'Phone': extra?.phone || '',
+        'Sex': extra?.sex === 'MALE' ? 'ប្រុស' : extra?.sex === 'FEMALE' ? 'ស្រី' : '',
         'Emp ID': '',
         'Position': '',
         'Staff Name': '',
@@ -367,6 +376,10 @@ export default function GenerateQRCodes() {
       'Student Name': '',
       'Student ID': '',
       'Class Name': '',
+      'Date of Birth': '',
+      'Address': '',
+      'Phone': '',
+      'Sex': '',
     };
   };
 
@@ -377,9 +390,10 @@ export default function GenerateQRCodes() {
     role: 'student' | 'staff',
     displayId: string,
     photoUrl?: string | null,
+    extra?: { dateOfBirth?: string | null; address?: string; phone?: string; sex?: string | null },
   ): Promise<HTMLCanvasElement> => {
     const design = getDesign(role);
-    const fieldValues = buildFieldValues(name, subtitle, displayId, role);
+    const fieldValues = buildFieldValues(name, subtitle, displayId, role, extra);
     return renderDesignToCanvas(design, {
       fieldValues,
       qrDataUrl,
@@ -394,11 +408,12 @@ export default function GenerateQRCodes() {
     role: 'student' | 'staff',
     displayId: string,
     photoUrl?: string | null,
+    extra?: { dateOfBirth?: string | null; address?: string; phone?: string; sex?: string | null },
   ) => {
     if (exporting) return;
     setExporting(true);
     try {
-      const canvas = await drawIDCard(name, subtitle, qrDataUrl, role, displayId, photoUrl);
+      const canvas = await drawIDCard(name, subtitle, qrDataUrl, role, displayId, photoUrl, extra);
       const link = document.createElement('a');
       link.download = `${name.replace(/[^a-zA-Z0-9]/g, '-')}-id-card.png`;
       link.href = canvas.toDataURL();
@@ -418,12 +433,13 @@ export default function GenerateQRCodes() {
     role: 'student' | 'staff',
     displayId: string,
     photoUrl?: string | null,
+    extra?: { dateOfBirth?: string | null; address?: string; phone?: string; sex?: string | null },
   ) => {
     if (exporting) return;
     setExporting(true);
     try {
       const design = getDesign(role);
-      const fieldValues = buildFieldValues(name, subtitle, displayId, role);
+      const fieldValues = buildFieldValues(name, subtitle, displayId, role, extra);
       await downloadSingleCardPDF(design, { name, fieldValues, qrDataUrl, photoUrl });
     } catch (err) {
       console.error('PDF export failed:', err);
@@ -435,7 +451,7 @@ export default function GenerateQRCodes() {
 
   const downloadAllCardsPDFA4 = async (
     title: string,
-    people: { name: string; subtitle: string; id: string; displayId: string; role: 'student' | 'staff'; photo?: string | null }[]
+    people: { name: string; subtitle: string; id: string; displayId: string; role: 'student' | 'staff'; photo?: string | null; extra?: { dateOfBirth?: string | null; address?: string; phone?: string; sex?: string | null } }[]
   ) => {
     const validPeople = people.filter((p) => qrCodes[p.id]);
     if (validPeople.length === 0) return;
@@ -445,7 +461,7 @@ export default function GenerateQRCodes() {
       const design = getDesign(validPeople[0].role);
       const entries = validPeople.map((p) => ({
         name: p.name,
-        fieldValues: buildFieldValues(p.name, p.subtitle, p.displayId, p.role),
+        fieldValues: buildFieldValues(p.name, p.subtitle, p.displayId, p.role, p.extra),
         qrDataUrl: qrCodes[p.id],
         photoUrl: p.photo,
       }));
@@ -1096,6 +1112,7 @@ export default function GenerateQRCodes() {
                                           displayId: s.studentNumber || String(idx + 1).padStart(4, '0'),
                                           role: 'student' as const,
                                           photo: s.photo,
+                                          extra: { dateOfBirth: s.dateOfBirth, address: s.address, phone: s.phone, sex: s.sex },
                                         }))
                                       )
                                     }
@@ -1151,6 +1168,7 @@ export default function GenerateQRCodes() {
                                       'student',
                                       student.studentNumber || String(globalIdx + 1).padStart(4, '0'),
                                       student.photo,
+                                      { dateOfBirth: student.dateOfBirth, address: student.address, phone: student.phone, sex: student.sex },
                                     )
                                   }
                                   onDownloadPDF={() =>
@@ -1161,6 +1179,7 @@ export default function GenerateQRCodes() {
                                       'student',
                                       student.studentNumber || String(globalIdx + 1).padStart(4, '0'),
                                       student.photo,
+                                      { dateOfBirth: student.dateOfBirth, address: student.address, phone: student.phone, sex: student.sex },
                                     )
                                   }
                                   onDownloadQR={() => downloadQROnly(student.name, student.id)}
@@ -1602,6 +1621,10 @@ function IDCardPreview({
           'Student Name': name,
           'Student ID': personId,
           'Class Name': subtitle,
+          'Date of Birth': '',
+          'Address': '',
+          'Phone': '',
+          'Sex': '',
           'Emp ID': '',
           'Position': '',
           'Staff Name': '',
@@ -1614,6 +1637,10 @@ function IDCardPreview({
         'Student Name': '',
         'Student ID': '',
         'Class Name': '',
+        'Date of Birth': '',
+        'Address': '',
+        'Phone': '',
+        'Sex': '',
       };
     };
 

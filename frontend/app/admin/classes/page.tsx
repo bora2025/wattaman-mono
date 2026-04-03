@@ -29,6 +29,8 @@ interface Student {
   phone: string;
   photo: string | null;
   sex: string | null;
+  dateOfBirth: string | null;
+  address: string;
 }
 
 interface SessionConfigItem {
@@ -178,10 +180,10 @@ export default function ManageClasses() {
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const [classStudents, setClassStudents] = useState<Student[]>([]);
   const [availableStudents, setAvailableStudents] = useState<Student[]>([]);
-  const [newStudentForm, setNewStudentForm] = useState({ name: '', email: '', password: '', sex: '', photo: '' });
+  const [newStudentForm, setNewStudentForm] = useState({ name: '', email: '', password: '', sex: '', photo: '', phone: '', dateOfBirth: '', address: '' });
   const [showAddStudentForm, setShowAddStudentForm] = useState(false);
   const [editingStudent, setEditingStudent] = useState<string | null>(null);
-  const [editStudentData, setEditStudentData] = useState({ name: '', sex: '', phone: '', photo: '' });
+  const [editStudentData, setEditStudentData] = useState({ name: '', sex: '', phone: '', photo: '', dateOfBirth: '', address: '' });
   const [csvUploading, setCsvUploading] = useState(false);
   const [csvResult, setCsvResult] = useState<{ total: number; success: number; errors: number; skipped: number; details: { row: number; id: string; name: string; email: string; status: string; error?: string }[] } | null>(null);
   const [selectedPreset, setSelectedPreset] = useState('global-default');
@@ -354,7 +356,7 @@ export default function ManageClasses() {
 
   const handleManageStudents = async (cls: Class) => {
     setSelectedClass(cls);
-    setNewStudentForm({ name: '', email: '', password: '', sex: '', photo: '' });
+    setNewStudentForm({ name: '', email: '', password: '', sex: '', photo: '', phone: '', dateOfBirth: '', address: '' });
     setShowAddStudentForm(false);
     await fetchClassStudents(cls.id);
     await fetchAvailableStudents(cls.id);
@@ -403,7 +405,7 @@ export default function ManageClasses() {
 
   const handleEditStudent = (student: Student) => {
     setEditingStudent(student.id);
-    setEditStudentData({ name: student.name || '', sex: student.sex || '', phone: student.phone || '', photo: student.photo || '' });
+    setEditStudentData({ name: student.name || '', sex: student.sex || '', phone: student.phone || '', photo: student.photo || '', dateOfBirth: student.dateOfBirth ? student.dateOfBirth.slice(0, 10) : '', address: student.address || '' });
   };
 
   const handleSaveStudent = async (studentId: string) => {
@@ -441,7 +443,7 @@ export default function ManageClasses() {
         });
         if (addRes.ok) {
           const addedStudent = await addRes.json();
-          if (newStudentForm.sex || newStudentForm.photo) {
+          if (newStudentForm.sex || newStudentForm.photo || newStudentForm.dateOfBirth || newStudentForm.address) {
             const studentId = addedStudent.id || addedStudent.student?.id;
             if (studentId) {
               await apiFetch(`/api/classes/${selectedClass.id}/students/${studentId}`, {
@@ -450,11 +452,13 @@ export default function ManageClasses() {
                 body: JSON.stringify({
                   ...(newStudentForm.sex ? { sex: newStudentForm.sex } : {}),
                   ...(newStudentForm.photo ? { photo: newStudentForm.photo } : {}),
+                  ...(newStudentForm.dateOfBirth ? { dateOfBirth: newStudentForm.dateOfBirth } : {}),
+                  ...(newStudentForm.address ? { address: newStudentForm.address } : {}),
                 }),
               });
             }
           }
-          setNewStudentForm({ name: '', email: '', password: '', sex: '', photo: '' });
+          setNewStudentForm({ name: '', email: '', password: '', sex: '', photo: '', phone: '', dateOfBirth: '', address: '' });
           setShowAddStudentForm(false);
           await fetchClassStudents(selectedClass.id);
           await fetchAvailableStudents(selectedClass.id);
@@ -826,6 +830,18 @@ export default function ManageClasses() {
                               <option value="FEMALE">Female</option>
                             </select>
                           </div>
+                          <div>
+                            <label className="form-label">Date of Birth</label>
+                            <input type="date" value={newStudentForm.dateOfBirth} onChange={(e) => setNewStudentForm({ ...newStudentForm, dateOfBirth: e.target.value })} />
+                          </div>
+                          <div>
+                            <label className="form-label">Phone Number</label>
+                            <input type="text" value={newStudentForm.phone} onChange={(e) => setNewStudentForm({ ...newStudentForm, phone: e.target.value })} placeholder="012 345 678" />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="form-label">Address</label>
+                          <input type="text" value={newStudentForm.address} onChange={(e) => setNewStudentForm({ ...newStudentForm, address: e.target.value })} placeholder="Street, City, Province" />
                         </div>
                         <div>
                           <label className="form-label">Photo URL</label>
@@ -924,7 +940,7 @@ export default function ManageClasses() {
                         <h5 className="text-sm font-semibold text-amber-800">Edit Student</h5>
                         <button onClick={() => setEditingStudent(null)} className="text-slate-400 hover:text-slate-600 text-xs">Cancel</button>
                       </div>
-                      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         <div>
                           <label className="form-label text-xs">Name</label>
                           <input type="text" value={editStudentData.name} onChange={(e) => setEditStudentData({ ...editStudentData, name: e.target.value })} placeholder="Student name" />
@@ -938,10 +954,18 @@ export default function ManageClasses() {
                           </select>
                         </div>
                         <div>
-                          <label className="form-label text-xs">Mail Or Phone</label>
-                          <input type="text" value={editStudentData.phone} onChange={(e) => setEditStudentData({ ...editStudentData, phone: e.target.value })} placeholder="Phone or email" />
+                          <label className="form-label text-xs">Phone Number</label>
+                          <input type="text" value={editStudentData.phone} onChange={(e) => setEditStudentData({ ...editStudentData, phone: e.target.value })} placeholder="012 345 678" />
                         </div>
                         <div>
+                          <label className="form-label text-xs">Date of Birth</label>
+                          <input type="date" value={editStudentData.dateOfBirth} onChange={(e) => setEditStudentData({ ...editStudentData, dateOfBirth: e.target.value })} />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="form-label text-xs">Address</label>
+                          <input type="text" value={editStudentData.address} onChange={(e) => setEditStudentData({ ...editStudentData, address: e.target.value })} placeholder="Street, City, Province" />
+                        </div>
+                        <div className="sm:col-span-2 lg:col-span-3">
                           <label className="form-label text-xs">Photo URL</label>
                           <input type="text" value={editStudentData.photo} onChange={(e) => setEditStudentData({ ...editStudentData, photo: e.target.value })} placeholder="https://..." />
                         </div>

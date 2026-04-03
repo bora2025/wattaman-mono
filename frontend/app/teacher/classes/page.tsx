@@ -18,8 +18,11 @@ interface Student {
   id: string;
   name: string;
   email: string;
+  phone: string;
   photo: string | null;
   sex: string | null;
+  dateOfBirth: string | null;
+  address: string;
 }
 
 export default function MyClasses() {
@@ -29,7 +32,7 @@ export default function MyClasses() {
   const [classStudents, setClassStudents] = useState<Student[]>([]);
   const [availableStudents, setAvailableStudents] = useState<Student[]>([]);
   const [editingStudent, setEditingStudent] = useState<string | null>(null);
-  const [editStudentData, setEditStudentData] = useState({ sex: '', photo: '' });
+  const [editStudentData, setEditStudentData] = useState({ sex: '', photo: '', phone: '', dateOfBirth: '', address: '' });
 
   useEffect(() => { fetchMyClasses(); }, []);
 
@@ -91,7 +94,7 @@ export default function MyClasses() {
 
   const handleEditStudent = (student: Student) => {
     setEditingStudent(student.id);
-    setEditStudentData({ sex: student.sex || '', photo: student.photo || '' });
+    setEditStudentData({ sex: student.sex || '', photo: student.photo || '', phone: student.phone || '', dateOfBirth: student.dateOfBirth ? student.dateOfBirth.slice(0, 10) : '', address: student.address || '' });
   };
 
   const handleSaveStudent = async (studentId: string) => {
@@ -196,6 +199,18 @@ export default function MyClasses() {
                                       </select>
                                     </div>
                                     <div>
+                                      <label className="form-label text-xs">Phone Number</label>
+                                      <input type="text" value={editStudentData.phone} onChange={(e) => setEditStudentData({ ...editStudentData, phone: e.target.value })} placeholder="012 345 678" />
+                                    </div>
+                                    <div>
+                                      <label className="form-label text-xs">Date of Birth</label>
+                                      <input type="date" value={editStudentData.dateOfBirth} onChange={(e) => setEditStudentData({ ...editStudentData, dateOfBirth: e.target.value })} />
+                                    </div>
+                                    <div>
+                                      <label className="form-label text-xs">Address</label>
+                                      <input type="text" value={editStudentData.address} onChange={(e) => setEditStudentData({ ...editStudentData, address: e.target.value })} placeholder="Street, City, Province" />
+                                    </div>
+                                    <div className="col-span-2">
                                       <label className="form-label text-xs">Photo URL</label>
                                       <input type="text" value={editStudentData.photo} onChange={(e) => setEditStudentData({ ...editStudentData, photo: e.target.value })} placeholder="https://..." />
                                     </div>
