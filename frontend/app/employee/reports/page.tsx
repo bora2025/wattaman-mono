@@ -113,10 +113,10 @@ export default function EmployeeReports() {
   const isHoliday = row?.isHoliday
 
   const tabs = [
-    { key: 'daily', label: '📋 Daily' },
-    { key: 'weekly', label: '📅 Weekly' },
-    { key: 'monthly', label: '📆 Monthly' },
-    { key: 'yearly', label: '📊 Yearly' },
+    { key: 'daily', label: `📋 ${t('reports.daily')}` },
+    { key: 'weekly', label: `📅 ${t('reports.weekly')}` },
+    { key: 'monthly', label: `📆 ${t('reports.monthly')}` },
+    { key: 'yearly', label: `📊 ${t('reports.yearly')}` },
   ] as const
 
   return (
@@ -132,7 +132,7 @@ export default function EmployeeReports() {
               <div className="page-header">
                 <div>
                   <h1 className="text-2xl font-bold text-slate-900">{t('reports.title')}</h1>
-                  <p className="text-sm text-slate-500 mt-1">View your attendance history and statistics</p>
+                  <p className="text-sm text-slate-500 mt-1">{t('reports.viewHistory')}</p>
                 </div>
               </div>
 
@@ -152,11 +152,11 @@ export default function EmployeeReports() {
                       <button onClick={() => goDay(1)} className="btn-outline px-2 py-1.5 text-sm">▶</button>
                     </div>
                     <button onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])} className="btn-outline px-3 py-1.5 text-sm">
-                      Today
+                      {t('common.today')}
                     </button>
                     <div className="flex-1" />
                     <button onClick={() => { setShowExportForm(true); setExportDate(selectedDate); setExportMessage('') }} className="btn-primary px-4 py-1.5 text-sm flex items-center gap-1.5">
-                      📥 Export Report
+                      📥 {t('common.exportReport')}
                     </button>
                   </div>
                 </div>
@@ -164,7 +164,7 @@ export default function EmployeeReports() {
                 {/* Holiday Banner */}
                 {isHoliday && (
                   <div className="card p-4 bg-amber-50 border-amber-200 text-center">
-                    <p className="text-amber-800 font-semibold">🎉 Holiday — {dayLabel}</p>
+                    <p className="text-amber-800 font-semibold">🎉 {t('reports.holiday')} — {dayLabel}</p>
                   </div>
                 )}
 
@@ -197,23 +197,23 @@ export default function EmployeeReports() {
                         <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
                           <div className="stat-card">
                             <p className="stat-value text-slate-800">4</p>
-                            <p className="stat-label">Sessions</p>
+                            <p className="stat-label">{t('reports.sessions')}</p>
                           </div>
                           <div className="stat-card">
                             <p className="stat-value text-emerald-600">{dailyPresent}</p>
-                            <p className="stat-label">Present</p>
+                            <p className="stat-label">{t('common.present')}</p>
                           </div>
                           <div className="stat-card">
                             <p className="stat-value text-amber-600">{dailyLate}</p>
-                            <p className="stat-label">Late</p>
+                            <p className="stat-label">{t('common.late')}</p>
                           </div>
                           <div className="stat-card">
                             <p className="stat-value text-red-600">{dailyAbsent}</p>
-                            <p className="stat-label">Absent</p>
+                            <p className="stat-label">{t('common.absent')}</p>
                           </div>
                           <div className="stat-card col-span-2 sm:col-span-1">
                             <p className="stat-value text-purple-600">{dailyPermission}</p>
-                            <p className="stat-label">Permission</p>
+                            <p className="stat-label">{t('common.permission')}</p>
                           </div>
                         </div>
 
@@ -225,19 +225,19 @@ export default function EmployeeReports() {
                           {grid.length === 0 ? (
                             <div className="p-8 text-center text-slate-400">
                               <p className="text-3xl mb-2">📭</p>
-                              <p className="text-sm">No records for this day</p>
+                              <p className="text-sm">{t('reports.noRecordsDay')}</p>
                             </div>
                           ) : (
                             <div className="overflow-x-auto">
                               <table className="w-full text-sm">
                                 <thead className="bg-slate-50">
                                   <tr className="text-left text-xs text-slate-500 uppercase tracking-wide">
-                                    <th className="px-3 py-3 font-semibold">Day</th>
-                                    <th className="px-3 py-3 font-semibold text-center">Morning In</th>
-                                    <th className="px-3 py-3 font-semibold text-center">Morning Out</th>
-                                    <th className="px-3 py-3 font-semibold text-center">Afternoon In</th>
-                                    <th className="px-3 py-3 font-semibold text-center">Afternoon Out</th>
-                                    <th className="px-3 py-3 font-semibold">Location</th>
+                                    <th className="px-3 py-3 font-semibold">{t('common.day')}</th>
+                                    <th className="px-3 py-3 font-semibold text-center">{t('common.morningIn')}</th>
+                                    <th className="px-3 py-3 font-semibold text-center">{t('common.morningOut')}</th>
+                                    <th className="px-3 py-3 font-semibold text-center">{t('common.afternoonIn')}</th>
+                                    <th className="px-3 py-3 font-semibold text-center">{t('common.afternoonOut')}</th>
+                                    <th className="px-3 py-3 font-semibold">{t('common.location')}</th>
                                   </tr>
                                 </thead>
                                 <tbody>
@@ -277,36 +277,36 @@ export default function EmployeeReports() {
                           <div className="card p-12">
                             <div className="empty-state">
                               <p className="text-4xl mb-3">📊</p>
-                              <p className="font-semibold text-slate-600">No data</p>
-                              <p className="text-sm text-slate-400 mt-1">No attendance totals available.</p>
+                            <p className="font-semibold text-slate-600">{t('common.noData')}</p>
+                            <p className="text-sm text-slate-400 mt-1">{t('reports.noTotals')}</p>
                             </div>
                           </div>
                         ) : (() => {
                           const periodKey = activeTab === 'weekly' ? 'week' : activeTab === 'monthly' ? 'month' : 'year'
-                          const periodLabel = activeTab === 'weekly' ? 'Weekly' : activeTab === 'monthly' ? 'Monthly' : 'Yearly'
-                          const t = totals[0]
+                          const periodLabel = activeTab === 'weekly' ? t('reports.weekly') : activeTab === 'monthly' ? t('reports.monthly') : t('reports.yearly')
+                          const tr = totals[0]
                           return (
                             <div className="card overflow-hidden">
                               <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
-                                <h3 className="text-sm font-semibold text-slate-700">{periodLabel} Attendance Totals</h3>
+                                <h3 className="text-sm font-semibold text-slate-700">{periodLabel} {t('reports.attendanceTotals')}</h3>
                               </div>
                               {/* Summary cards for period */}
                               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4">
                                 <div className="stat-card">
-                                  <p className="stat-value text-emerald-600">{t[periodKey].present}</p>
-                                  <p className="stat-label">Present</p>
+                                  <p className="stat-value text-emerald-600">{tr[periodKey].present}</p>
+                                  <p className="stat-label">{t('common.present')}</p>
                                 </div>
                                 <div className="stat-card">
-                                  <p className="stat-value text-amber-600">{t[periodKey].late}</p>
-                                  <p className="stat-label">Late</p>
+                                  <p className="stat-value text-amber-600">{tr[periodKey].late}</p>
+                                  <p className="stat-label">{t('common.late')}</p>
                                 </div>
                                 <div className="stat-card">
-                                  <p className="stat-value text-red-600">{t[periodKey].absent}</p>
-                                  <p className="stat-label">Absent</p>
+                                  <p className="stat-value text-red-600">{tr[periodKey].absent}</p>
+                                  <p className="stat-label">{t('common.absent')}</p>
                                 </div>
                                 <div className="stat-card">
-                                  <p className="stat-value text-purple-600">{t[periodKey].dayOff || 0}</p>
-                                  <p className="stat-label">Permission</p>
+                                  <p className="stat-value text-purple-600">{tr[periodKey].dayOff || 0}</p>
+                                  <p className="stat-label">{t('common.permission')}</p>
                                 </div>
                               </div>
                               {/* Detail table */}
@@ -314,20 +314,20 @@ export default function EmployeeReports() {
                                 <table className="w-full text-sm">
                                   <thead className="bg-slate-50">
                                     <tr className="text-left text-xs text-slate-500 uppercase tracking-wide">
-                                      <th className="px-3 py-3 font-semibold">Name</th>
-                                      <th className="px-3 py-3 font-semibold text-center">Total Present</th>
-                                      <th className="px-3 py-3 font-semibold text-center">Total Present (Late)</th>
-                                      <th className="px-3 py-3 font-semibold text-center">Total Absent</th>
-                                      <th className="px-3 py-3 font-semibold text-center">Total Permission</th>
+                                      <th className="px-3 py-3 font-semibold">{t('common.name')}</th>
+                                      <th className="px-3 py-3 font-semibold text-center">{t('reports.totalPresent')}</th>
+                                      <th className="px-3 py-3 font-semibold text-center">{t('reports.totalPresentLate')}</th>
+                                      <th className="px-3 py-3 font-semibold text-center">{t('reports.totalAbsent')}</th>
+                                      <th className="px-3 py-3 font-semibold text-center">{t('reports.totalPermission')}</th>
                                     </tr>
                                   </thead>
                                   <tbody>
                                     <tr className="border-t border-slate-100 hover:bg-slate-50">
-                                      <td className="px-3 py-2.5 text-slate-800 font-medium">{t.staffName}</td>
-                                      <td className="px-3 py-2.5 text-center text-emerald-700 font-semibold">{t[periodKey].present}</td>
-                                      <td className="px-3 py-2.5 text-center text-amber-600 font-semibold">{t[periodKey].late}</td>
-                                      <td className="px-3 py-2.5 text-center text-red-600 font-semibold">{t[periodKey].absent}</td>
-                                      <td className="px-3 py-2.5 text-center text-purple-600 font-semibold">{t[periodKey].dayOff || 0}</td>
+                                      <td className="px-3 py-2.5 text-slate-800 font-medium">{tr.staffName}</td>
+                                      <td className="px-3 py-2.5 text-center text-emerald-700 font-semibold">{tr[periodKey].present}</td>
+                                      <td className="px-3 py-2.5 text-center text-amber-600 font-semibold">{tr[periodKey].late}</td>
+                                      <td className="px-3 py-2.5 text-center text-red-600 font-semibold">{tr[periodKey].absent}</td>
+                                      <td className="px-3 py-2.5 text-center text-purple-600 font-semibold">{tr[periodKey].dayOff || 0}</td>
                                     </tr>
                                   </tbody>
                                 </table>
@@ -353,8 +353,8 @@ export default function EmployeeReports() {
             {/* Header */}
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-emerald-50 to-white rounded-t-2xl">
               <div>
-                <h2 className="text-lg font-bold text-slate-800">📊 Export My Report</h2>
-                <p className="text-xs text-slate-500 mt-0.5">Choose period and date to export XLSX</p>
+                <h2 className="text-lg font-bold text-slate-800">📊 {t('reports.exportMyReportTitle')}</h2>
+                <p className="text-xs text-slate-500 mt-0.5">{t('reports.choosePeriod')}</p>
               </div>
               <button onClick={() => { setShowExportForm(false); setExportMessage('') }} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 text-sm">✕</button>
             </div>
@@ -362,7 +362,7 @@ export default function EmployeeReports() {
             <div className="p-6 space-y-5">
               {/* Period Selector */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">📅 Period</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">📅 {t('reports.period')}</label>
                 <div className="grid grid-cols-4 gap-2">
                   {(['daily', 'weekly', 'monthly', 'yearly'] as const).map(p => (
                     <button
@@ -374,7 +374,7 @@ export default function EmployeeReports() {
                           : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                       }`}
                     >
-                      {p === 'daily' ? '📋 Daily' : p === 'weekly' ? '📅 Week' : p === 'monthly' ? '📆 Month' : '📊 Year'}
+                      {p === 'daily' ? `📋 ${t('reports.daily')}` : p === 'weekly' ? `📅 ${t('common.week')}` : p === 'monthly' ? `📆 ${t('common.month')}` : `📊 ${t('common.year')}`}
                     </button>
                   ))}
                 </div>
@@ -382,7 +382,7 @@ export default function EmployeeReports() {
 
               {/* Date Picker */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">📆 Date</label>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">📆 {t('common.date')}</label>
                 <input
                   type="date"
                   value={exportDate}
@@ -393,13 +393,13 @@ export default function EmployeeReports() {
 
               {/* Preview */}
               <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-2">
-                <h4 className="text-xs uppercase tracking-wider font-semibold text-slate-400">Export Preview</h4>
+                <h4 className="text-xs uppercase tracking-wider font-semibold text-slate-400">{t('reports.exportPreview')}</h4>
                 <div className="grid grid-cols-2 gap-y-1.5 text-sm">
-                  <span className="text-slate-500">Type:</span>
-                  <span className="font-medium text-slate-800">My Attendance</span>
-                  <span className="text-slate-500">Period:</span>
+                  <span className="text-slate-500">{t('reports.type')}:</span>
+                  <span className="font-medium text-slate-800">{t('reports.myAttendance')}</span>
+                  <span className="text-slate-500">{t('reports.period')}:</span>
                   <span className="font-medium text-slate-800">{exportPeriod.charAt(0).toUpperCase() + exportPeriod.slice(1)}</span>
-                  <span className="text-slate-500">Date:</span>
+                  <span className="text-slate-500">{t('common.date')}:</span>
                   <span className="font-medium text-slate-800">{exportDate}</span>
                 </div>
               </div>
@@ -416,7 +416,7 @@ export default function EmployeeReports() {
               {/* Action Buttons */}
               <div className="flex gap-3 pt-1">
                 <button onClick={() => { setShowExportForm(false); setExportMessage('') }} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-300 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   onClick={handleExportReport}
@@ -424,9 +424,9 @@ export default function EmployeeReports() {
                   className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2"
                 >
                   {exporting ? (
-                    <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Exporting…</>
+                    <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> {t('reports.exporting')}</>
                   ) : (
-                    <>📥 Download XLSX</>
+                    <>📥 {t('reports.downloadXLSX')}</>
                   )}
                 </button>
               </div>
