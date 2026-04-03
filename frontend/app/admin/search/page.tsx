@@ -23,6 +23,7 @@ interface SearchResult {
   photo: string | null
   role: string
   createdAt: string
+  department: { id: string; name: string } | null
   studentProfile: StudentProfile | null
 }
 
@@ -220,7 +221,7 @@ export default function SearchPage() {
                     <th>Email</th>
                     <th>Phone</th>
                     <th>Role</th>
-                    <th>Class</th>
+                    <th>Class / Dept</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -249,7 +250,7 @@ export default function SearchPage() {
                       <td className="text-slate-500 text-sm">{user.email}</td>
                       <td className="text-slate-500 text-sm">{user.phone || '—'}</td>
                       <td><span className={roleBadge[user.role] || 'badge-gray'}>{roleLabels[user.role] || user.role}</span></td>
-                      <td className="text-slate-500 text-sm">{user.studentProfile?.class?.name || '—'}</td>
+                      <td className="text-slate-500 text-sm">{user.studentProfile?.class?.name || user.department?.name || '—'}</td>
                       <td>
                         <button
                           onClick={e => { e.stopPropagation(); handleSelectUser(user) }}
@@ -301,6 +302,9 @@ export default function SearchPage() {
                   {selected.studentProfile?.class && (
                     <p className="text-sm text-slate-500 mt-1">📖 {selected.studentProfile.class.name}</p>
                   )}
+                  {!selected.studentProfile && selected.department && (
+                    <p className="text-sm text-slate-500 mt-1">🏢 {selected.department.name}</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -341,6 +345,22 @@ export default function SearchPage() {
                     <div className="p-3 rounded-xl bg-slate-50 col-span-2">
                       <p className="text-xs text-slate-400 mb-1">Address</p>
                       <p className="text-sm font-medium text-slate-700">{selected.studentProfile.address || '—'}</p>
+                    </div>
+                  </>
+                )}
+                {!selected.studentProfile && (
+                  <>
+                    <div className="p-3 rounded-xl bg-slate-50">
+                      <p className="text-xs text-slate-400 mb-1">Position</p>
+                      <p className="text-sm font-medium text-slate-700">{roleLabels[selected.role] || selected.role}</p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-50">
+                      <p className="text-xs text-slate-400 mb-1">Department</p>
+                      <p className="text-sm font-medium text-slate-700">{selected.department?.name || '—'}</p>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-50">
+                      <p className="text-xs text-slate-400 mb-1">Joined</p>
+                      <p className="text-sm font-medium text-slate-700">{new Date(selected.createdAt).toLocaleDateString()}</p>
                     </div>
                   </>
                 )}

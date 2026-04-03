@@ -227,6 +227,7 @@ export class AuthService {
         photo: true,
         role: true,
         createdAt: true,
+        department: { select: { id: true, name: true } },
         studentProfile: {
           select: {
             id: true,
