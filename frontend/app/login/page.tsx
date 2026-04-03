@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useLanguage } from '../../lib/i18n';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -10,6 +11,7 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const { t } = useLanguage();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,11 +42,11 @@ export default function Login() {
         else if (studentRoles.includes(role)) dest = '/student';
         router.push(dest);
       } else {
-        setError('Invalid email or password');
+        setError(t('login.invalidCredentials'));
         setLoading(false);
       }
     } catch {
-      setError('Something went wrong. Please try again.');
+      setError(t('login.error'));
       setLoading(false);
     }
   };
@@ -70,8 +72,8 @@ export default function Login() {
             <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white text-2xl shadow-lg mx-auto mb-4">
               🔐
             </div>
-            <h1 className="text-2xl font-bold text-slate-900">Welcome back</h1>
-            <p className="text-sm text-slate-500 mt-1">Sign in to your account</p>
+            <h1 className="text-2xl font-bold text-slate-900">{t('login.welcome')}</h1>
+            <p className="text-sm text-slate-500 mt-1">{t('login.subtitle')}</p>
           </div>
 
           <form onSubmit={handleLogin} className="card p-6 space-y-4">
@@ -82,7 +84,7 @@ export default function Login() {
             )}
 
             <div>
-              <label className="form-label">Email</label>
+              <label className="form-label">{t('common.email')}</label>
               <input
                 type="email"
                 value={email}
@@ -95,7 +97,7 @@ export default function Login() {
             </div>
 
             <div>
-              <label className="form-label">Password</label>
+              <label className="form-label">{t('common.password')}</label>
               <input
                 type="password"
                 value={password}
@@ -114,17 +116,17 @@ export default function Login() {
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
                   <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                  Signing in…
+                  {t('login.signingIn')}
                 </span>
               ) : (
-                'Sign In'
+                t('common.signIn')
               )}
             </button>
           </form>
 
           <p className="text-center text-xs text-slate-400 mt-6">
             <Link href="/" className="text-indigo-500 hover:text-indigo-700 transition-colors">
-              ← Back to home
+              {t('login.backToHome')}
             </Link>
           </p>
         </div>

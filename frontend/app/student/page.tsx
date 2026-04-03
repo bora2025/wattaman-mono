@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AuthGuard from '../../components/AuthGuard';
 import { apiFetch, getCurrentUser } from '../../lib/api';
+import { useLanguage } from '../../lib/i18n';
 
 interface AttendanceRecord {
   id: string;
@@ -18,6 +19,7 @@ interface AttendanceRecord {
 export default function StudentPortal() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const { t } = useLanguage();
 
   useEffect(() => { fetchAttendance(); }, []);
 
@@ -49,7 +51,7 @@ export default function StudentPortal() {
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
       <div className="text-center">
         <div className="w-10 h-10 border-3 border-sky-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-        <p className="text-sm text-slate-500 mt-3">Loading...</p>
+        <p className="text-sm text-slate-500 mt-3">{t('common.loading')}</p>
       </div>
     </div>
   );
@@ -62,8 +64,8 @@ export default function StudentPortal() {
           <div className="max-w-5xl mx-auto px-6 py-8">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-2xl font-bold">Student Portal</h1>
-                <p className="text-sky-200 text-sm mt-1">Your attendance history</p>
+                <h1 className="text-2xl font-bold">{t('student.title')}</h1>
+                <p className="text-sky-200 text-sm mt-1">{t('student.subtitle')}</p>
               </div>
               <Link href="/" className="px-3 py-1.5 rounded-lg text-sm bg-white/10 hover:bg-white/20 transition-colors">
                 ← Home
@@ -72,15 +74,15 @@ export default function StudentPortal() {
             {/* Stats */}
             <div className="grid grid-cols-3 gap-4 mt-6">
               <div className="bg-white/10 rounded-xl px-4 py-3 backdrop-blur-sm">
-                <p className="text-xs text-sky-200 uppercase tracking-wider">Total Records</p>
+                <p className="text-xs text-sky-200 uppercase tracking-wider">{t('student.totalRecords')}</p>
                 <p className="text-2xl font-bold mt-1">{attendance.length}</p>
               </div>
               <div className="bg-white/10 rounded-xl px-4 py-3 backdrop-blur-sm">
-                <p className="text-xs text-sky-200 uppercase tracking-wider">Present</p>
+                <p className="text-xs text-sky-200 uppercase tracking-wider">{t('common.present')}</p>
                 <p className="text-2xl font-bold mt-1">{presentCount}</p>
               </div>
               <div className="bg-white/10 rounded-xl px-4 py-3 backdrop-blur-sm">
-                <p className="text-xs text-sky-200 uppercase tracking-wider">Rate</p>
+                <p className="text-xs text-sky-200 uppercase tracking-wider">{t('student.rate')}</p>
                 <p className="text-2xl font-bold mt-1">{rate}%</p>
               </div>
             </div>
@@ -91,7 +93,7 @@ export default function StudentPortal() {
           {/* Actions */}
           <div className="flex justify-end">
             <button onClick={downloadReport} className="btn-primary btn-sm">
-              📥 Download Report
+              📥 {t('student.downloadReport')}
             </button>
           </div>
 
@@ -122,7 +124,7 @@ export default function StudentPortal() {
             {attendance.length === 0 && (
               <div className="empty-state py-12">
                 <p className="text-4xl mb-3">📋</p>
-                <p className="font-semibold text-slate-600">No attendance records</p>
+                <p className="font-semibold text-slate-600">{t('student.noRecords')}</p>
                 <p className="text-sm text-slate-400 mt-1">Your records will appear here once attendance is taken.</p>
               </div>
             )}

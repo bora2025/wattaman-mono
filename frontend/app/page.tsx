@@ -1,33 +1,36 @@
-import Link from 'next/link'
+'use client'
 
-const portals = [
+import Link from 'next/link'
+import { useLanguage } from '../lib/i18n'
+
+const portalKeys = [
   {
-    title: 'Admin Portal',
-    description: 'Manage users, classes, QR codes, and view analytics.',
+    titleKey: 'home.adminPortal',
+    descKey: 'home.adminDesc',
     href: '/admin',
     icon: '🛡️',
     color: 'from-indigo-500 to-indigo-700',
     hoverBorder: 'hover:border-indigo-300',
   },
   {
-    title: 'Teacher Portal',
-    description: 'Take attendance, manage your classes, and view reports.',
+    titleKey: 'home.teacherPortal',
+    descKey: 'home.teacherDesc',
     href: '/teacher',
     icon: '📚',
     color: 'from-emerald-500 to-emerald-700',
     hoverBorder: 'hover:border-emerald-300',
   },
   {
-    title: 'Student Portal',
-    description: 'View your attendance history and download reports.',
+    titleKey: 'home.studentPortal',
+    descKey: 'home.studentDesc',
     href: '/student',
     icon: '🎓',
     color: 'from-sky-500 to-sky-700',
     hoverBorder: 'hover:border-sky-300',
   },
   {
-    title: 'Employee Portal',
-    description: 'Scan QR code to check in, view attendance and reports.',
+    titleKey: 'home.employeePortal',
+    descKey: 'home.employeeDesc',
     href: '/employee',
     icon: '👔',
     color: 'from-amber-500 to-amber-700',
@@ -36,6 +39,8 @@ const portals = [
 ]
 
 export default function Home() {
+  const { lang, setLang, t } = useLanguage()
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50">
       {/* Header */}
@@ -47,9 +52,17 @@ export default function Home() {
             </div>
             <span className="font-bold text-slate-800 text-lg">Wattaman</span>
           </div>
-          <Link href="/login" className="btn-primary btn-sm">
-            Sign In
-          </Link>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setLang(lang === 'en' ? 'kh' : 'en')}
+              className="px-3 py-1.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
+            >
+              🌐 {lang === 'en' ? 'ភាសាខ្មែរ' : 'English'}
+            </button>
+            <Link href="/login" className="btn-primary btn-sm">
+              {t('common.signIn')}
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -58,32 +71,31 @@ export default function Home() {
         <section className="py-20 lg:py-28 text-center">
           <div className="inline-flex items-center gap-2 bg-indigo-50 text-indigo-700 px-4 py-1.5 rounded-full text-sm font-medium mb-6">
             <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse-dot"></span>
-            School Attendance System
+            {t('home.title')}
           </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-slate-900 leading-tight tracking-tight">
-            Simple attendance,<br />
+            {t('home.heroLine1')}<br />
             <span className="bg-gradient-to-r from-indigo-600 to-emerald-500 bg-clip-text text-transparent">
-              better outcomes
+              {t('home.heroLine2')}
             </span>
           </h1>
           <p className="mt-5 text-lg text-slate-500 max-w-2xl mx-auto leading-relaxed">
-            Scan QR codes, track attendance in real-time, and generate reports instantly.
-            A modern system for schools that care.
+            {t('home.heroDesc')}
           </p>
         </section>
 
         {/* Portal Cards */}
         <section className="pb-20 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {portals.map((portal) => (
+          {portalKeys.map((portal) => (
             <Link key={portal.href} href={portal.href}>
               <div className={`card-hover p-6 h-full cursor-pointer ${portal.hoverBorder}`}>
                 <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${portal.color} flex items-center justify-center text-2xl shadow-sm mb-4`}>
                   {portal.icon}
                 </div>
-                <h2 className="text-lg font-semibold text-slate-800 mb-1">{portal.title}</h2>
-                <p className="text-sm text-slate-500 leading-relaxed">{portal.description}</p>
+                <h2 className="text-lg font-semibold text-slate-800 mb-1">{t(portal.titleKey)}</h2>
+                <p className="text-sm text-slate-500 leading-relaxed">{t(portal.descKey)}</p>
                 <div className="mt-4 text-indigo-600 text-sm font-medium flex items-center gap-1 group-hover:gap-2 transition-all">
-                  Open portal &rarr;
+                  {t('common.openPortal')} &rarr;
                 </div>
               </div>
             </Link>
@@ -94,18 +106,18 @@ export default function Home() {
         <section className="pb-16">
           <div className="card p-6 flex flex-wrap justify-center gap-8 lg:gap-16 text-center">
             <div>
-              <p className="text-3xl font-bold text-slate-800">QR Scan</p>
-              <p className="text-sm text-slate-500 mt-1">Instant check-in</p>
+              <p className="text-3xl font-bold text-slate-800">{t('home.qrScan')}</p>
+              <p className="text-sm text-slate-500 mt-1">{t('home.instantCheckIn')}</p>
             </div>
             <div className="hidden sm:block w-px bg-slate-200"></div>
             <div>
-              <p className="text-3xl font-bold text-slate-800">Real-time</p>
-              <p className="text-sm text-slate-500 mt-1">Live tracking</p>
+              <p className="text-3xl font-bold text-slate-800">{t('home.realTime')}</p>
+              <p className="text-sm text-slate-500 mt-1">{t('home.liveTracking')}</p>
             </div>
             <div className="hidden sm:block w-px bg-slate-200"></div>
             <div>
-              <p className="text-3xl font-bold text-slate-800">Reports</p>
-              <p className="text-sm text-slate-500 mt-1">CSV & analytics</p>
+              <p className="text-3xl font-bold text-slate-800">{t('home.reports')}</p>
+              <p className="text-sm text-slate-500 mt-1">{t('home.csvAnalytics')}</p>
             </div>
           </div>
         </section>
@@ -114,7 +126,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-slate-200 bg-white">
         <div className="max-w-6xl mx-auto px-6 py-6 text-center text-sm text-slate-400">
-          &copy; 2026 Wattaman &middot; Attendance Management System
+          {t('home.footer')}
         </div>
       </footer>
     </div>

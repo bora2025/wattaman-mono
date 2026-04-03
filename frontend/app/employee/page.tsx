@@ -6,6 +6,7 @@ import Sidebar from '../../components/Sidebar'
 import AuthGuard from '../../components/AuthGuard'
 import { employeeNav } from '../../lib/employee-nav'
 import { apiFetch } from '../../lib/api'
+import { useLanguage } from '../../lib/i18n'
 
 interface AttendanceRecord {
   id: string
@@ -26,10 +27,10 @@ interface AttendanceData {
 }
 
 const sessionLabels: Record<number, string> = {
-  1: 'Morning Check-In',
-  2: 'Morning Check-Out',
-  3: 'Afternoon Check-In',
-  4: 'Afternoon Check-Out',
+  1: 'employee.session1',
+  2: 'employee.session2',
+  3: 'employee.session3',
+  4: 'employee.session4',
 }
 
 const statusColors: Record<string, string> = {
@@ -48,6 +49,7 @@ const statusIcons: Record<string, string> = {
 
 export default function EmployeeDashboard() {
   const [data, setData] = useState<AttendanceData | null>(null)
+  const { t } = useLanguage()
   const [loading, setLoading] = useState(true)
   const [userName, setUserName] = useState('')
   const [userRole, setUserRole] = useState('')
@@ -112,11 +114,11 @@ export default function EmployeeDashboard() {
               {/* Header */}
               <div className="page-header">
                 <div>
-                  <h1 className="text-2xl font-bold text-slate-900">📊 Dashboard</h1>
-                  <p className="text-sm text-slate-500 mt-1">Welcome, {userName || '...'}</p>
+                <h1 className="text-2xl font-bold text-slate-900">📊 {t('employee.title')}</h1>
+                <p className="text-sm text-slate-500 mt-1">{t('employee.welcome')}, {userName || '...'}</p>
                 </div>
                 <Link href="/employee/scan" className="btn-primary">
-                  📷 Scan Now
+                  📷 {t('employee.scanNow')}
                 </Link>
               </div>
 
@@ -124,14 +126,14 @@ export default function EmployeeDashboard() {
 
                 {/* Today's Status */}
                 <div className="card p-5">
-                  <h2 className="text-sm font-semibold text-slate-700 mb-3">Today&apos;s Attendance</h2>
+                  <h2 className="text-sm font-semibold text-slate-700 mb-3">{t('employee.todayAttendance')}</h2>
                   {data?.todayRecords && data.todayRecords.length > 0 ? (
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       {[1, 2, 3, 4].map(session => {
                         const rec = data.todayRecords.find(r => r.session === session)
                         return (
                           <div key={session} className={`rounded-lg p-3 text-center ${rec ? statusColors[rec.status] || 'bg-slate-50' : 'bg-slate-50 text-slate-300'}`}>
-                            <p className="text-xs font-medium opacity-70 mb-1">{sessionLabels[session]}</p>
+                            <p className="text-xs font-medium opacity-70 mb-1">{t(sessionLabels[session])}</p>
                             {rec ? (
                               <>
                                 <p className="text-lg font-bold">{statusIcons[rec.status]} {rec.status}</p>
@@ -162,19 +164,19 @@ export default function EmployeeDashboard() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   <div className="card p-4 text-center">
                     <p className="text-3xl font-bold text-slate-800">{data?.summary.total ?? 0}</p>
-                    <p className="text-xs text-slate-500 mt-1">Total Records</p>
+                    <p className="text-xs text-slate-500 mt-1">{t('employee.totalRecords')}</p>
                   </div>
                   <div className="card p-4 text-center">
                     <p className="text-3xl font-bold text-emerald-600">{data?.summary.present ?? 0}</p>
-                    <p className="text-xs text-slate-500 mt-1">Present</p>
+                    <p className="text-xs text-slate-500 mt-1">{t('common.present')}</p>
                   </div>
                   <div className="card p-4 text-center">
                     <p className="text-3xl font-bold text-amber-600">{data?.summary.late ?? 0}</p>
-                    <p className="text-xs text-slate-500 mt-1">Late</p>
+                    <p className="text-xs text-slate-500 mt-1">{t('common.late')}</p>
                   </div>
                   <div className="card p-4 text-center">
                     <p className="text-3xl font-bold text-red-600">{data?.summary.absent ?? 0}</p>
-                    <p className="text-xs text-slate-500 mt-1">Absent</p>
+                    <p className="text-xs text-slate-500 mt-1">{t('common.absent')}</p>
                   </div>
                 </div>
 
@@ -182,7 +184,7 @@ export default function EmployeeDashboard() {
                 <Link href="/employee/my-card" className="card p-5 flex items-center gap-4 hover:shadow-md transition-shadow group">
                   <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">🪪</div>
                   <div>
-                    <h3 className="font-semibold text-slate-800">My ID Card</h3>
+                    <h3 className="font-semibold text-slate-800">{t('employee.myIdCard')}</h3>
                     <p className="text-xs text-slate-500">View and download your employee ID card</p>
                   </div>
                   <span className="ml-auto text-slate-300 group-hover:text-slate-500 transition-colors">→</span>
@@ -191,7 +193,7 @@ export default function EmployeeDashboard() {
                 {/* Month Picker + History */}
                 <div className="card">
                   <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-                    <h2 className="text-sm font-semibold text-slate-700">Attendance History</h2>
+                    <h2 className="text-sm font-semibold text-slate-700">{t('employee.attendanceHistory')}</h2>
                     <input
                       type="month"
                       value={selectedMonth}
@@ -203,12 +205,12 @@ export default function EmployeeDashboard() {
                   {loading ? (
                     <div className="p-8 text-center">
                       <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto" />
-                      <p className="text-sm text-slate-500 mt-2">Loading...</p>
+                      <p className="text-sm text-slate-500 mt-2">{t('common.loading')}</p>
                     </div>
                   ) : dateKeys.length === 0 ? (
                     <div className="p-8 text-center text-slate-400">
                       <p className="text-3xl mb-2">📭</p>
-                      <p className="text-sm">No records for this month</p>
+                      <p className="text-sm">{t('employee.noRecords')}</p>
                     </div>
                   ) : (
                     <div className="divide-y divide-slate-100">

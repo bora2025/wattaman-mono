@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Sidebar from '../../../components/Sidebar'
 import { adminNav } from '../../../lib/admin-nav'
 import { apiFetch } from '../../../lib/api'
+import { useLanguage } from '../../../lib/i18n'
 
 interface StudentProfile {
   id: string
@@ -47,12 +48,6 @@ const roleBadge: Record<string, string> = {
   PARENT: 'badge-gray',
 }
 
-const roleLabels: Record<string, string> = {
-  ADMIN: 'Admin',
-  TEACHER: 'គ្រូ-Teacher',
-  STUDENT: 'Student',
-  PARENT: 'Parent',
-}
 
 const statusColors: Record<string, string> = {
   PRESENT: 'bg-emerald-100 text-emerald-700',
@@ -62,15 +57,20 @@ const statusColors: Record<string, string> = {
   DAY_OFF: 'bg-slate-100 text-slate-500',
 }
 
-const statusLabels: Record<string, string> = {
-  PRESENT: '✓ Present',
-  LATE: '⏰ Late',
-  ABSENT: '✗ Absent',
-  PERMISSION: '📋 Permission',
-  DAY_OFF: '🚫 Day Off',
+const statusKeys: Record<string, string> = {
+  PRESENT: 'status.present',
+  LATE: 'status.late',
+  ABSENT: 'status.absent',
+  PERMISSION: 'status.permission',
+  DAY_OFF: 'status.dayOff',
 }
 
-const sessionLabels = ['Session 1', 'Session 2', 'Session 3', 'Session 4']
+const roleKeyMap: Record<string, string> = {
+  ADMIN: 'role.admin',
+  TEACHER: 'role.teacher',
+  STUDENT: 'role.student',
+  PARENT: 'role.parent',
+}
 
 /** Convert Google Drive sharing URLs to direct image URLs */
 function normalizePhotoUrl(url: string): string {
@@ -85,6 +85,7 @@ function normalizePhotoUrl(url: string): string {
 }
 
 export default function SearchPage() {
+  const { t } = useLanguage()
   const [query, setQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState('ALL')
   const [results, setResults] = useState<SearchResult[]>([])
@@ -156,8 +157,8 @@ export default function SearchPage() {
       <div className="page-content">
         <div className="h-14 lg:hidden" />
         <div className="page-header">
-          <h1 className="text-2xl font-bold text-slate-800">Search Students & Staff</h1>
-          <p className="text-sm text-slate-500 mt-1">Find students, teachers, admins and parents quickly.</p>
+          <h1 className="text-2xl font-bold text-slate-800">{t('search.title')}</h1>
+          <p className="text-sm text-slate-500 mt-1">{t('search.subtitle')}</p>
         </div>
 
         <div className="page-body space-y-5">
@@ -169,7 +170,7 @@ export default function SearchPage() {
                 type="text"
                 value={query}
                 onChange={e => setQuery(e.target.value)}
-                placeholder="Search by name, email, or phone..."
+                placeholder={t('search.placeholder')}
                 className="flex-1 py-2.5 bg-transparent border-0 outline-none focus:ring-0 text-sm text-slate-800 placeholder:text-slate-400"
                 autoFocus
               />
@@ -196,7 +197,7 @@ export default function SearchPage() {
                     : 'text-slate-600 hover:bg-slate-100'
                 }`}
               >
-                {r === 'ALL' ? `All (${results.length})` : `${roleLabels[r] || r} (${results.filter(u => u.role === r).length})`}
+                {r === 'ALL' ? `${t('common.all')} (${results.length})` : `${t(roleKeyMap[r] || '')} (${results.filter(u => u.role === r).length})`}
               </button>
             ))}
           </div>
@@ -205,23 +206,23 @@ export default function SearchPage() {
           {loading ? (
             <div className="text-center py-12 text-slate-400">
               <div className="inline-block w-6 h-6 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin mb-2" />
-              <p className="text-sm">Searching...</p>
+              <p className="text-sm">{t('search.searching')}</p>
             </div>
           ) : hasSearched && results.length === 0 ? (
             <div className="empty-state">
-              <p className="text-lg">No results found</p>
-              <p className="text-sm text-slate-400 mt-1">Try a different search term or filter.</p>
+              <p className="text-lg">{t('search.noResults')}</p>
+              <p className="text-sm text-slate-400 mt-1">{t('search.noResultsHint')}</p>
             </div>
           ) : results.length > 0 ? (
             <div className="table-container">
               <table>
                 <thead>
                   <tr>
-                    <th>User</th>
-                    <th>Email</th>
-                    <th>Phone</th>
-                    <th>Role</th>
-                    <th>Class / Dept</th>
+                    <th>{t('search.user')}</th>
+                    <th>{t('common.email')}</th>
+                    <th>{t('common.phone')}</th>
+                    <th>{t('common.role')}</th>
+                    <th>{t('search.classDept')}</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -249,14 +250,14 @@ export default function SearchPage() {
                       </td>
                       <td className="text-slate-500 text-sm">{user.email}</td>
                       <td className="text-slate-500 text-sm">{user.phone || '—'}</td>
-                      <td><span className={roleBadge[user.role] || 'badge-gray'}>{roleLabels[user.role] || user.role}</span></td>
+                      <td><span className={roleBadge[user.role] || 'badge-gray'}>{t(roleKeyMap[user.role] || '')}</span></td>
                       <td className="text-slate-500 text-sm">{user.studentProfile?.class?.name || user.department?.name || '—'}</td>
                       <td>
                         <button
                           onClick={e => { e.stopPropagation(); handleSelectUser(user) }}
                           className="text-indigo-600 hover:text-indigo-800 text-sm font-medium"
                         >
-                          View
+                          {t('common.view')}
                         </button>
                       </td>
                     </tr>
@@ -264,7 +265,7 @@ export default function SearchPage() {
                 </tbody>
               </table>
               <div className="px-4 py-2 text-xs text-slate-400 border-t border-slate-100">
-                Showing {results.length} result{results.length !== 1 ? 's' : ''}
+                {t('common.showing')} {results.length} {results.length !== 1 ? t('common.results') : t('common.result')}
               </div>
             </div>
           ) : null}
@@ -278,7 +279,7 @@ export default function SearchPage() {
             {/* Header with photo */}
             <div className="p-6 pb-4">
               <div className="flex items-center justify-between mb-5">
-                <h2 className="text-lg font-bold text-slate-800">Profile Details</h2>
+                <h2 className="text-lg font-bold text-slate-800">{t('search.profileDetails')}</h2>
                 <button onClick={() => setSelected(null)} className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-600">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
@@ -298,7 +299,7 @@ export default function SearchPage() {
                 )}
                 <div>
                   <h3 className="font-semibold text-slate-800 text-xl">{selected.name}</h3>
-                  <span className={`${roleBadge[selected.role] || 'badge-gray'} text-xs mt-1 inline-block`}>{roleLabels[selected.role] || selected.role}</span>
+                  <span className={`${roleBadge[selected.role] || 'badge-gray'} text-xs mt-1 inline-block`}>{t(roleKeyMap[selected.role] || '')}</span>
                   {selected.studentProfile?.class && (
                     <p className="text-sm text-slate-500 mt-1">📖 {selected.studentProfile.class.name}</p>
                   )}
@@ -313,37 +314,37 @@ export default function SearchPage() {
             <div className="px-6 pb-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-3 rounded-xl bg-slate-50">
-                  <p className="text-xs text-slate-400 mb-1">Email</p>
+                  <p className="text-xs text-slate-400 mb-1">{t('common.email')}</p>
                   <p className="text-sm font-medium text-slate-700 break-all">{selected.email}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-slate-50">
-                  <p className="text-xs text-slate-400 mb-1">Phone</p>
+                  <p className="text-xs text-slate-400 mb-1">{t('common.phone')}</p>
                   <p className="text-sm font-medium text-slate-700">{selected.phone || '—'}</p>
                 </div>
                 {selected.studentProfile && (
                   <>
                     <div className="p-3 rounded-xl bg-slate-50">
-                      <p className="text-xs text-slate-400 mb-1">Student ID</p>
+                      <p className="text-xs text-slate-400 mb-1">{t('search.studentId')}</p>
                       <p className="text-sm font-medium text-slate-700">#{selected.studentProfile.studentNumber || '—'}</p>
                     </div>
                     <div className="p-3 rounded-xl bg-slate-50">
-                      <p className="text-xs text-slate-400 mb-1">Sex</p>
+                      <p className="text-xs text-slate-400 mb-1">{t('common.sex')}</p>
                       <p className="text-sm font-medium text-slate-700">
-                        {selected.studentProfile.sex === 'MALE' ? '♂ ប្រុស' : selected.studentProfile.sex === 'FEMALE' ? '♀ ស្រី' : '—'}
+                        {selected.studentProfile.sex === 'MALE' ? `♂ ${t('common.male')}` : selected.studentProfile.sex === 'FEMALE' ? `♀ ${t('common.female')}` : '—'}
                       </p>
                     </div>
                     <div className="p-3 rounded-xl bg-slate-50">
-                      <p className="text-xs text-slate-400 mb-1">Date of Birth</p>
+                      <p className="text-xs text-slate-400 mb-1">{t('common.dateOfBirth')}</p>
                       <p className="text-sm font-medium text-slate-700">
                         {selected.studentProfile.dateOfBirth ? new Date(selected.studentProfile.dateOfBirth).toLocaleDateString() : '—'}
                       </p>
                     </div>
                     <div className="p-3 rounded-xl bg-slate-50">
-                      <p className="text-xs text-slate-400 mb-1">Class</p>
-                      <p className="text-sm font-medium text-slate-700">{selected.studentProfile.class?.name || 'Unassigned'}</p>
+                      <p className="text-xs text-slate-400 mb-1">{t('common.class')}</p>
+                      <p className="text-sm font-medium text-slate-700">{selected.studentProfile.class?.name || t('search.unassigned')}</p>
                     </div>
                     <div className="p-3 rounded-xl bg-slate-50 col-span-2">
-                      <p className="text-xs text-slate-400 mb-1">Address</p>
+                      <p className="text-xs text-slate-400 mb-1">{t('common.address')}</p>
                       <p className="text-sm font-medium text-slate-700">{selected.studentProfile.address || '—'}</p>
                     </div>
                   </>
@@ -351,15 +352,15 @@ export default function SearchPage() {
                 {!selected.studentProfile && (
                   <>
                     <div className="p-3 rounded-xl bg-slate-50">
-                      <p className="text-xs text-slate-400 mb-1">Position</p>
-                      <p className="text-sm font-medium text-slate-700">{roleLabels[selected.role] || selected.role}</p>
+                      <p className="text-xs text-slate-400 mb-1">{t('common.position')}</p>
+                      <p className="text-sm font-medium text-slate-700">{t(roleKeyMap[selected.role] || '')}</p>
                     </div>
                     <div className="p-3 rounded-xl bg-slate-50">
-                      <p className="text-xs text-slate-400 mb-1">Department</p>
+                      <p className="text-xs text-slate-400 mb-1">{t('common.department')}</p>
                       <p className="text-sm font-medium text-slate-700">{selected.department?.name || '—'}</p>
                     </div>
                     <div className="p-3 rounded-xl bg-slate-50">
-                      <p className="text-xs text-slate-400 mb-1">Joined</p>
+                      <p className="text-xs text-slate-400 mb-1">{t('common.joined')}</p>
                       <p className="text-sm font-medium text-slate-700">{new Date(selected.createdAt).toLocaleDateString()}</p>
                     </div>
                   </>
@@ -370,7 +371,7 @@ export default function SearchPage() {
             {/* Daily Attendance */}
             <div className="px-6 pb-6">
               <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-semibold text-slate-700">Daily Attendance</h4>
+                <h4 className="text-sm font-semibold text-slate-700">{t('search.dailyAttendance')}</h4>
                 <input
                   type="date"
                   value={attendanceDate}
@@ -387,9 +388,9 @@ export default function SearchPage() {
                 <div className="grid grid-cols-4 gap-2">
                   {attendance.sessions.map((s, i) => (
                     <div key={s.session} className="text-center">
-                      <p className="text-[10px] text-slate-400 font-medium mb-1">{sessionLabels[i]}</p>
+                      <p className="text-[10px] text-slate-400 font-medium mb-1">{t(`session.${i + 1}`)}</p>
                       <div className={`px-2 py-2 rounded-lg text-xs font-semibold ${s.status ? statusColors[s.status] || 'bg-slate-100 text-slate-500' : 'bg-slate-50 text-slate-300'}`}>
-                        {s.status ? statusLabels[s.status] || s.status : '—'}
+                        {s.status ? t(statusKeys[s.status] || '') || s.status : '—'}
                       </div>
                       {s.checkInTime && (
                         <p className="text-[10px] text-slate-400 mt-1">
@@ -400,7 +401,7 @@ export default function SearchPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-slate-400 text-center py-3">No attendance data</p>
+                <p className="text-xs text-slate-400 text-center py-3">{t('search.noAttendanceData')}</p>
               )}
             </div>
           </div>

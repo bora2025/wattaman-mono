@@ -1,29 +1,29 @@
 export const adminNav = [
   // Overview
-  { label: 'Dashboard', href: '/admin', icon: '📊' },
-  { label: 'Search', href: '/admin/search', icon: '🔍' },
+  { label: 'nav.dashboard', href: '/admin', icon: '📊' },
+  { label: 'nav.search', href: '/admin/search', icon: '🔍' },
 
   // People Management
-  { label: 'Manage Users', href: '/admin/users', icon: '👥' },
-  { label: 'Manage Officer', href: '/admin/employees', icon: '👔' },
-  { label: 'Manage Classes', href: '/admin/classes', icon: '📖' },
+  { label: 'nav.manageUsers', href: '/admin/users', icon: '👥' },
+  { label: 'nav.manageOfficer', href: '/admin/employees', icon: '👔' },
+  { label: 'nav.manageClasses', href: '/admin/classes', icon: '📖' },
 
   // Attendance
-  { label: 'Take Attendance', href: '/admin/attendance', icon: '📷' },
-  { label: 'Officer Attendance', href: '/admin/staff-attendance', icon: '👔' },
-  { label: 'Edit Attendance', href: '/admin/attendance/edit', icon: '✏️' },
-  { label: 'Edit Officer Attendance', href: '/admin/staff-attendance/edit', icon: '✏️' },
+  { label: 'nav.takeAttendance', href: '/admin/attendance', icon: '📷' },
+  { label: 'nav.officerAttendance', href: '/admin/staff-attendance', icon: '👔' },
+  { label: 'nav.editAttendance', href: '/admin/attendance/edit', icon: '✏️' },
+  { label: 'nav.editOfficerAttendance', href: '/admin/staff-attendance/edit', icon: '✏️' },
 
   // Reports
-  { label: 'Student Report', href: '/admin/reports', icon: '📈' },
-  { label: 'Officer Report', href: '/admin/staff-reports', icon: '📊' },
+  { label: 'nav.studentReport', href: '/admin/reports', icon: '📈' },
+  { label: 'nav.officerReport', href: '/admin/staff-reports', icon: '📊' },
 
   // ID Cards
-  { label: 'Card Designer', href: '/admin/card-designer', icon: '🪪' },
-  { label: 'ID Card', href: '/admin/qr-codes', icon: '🎫' },
+  { label: 'nav.cardDesigner', href: '/admin/card-designer', icon: '🪪' },
+  { label: 'nav.idCard', href: '/admin/qr-codes', icon: '🎫' },
 
   // Settings
-  { label: 'Session Settings', href: '/admin/session-settings', icon: '⏰' },
-  { label: 'Holidays', href: '/admin/holidays', icon: '📅' },
-  { label: 'Settings', href: '/admin/settings', icon: '⚙️' },
+  { label: 'nav.sessionSettings', href: '/admin/session-settings', icon: '⏰' },
+  { label: 'nav.holidays', href: '/admin/holidays', icon: '📅' },
+  { label: 'nav.settings', href: '/admin/settings', icon: '⚙️' },
 ]

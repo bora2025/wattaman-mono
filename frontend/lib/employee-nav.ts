@@ -1,5 +1,5 @@
 export const employeeNav = [
-  { label: 'Dashboard', href: '/employee', icon: '📊' },
-  { label: 'Scan Attendance', href: '/employee/scan', icon: '📷' },
-  { label: 'My Reports', href: '/employee/reports', icon: '📈' },
+  { label: 'nav.dashboard', href: '/employee', icon: '📊' },
+  { label: 'nav.scanAttendance', href: '/employee/scan', icon: '📷' },
+  { label: 'nav.myReports', href: '/employee/reports', icon: '📈' },
 ]

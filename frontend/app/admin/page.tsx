@@ -6,74 +6,75 @@ import AuthGuard from '../../components/AuthGuard'
 import Sidebar from '../../components/Sidebar'
 import { adminNav } from '../../lib/admin-nav'
 import { apiFetch } from '../../lib/api'
+import { useLanguage } from '../../lib/i18n'
 
 const quickActions = [
   {
-    title: 'Search',
-    description: 'Find students, teachers, and staff quickly.',
+    titleKey: 'admin.search',
+    descKey: 'admin.searchDesc',
     href: '/admin/search',
     icon: '🔍',
     color: 'from-indigo-500 to-indigo-600',
   },
   {
-    title: 'Manage Users',
-    description: 'Add, edit, import/export users via CSV.',
+    titleKey: 'admin.manageUsers',
+    descKey: 'admin.manageUsersDesc',
     href: '/admin/users',
     icon: '👥',
     color: 'from-blue-500 to-blue-600',
   },
   {
-    title: 'Manage Classes',
-    description: 'Create classes and assign students.',
+    titleKey: 'admin.manageClasses',
+    descKey: 'admin.manageClassesDesc',
     href: '/admin/classes',
     icon: '📖',
     color: 'from-emerald-500 to-emerald-600',
   },
   {
-    title: 'View Reports',
-    description: 'Analytics and attendance summaries.',
+    titleKey: 'admin.viewReports',
+    descKey: 'admin.viewReportsDesc',
     href: '/admin/reports',
     icon: '📈',
     color: 'from-violet-500 to-violet-600',
   },
   {
-    title: 'ID Card',
-    description: 'Create and download student ID cards.',
+    titleKey: 'admin.idCard',
+    descKey: 'admin.idCardDesc',
     href: '/admin/qr-codes',
     icon: '🪪',
     color: 'from-amber-500 to-amber-600',
   },
   {
-    title: 'Edit Attendance',
-    description: 'Edit student attendance: present, absent, permission.',
+    titleKey: 'admin.editAttendance',
+    descKey: 'admin.editAttendanceDesc',
     href: '/admin/attendance/edit',
     icon: '✏️',
     color: 'from-teal-500 to-teal-600',
   },
   {
-    title: 'Edit Staff Attendance',
-    description: 'Edit staff attendance: present, absent, permission.',
+    titleKey: 'admin.editStaffAttendance',
+    descKey: 'admin.editStaffAttendanceDesc',
     href: '/admin/staff-attendance/edit',
     icon: '✏️',
     color: 'from-pink-500 to-pink-600',
   },
   {
-    title: 'Audit Logs',
-    description: 'Track who marked attendance and when.',
+    titleKey: 'admin.auditLogs',
+    descKey: 'admin.auditLogsDesc',
     href: '/admin/audit',
     icon: '🔍',
     color: 'from-slate-500 to-slate-600',
   },
   {
-    title: 'Notifications',
-    description: 'Configure email/SMS alerts for absences.',
+    titleKey: 'admin.notifications',
+    descKey: 'admin.notificationsDesc',
     href: '/admin/notifications',
     icon: '🔔',
     color: 'from-rose-500 to-rose-600',
   },
   {
-    title: 'Card Designer',
-    description: 'Customize cards with logos, text, colors, and sizes.',
+    titleKey: 'admin.cardDesigner',
+    descKey: 'admin.cardDesignerDesc',
     href: '/admin/card-designer',
     icon: '🪪',
     color: 'from-cyan-500 to-cyan-600',
@@ -108,6 +109,7 @@ function timeAgo(iso: string): string {
 
 export default function AdminDashboard() {
   const [status, setStatus] = useState<SystemStatus | null>(null)
+  const { t } = useLanguage()
 
   useEffect(() => {
     apiFetch('/api/reports/system-status')
@@ -129,8 +131,8 @@ export default function AdminDashboard() {
           {/* Mobile spacer */}
           <div className="h-14 lg:hidden" />
           <div className="page-header">
-            <h1 className="text-2xl font-bold text-slate-800">Dashboard</h1>
-            <p className="text-sm text-slate-500 mt-1">Welcome back! Here&apos;s your admin overview.</p>
+            <h1 className="text-2xl font-bold text-slate-800">{t('admin.title')}</h1>
+            <p className="text-sm text-slate-500 mt-1">{t('admin.subtitle')}</p>
           </div>
           <div className="page-body space-y-6">
 
@@ -143,25 +145,25 @@ export default function AdminDashboard() {
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                     </span>
-                    <span className="text-sm font-medium text-slate-700">System Online</span>
+                    <span className="text-sm font-medium text-slate-700">{t('admin.systemOnline')}</span>
                   </div>
                   {status.lastUpdated && (
                     <div className="text-sm text-slate-500">
-                      Last updated: <span className="font-medium text-slate-700">{timeAgo(status.lastUpdated)}</span>
+                      {t('admin.lastUpdated')}: <span className="font-medium text-slate-700">{timeAgo(status.lastUpdated)}</span>
                       <span className="text-slate-400 ml-1">({formatCambodiaTime(status.lastUpdated)})</span>
                     </div>
                   )}
                   <div className="flex gap-4 ml-auto text-sm">
-                    <span className="text-slate-500">👥 <span className="font-semibold text-slate-700">{status.totalUsers}</span> Users</span>
-                    <span className="text-slate-500">🎓 <span className="font-semibold text-slate-700">{status.totalStudents}</span> Students</span>
-                    <span className="text-slate-500">📖 <span className="font-semibold text-slate-700">{status.totalClasses}</span> Classes</span>
+                    <span className="text-slate-500">👥 <span className="font-semibold text-slate-700">{status.totalUsers}</span> {t('common.users')}</span>
+                    <span className="text-slate-500">🎓 <span className="font-semibold text-slate-700">{status.totalStudents}</span> {t('common.students')}</span>
+                    <span className="text-slate-500">📖 <span className="font-semibold text-slate-700">{status.totalClasses}</span> {t('common.classes')}</span>
                   </div>
                 </div>
               </div>
             )}
 
             {/* Quick Actions Grid */}
-            <h2 className="text-lg font-semibold text-slate-700 mb-4">Quick Actions</h2>
+            <h2 className="text-lg font-semibold text-slate-700 mb-4">{t('admin.quickActions')}</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {quickActions.map((action) => (
                 <Link key={action.href} href={action.href}>
@@ -169,8 +171,8 @@ export default function AdminDashboard() {
                     <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center text-xl shadow-sm mb-3`}>
                       {action.icon}
                     </div>
-                    <h3 className="font-semibold text-slate-800 mb-1">{action.title}</h3>
-                    <p className="text-sm text-slate-500 leading-relaxed">{action.description}</p>
+                    <h3 className="font-semibold text-slate-800 mb-1">{t(action.titleKey)}</h3>
+                    <p className="text-sm text-slate-500 leading-relaxed">{t(action.descKey)}</p>
                   </div>
                 </Link>
               ))}
