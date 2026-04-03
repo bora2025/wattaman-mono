@@ -20,7 +20,7 @@ interface Student {
 
 interface AttendanceRecord {
   studentId: string
-  status: 'PRESENT' | 'ABSENT' | 'LATE' | 'DAY_OFF'
+  status: 'PRESENT' | 'ABSENT' | 'LATE' | 'PERMISSION'
   checkInTime?: string // ISO string of actual scan time
 }
 
@@ -336,10 +336,10 @@ function TakeAttendance() {
       if (res.ok) {
         const data = await res.json()
         setStudents(data)
-        // If scheduled day-off, auto-set all students to DAY_OFF
+        // If scheduled day-off, auto-set all students to PERMISSION
         const cls = teacherClasses.find(c => c.id === classId)
         const isDayOff = checkClassDayOff(cls?.schedule)
-        setAttendance(data.map((s: Student) => ({ studentId: s.id, status: isDayOff ? 'DAY_OFF' as const : 'ABSENT' as const })))
+        setAttendance(data.map((s: Student) => ({ studentId: s.id, status: isDayOff ? 'PERMISSION' as const : 'ABSENT' as const })))
       }
     } catch (error) { console.error('Error fetching students:', error) }
   }
@@ -373,7 +373,7 @@ function TakeAttendance() {
     return nowMinutes > lateAfterMinutes
   }
 
-  const updateAttendance = useCallback((studentId: string, status: 'PRESENT' | 'ABSENT' | 'LATE' | 'DAY_OFF') => {
+  const updateAttendance = useCallback((studentId: string, status: 'PRESENT' | 'ABSENT' | 'LATE' | 'PERMISSION') => {
     const now = (status === 'PRESENT' || status === 'LATE') ? new Date().toISOString() : undefined
     setAttendance(prev => prev.map(a => a.studentId === studentId ? { ...a, status, checkInTime: now } : a))
   }, [])
@@ -482,11 +482,11 @@ function TakeAttendance() {
       return
     }
 
-    // If today is a scheduled day-off, auto-mark as DAY_OFF instead of scanning
+    // If today is a scheduled day-off, auto-mark as PERMISSION instead of scanning
     if (scheduledDayOff) {
       playSound('error')
-      setMessage(`Today is a scheduled day-off for this class — ${student.name} marked as DAY_OFF`)
-      updateAttendance(student.id, 'DAY_OFF')
+      setMessage(`Today is a scheduled day-off for this class — ${student.name} marked as PERMISSION`)
+      updateAttendance(student.id, 'PERMISSION')
       setTimeout(() => setMessage(''), 3000)
       return
     }
@@ -734,7 +734,7 @@ function TakeAttendance() {
 
   const presentCount = attendance.filter(a => a.status === 'PRESENT').length
   const lateCount = attendance.filter(a => a.status === 'LATE').length
-  const dayOffCount = attendance.filter(a => a.status === 'DAY_OFF').length
+  const dayOffCount = attendance.filter(a => a.status === 'PERMISSION').length
   const totalStudents = students.length
   const progressPct = totalStudents > 0 ? ((presentCount + lateCount) / totalStudents) * 100 : 0
 
@@ -1027,7 +1027,7 @@ function TakeAttendance() {
         {scheduledDayOff && (
           <div className="px-4 py-3 rounded-xl text-sm font-medium shadow-sm bg-red-50 text-red-800 border border-red-200 flex items-center gap-2">
             <span className="text-lg">🚫</span>
-            <span>Today is a <strong>scheduled day-off</strong> for this class. All students are auto-marked as DAY_OFF. The backend will also enforce this.</span>
+            <span>Today is a <strong>scheduled day-off</strong> for this class. All students are auto-marked as PERMISSION. The backend will also enforce this.</span>
           </div>
         )}
 
@@ -1208,7 +1208,7 @@ function TakeAttendance() {
                     {status === 'PRESENT' && <span className="badge-green text-[10px] sm:text-xs">{t('common.present')}</span>}
                     {status === 'LATE' && <span className="badge-yellow text-[10px] sm:text-xs">{t('common.late')}</span>}
                     {status === 'ABSENT' && <span className="badge-red text-[10px] sm:text-xs">{t('common.absent')}</span>}
-                    {status === 'DAY_OFF' && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-purple-100 text-purple-800">{t('common.dayOff')}</span>}
+                    {status === 'PERMISSION' && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-blue-100 text-blue-800">{t('common.permission')}</span>}
                   </div>
                   <div className="flex items-center justify-between">
                     <label className="flex items-center gap-2 cursor-pointer">
@@ -1222,13 +1222,13 @@ function TakeAttendance() {
                     </label>
                     <select
                       value={status}
-                      onChange={(e) => updateAttendance(student.id, e.target.value as 'PRESENT' | 'ABSENT' | 'LATE' | 'DAY_OFF')}
+                      onChange={(e) => updateAttendance(student.id, e.target.value as 'PRESENT' | 'ABSENT' | 'LATE' | 'PERMISSION')}
                       className="text-xs px-2 py-1.5 rounded-lg border border-slate-200"
                     >
                       <option value="PRESENT">{t('common.present')}</option>
                       <option value="ABSENT">{t('common.absent')}</option>
                       <option value="LATE">{t('common.late')}</option>
-                      <option value="DAY_OFF">🏖 {t('common.dayOff')}</option>
+                      <option value="PERMISSION">📋 {t('common.permission')}</option>
                     </select>
                   </div>
                 </div>
