@@ -686,7 +686,7 @@ export default function GenerateQRCodes() {
   }
   const roleLabels: Record<string, { icon: string; label: string }> = {
     ADMIN: { icon: '🛡️', label: 'Administrators' },
-    TEACHER: { icon: '📚', label: 'Teachers' },
+    TEACHER: { icon: '📚', label: 'គ្រូ-Teachers' },
     PRIMARY_SCHOOL_PRINCIPAL: { icon: '🏫', label: 'នាយកសាលាបឋម' },
     SECONDARY_SCHOOL_PRINCIPAL: { icon: '🏫', label: 'នាយកសាលាអនុវិទ្យាល័យ' },
     HIGH_SCHOOL_PRINCIPAL: { icon: '🏫', label: 'នាយកសាលាវិទ្យាល័យ' },

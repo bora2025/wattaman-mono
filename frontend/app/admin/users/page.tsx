@@ -17,7 +17,7 @@ interface User {
 
 const roleLabels: Record<string, string> = {
   ADMIN: 'Admin',
-  TEACHER: 'Teacher',
+  TEACHER: 'គ្រូ-Teacher',
   STUDENT: 'Student',
   PARENT: 'Parent',
   PRIMARY_SCHOOL_PRINCIPAL: 'នាយកសាលាបឋម',
