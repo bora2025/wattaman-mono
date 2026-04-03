@@ -1,5 +1,7 @@
 'use client';
 
+'use client'
+
 import { useState, useEffect } from 'react';
 import Sidebar from '../../../components/Sidebar';
 import AuthGuard from '../../../components/AuthGuard';

@@ -1,3 +1,5 @@
+'use client'
+
 import AuthGuard from '../../../components/AuthGuard';
 import Sidebar from '../../../components/Sidebar';
 import CardEditor from '../../../components/card-designer/CardEditor';
