@@ -142,11 +142,22 @@ export default function EditAttendance() {
 
   const sessionLabel = (n: number) => {
     switch (n) {
-      case 1: return 'Morning 1'
-      case 2: return 'Morning 2'
-      case 3: return 'Afternoon 1'
-      case 4: return 'Afternoon 2'
+      case 1: return t('editAttendance.morning1')
+      case 2: return t('editAttendance.morning2')
+      case 3: return t('editAttendance.afternoon1')
+      case 4: return t('editAttendance.afternoon2')
       default: return `Session ${n}`
+    }
+  }
+
+  const statusLabel = (s: string) => {
+    switch (s) {
+      case 'PRESENT': return t('common.present')
+      case 'LATE': return t('common.late')
+      case 'ABSENT': return t('common.absent')
+      case 'PERMISSION': return t('common.permission')
+      case 'DAY_OFF': return t('common.dayOff')
+      default: return s
     }
   }
 
@@ -157,7 +168,7 @@ export default function EditAttendance() {
         <div className="h-14 lg:hidden" />
         <div className="page-header">
           <h1 className="text-2xl font-bold text-slate-800">{t('editAttendance.title')}</h1>
-          <p className="text-sm text-slate-500 mt-1">Update student attendance status for any date and session</p>
+          <p className="text-sm text-slate-500 mt-1">{t('editAttendance.updateStudentDesc')}</p>
         </div>
         <div className="page-body space-y-6">
           {/* Controls */}
@@ -215,8 +226,8 @@ export default function EditAttendance() {
             <div className="card p-12">
               <div className="empty-state">
                 <p className="text-4xl mb-3">📋</p>
-                <p className="font-semibold text-slate-600">No students found</p>
-                <p className="text-sm text-slate-400 mt-1">Select a class to view and edit attendance.</p>
+                <p className="font-semibold text-slate-600">{t('editAttendance.noStudentsFound')}</p>
+                <p className="text-sm text-slate-400 mt-1">{t('editAttendance.selectClassToEdit')}</p>
               </div>
             </div>
           ) : (
@@ -226,7 +237,7 @@ export default function EditAttendance() {
                   <thead className="bg-slate-50">
                     <tr className="text-left text-xs text-slate-500 uppercase tracking-wide">
                       <th className="px-3 py-3 font-semibold">ID</th>
-                      <th className="px-3 py-3 font-semibold">Student Name</th>
+                      <th className="px-3 py-3 font-semibold">{t('editAttendance.studentName')}</th>
                       {[1, 2, 3, 4].map(s => (
                         <th key={s} className="px-3 py-3 font-semibold text-center">
                           <div>{sessionLabel(s)}</div>
@@ -249,9 +260,9 @@ export default function EditAttendance() {
                                 saving === `${row.studentId}-${sess.session}` ? 'opacity-50' : ''
                               }`}
                             >
-                              <option value="">— Not Set —</option>
+                              <option value="">{t('editAttendance.notSet')}</option>
                               {STATUSES.map(st => (
-                                <option key={st} value={st}>{st}</option>
+                                <option key={st} value={st}>{statusLabel(st)}</option>
                               ))}
                             </select>
                           </td>

@@ -919,7 +919,7 @@ function TakeAttendance() {
                         : 'bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200'
                     }`}>
                       <p className={`${isLate ? 'text-amber-700' : 'text-emerald-700'} font-bold text-base`}>
-                        {isLate ? '⚠️ Marking as Late' : '✅ Marking as Present'}
+                        {isLate ? `⚠️ ${t('attendance.markingLate')}` : `✅ ${t('attendance.markingPresent')}`}
                       </p>
                       <p className={`${isLate ? 'text-amber-600' : 'text-emerald-600'} text-sm mt-0.5`}>
                         Auto-confirming in {countdown}s
@@ -979,9 +979,9 @@ function TakeAttendance() {
           <div className="min-w-0">
             <h1 className="text-lg sm:text-xl font-bold text-slate-800">{t('attendance.title')}</h1>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
-              <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">{presentCount} present</span>
+              <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">{presentCount} {t('common.present').toLowerCase()}</span>
               <span className="text-slate-300 text-xs">·</span>
-              <span className="inline-flex items-center gap-1 text-xs text-amber-600 font-medium">{lateCount} late</span>
+              <span className="inline-flex items-center gap-1 text-xs text-amber-600 font-medium">{lateCount} {t('common.late').toLowerCase()}</span>
               <span className="text-slate-300 text-xs">·</span>
               <span className="inline-flex items-center gap-1 text-xs text-slate-500">{totalStudents} total</span>
               <span className="text-slate-300 text-xs hidden sm:inline">·</span>
@@ -1170,7 +1170,7 @@ function TakeAttendance() {
         {/* ===== STUDENT ROSTER ===== */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold text-slate-700">Student Roster</h2>
+            <h2 className="text-lg font-semibold text-slate-700">{t('attendance.studentRoster')}</h2>
             <span className="text-xs text-slate-400">{presentCount + lateCount}/{totalStudents} scanned</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -1205,10 +1205,10 @@ function TakeAttendance() {
                         {student.sex === 'MALE' ? '♂' : student.sex === 'FEMALE' ? '♀' : ''} {student.email}
                       </p>
                     </div>
-                    {status === 'PRESENT' && <span className="badge-green text-[10px] sm:text-xs">Present</span>}
-                    {status === 'LATE' && <span className="badge-yellow text-[10px] sm:text-xs">Late</span>}
-                    {status === 'ABSENT' && <span className="badge-red text-[10px] sm:text-xs">Absent</span>}
-                    {status === 'DAY_OFF' && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-purple-100 text-purple-800">Day Off</span>}
+                    {status === 'PRESENT' && <span className="badge-green text-[10px] sm:text-xs">{t('common.present')}</span>}
+                    {status === 'LATE' && <span className="badge-yellow text-[10px] sm:text-xs">{t('common.late')}</span>}
+                    {status === 'ABSENT' && <span className="badge-red text-[10px] sm:text-xs">{t('common.absent')}</span>}
+                    {status === 'DAY_OFF' && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-purple-100 text-purple-800">{t('common.dayOff')}</span>}
                   </div>
                   <div className="flex items-center justify-between">
                     <label className="flex items-center gap-2 cursor-pointer">
@@ -1218,17 +1218,17 @@ function TakeAttendance() {
                         onChange={(e) => updateAttendance(student.id, e.target.checked ? 'PRESENT' : 'ABSENT')}
                         className="w-5 h-5 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
                       />
-                      <span className="text-sm text-slate-600">Present</span>
+                      <span className="text-sm text-slate-600">{t('common.present')}</span>
                     </label>
                     <select
                       value={status}
                       onChange={(e) => updateAttendance(student.id, e.target.value as 'PRESENT' | 'ABSENT' | 'LATE' | 'DAY_OFF')}
                       className="text-xs px-2 py-1.5 rounded-lg border border-slate-200"
                     >
-                      <option value="PRESENT">Present</option>
-                      <option value="ABSENT">Absent</option>
-                      <option value="LATE">Late</option>
-                      <option value="DAY_OFF">🏖 Day Off</option>
+                      <option value="PRESENT">{t('common.present')}</option>
+                      <option value="ABSENT">{t('common.absent')}</option>
+                      <option value="LATE">{t('common.late')}</option>
+                      <option value="DAY_OFF">🏖 {t('common.dayOff')}</option>
                     </select>
                   </div>
                 </div>

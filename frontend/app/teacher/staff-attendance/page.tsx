@@ -82,6 +82,16 @@ export default function TeacherStaffAttendancePage() {
 function TeacherStaffAttendance() {
   const { t } = useLanguage()
   const router = useRouter()
+
+  const sessionName = (n: number) => {
+    switch (n) {
+      case 1: return t('attendance.morning1')
+      case 2: return t('attendance.morning2')
+      case 3: return t('attendance.afternoon1')
+      case 4: return t('attendance.afternoon2')
+      default: return `Session ${n}`
+    }
+  }
   const [staffList, setStaffList] = useState<StaffMember[]>([])
   const [todayRecords, setTodayRecords] = useState<StaffAttendanceRecord[]>([])
   const [scanning, setScanning] = useState(false)
@@ -482,7 +492,7 @@ function TeacherStaffAttendance() {
                 {scanMode === 'check-in' ? '📥 Check-In' : '📤 Check-Out'}
               </div>
               <div className="flex flex-col">
-                <span className="text-white/90 text-xs font-medium">{SESSION_NAMES[session]} · Session {session}</span>
+                <span className="text-white/90 text-xs font-medium">{sessionName(session)} · Session {session}</span>
                 {(() => { const cfg = staffSessionConfigs.find(c => c.session === session); return cfg ? <span className="text-white/60 text-[11px]">⏰ {cfg.startTime} – {cfg.endTime}</span> : null })()}
               </div>
             </div>
@@ -521,7 +531,7 @@ function TeacherStaffAttendance() {
                       }`}
                     >
                       {isCurrent && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />}
-                      <div className="text-[10px] text-white/70">{SESSION_NAMES[cfg.session]}</div>
+                      <div className="text-[10px] text-white/70">{sessionName(cfg.session)}</div>
                       <div className={`text-[11px] font-bold ${cfg.type === 'CHECK_IN' ? 'text-emerald-300' : 'text-blue-300'}`}>
                         {cfg.type === 'CHECK_IN' ? '📥 In' : '📤 Out'}
                       </div>
@@ -597,9 +607,9 @@ function TeacherStaffAttendance() {
           <div className="min-w-0">
             <h1 className="text-lg sm:text-xl font-bold text-slate-800">{t('attendance.title')}</h1>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
-              <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">{checkedInCount} checked in</span>
+              <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">{checkedInCount} {t('attendance.checkedIn')}</span>
               <span className="text-slate-300 text-xs">·</span>
-              <span className="inline-flex items-center gap-1 text-xs text-slate-500">{totalStaff} total staff</span>
+              <span className="inline-flex items-center gap-1 text-xs text-slate-500">{totalStaff} {t('attendance.totalStaff')}</span>
               <span className="text-slate-300 text-xs hidden sm:inline">·</span>
               <span className="text-xs text-slate-400 hidden sm:inline">Session {session} · {scanMode === 'check-in' ? '📥 Check-In' : '📤 Check-Out'}{(() => { const cfg = staffSessionConfigs.find(c => c.session === session); return cfg ? ` · ${cfg.startTime}–${cfg.endTime}` : '' })()}</span>
             </div>
@@ -646,7 +656,7 @@ function TeacherStaffAttendance() {
                     {isCurrent && (
                       <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-green-400 animate-pulse" />
                     )}
-                    <div className="text-[11px] font-medium text-slate-500">{SESSION_NAMES[cfg.session]}</div>
+                    <div className="text-[11px] font-medium text-slate-500">{sessionName(cfg.session)}</div>
                     <div className={`text-xs font-bold mt-0.5 ${
                       cfg.type === 'CHECK_IN' ? 'text-emerald-600' : 'text-blue-600'
                     }`}>
@@ -675,7 +685,7 @@ function TeacherStaffAttendance() {
               })()}
             </div>
             <div className="text-xs font-medium px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-              {checkedInCount}/{totalStaff} checked in
+              {checkedInCount}/{totalStaff} {t('attendance.checkedIn')}
             </div>
           </div>
         </div>
@@ -718,8 +728,8 @@ function TeacherStaffAttendance() {
 
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold text-slate-700">Staff Roster</h2>
-            <span className="text-xs text-slate-400">{checkedInCount}/{totalStaff} checked in</span>
+            <h2 className="text-lg font-semibold text-slate-700">{t('attendance.staffRoster')}</h2>
+            <span className="text-xs text-slate-400">{checkedInCount}/{totalStaff} {t('attendance.checkedIn')}</span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {staffList.map(staff => {
@@ -752,8 +762,8 @@ function TeacherStaffAttendance() {
                         {staff.role === 'ADMIN' ? '🛡️' : '👨‍🏫'} {staff.role} · {staff.email}
                       </p>
                     </div>
-                    {status === 'PRESENT' && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-emerald-100 text-emerald-800">Present</span>}
-                    {status === 'LATE' && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-amber-100 text-amber-800">Late</span>}
+                    {status === 'PRESENT' && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-emerald-100 text-emerald-800">{t('common.present')}</span>}
+                    {status === 'LATE' && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-amber-100 text-amber-800">{t('common.late')}</span>}
                     {status === 'NOT_RECORDED' && <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-slate-100 text-slate-600">—</span>}
                   </div>
                   {record && (
