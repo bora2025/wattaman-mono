@@ -784,4 +784,54 @@ export class AttendanceService {
       summary: { total, present, late, absent },
     };
   }
+
+  /** Get today's attendance for a specific user (student or staff) */
+  async getUserDailyAttendance(userId: string, date?: string) {
+    const d = date ? new Date(date) : nowCambodia();
+    const attendanceDate = toUTCMidnight(d);
+
+    // Check if user is a student
+    const student = await this.prisma.student.findUnique({
+      where: { userId },
+      include: { class: true },
+    });
+
+    if (student) {
+      // Student attendance
+      const attendances = await this.prisma.attendance.findMany({
+        where: { studentId: student.id, date: attendanceDate },
+      });
+      return {
+        type: 'student' as const,
+        className: student.class?.name || null,
+        sessions: [1, 2, 3, 4].map(session => {
+          const rec = attendances.find(a => a.session === session);
+          return {
+            session,
+            status: rec?.status || null,
+            checkInTime: rec?.checkInTime?.toISOString() || null,
+            checkOutTime: rec?.checkOutTime?.toISOString() || null,
+          };
+        }),
+      };
+    }
+
+    // Staff attendance
+    const staffAttendances = await this.prisma.staffAttendance.findMany({
+      where: { userId, date: attendanceDate },
+    });
+    return {
+      type: 'staff' as const,
+      className: null,
+      sessions: [1, 2, 3, 4].map(session => {
+        const rec = staffAttendances.find(a => a.session === session);
+        return {
+          session,
+          status: rec?.status || null,
+          checkInTime: rec?.checkInTime?.toISOString() || null,
+          checkOutTime: rec?.checkOutTime?.toISOString() || null,
+        };
+      }),
+    };
+  }
 }

@@ -233,6 +233,8 @@ export class AuthService {
             studentNumber: true,
             sex: true,
             photo: true,
+            dateOfBirth: true,
+            address: true,
             class: { select: { id: true, name: true } },
           },
         },

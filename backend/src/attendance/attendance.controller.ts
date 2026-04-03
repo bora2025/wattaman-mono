@@ -179,4 +179,13 @@ export class AttendanceController {
     const adminId = req.user.userId;
     return this.attendanceService.createStaffAttendanceRecord(body.userId, body.session, body.status, adminId, body.date);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('user-daily')
+  async getUserDailyAttendance(
+    @Query('userId') userId: string,
+    @Query('date') date?: string,
+  ) {
+    return this.attendanceService.getUserDailyAttendance(userId, date);
+  }
 }
