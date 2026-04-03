@@ -5,6 +5,7 @@ import { BrowserMultiFormatReader } from '@zxing/library'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { apiFetch } from '../../../lib/api'
+import { useLanguage } from '../../../lib/i18n'
 
 interface StaffMember {
   id: string
@@ -46,6 +47,7 @@ export default function AdminStaffAttendancePage() {
 }
 
 function AdminStaffAttendance() {
+  const { t } = useLanguage()
   const router = useRouter()
   const [staffList, setStaffList] = useState<StaffMember[]>([])
   const [todayRecords, setTodayRecords] = useState<StaffAttendanceRecord[]>([])
@@ -557,7 +559,7 @@ function AdminStaffAttendance() {
       <div className="bg-white border-b border-slate-200 sticky top-0 z-30">
         <div className="max-w-5xl mx-auto px-4 py-3 sm:py-4 flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <h1 className="text-lg sm:text-xl font-bold text-slate-800">👔 Staff Attendance</h1>
+            <h1 className="text-lg sm:text-xl font-bold text-slate-800">{t('attendance.title')}</h1>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
               <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">{checkedInCount} checked in</span>
               <span className="text-slate-300 text-xs">·</span>

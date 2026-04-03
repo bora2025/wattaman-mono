@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Sidebar from '../../../components/Sidebar'
 import { adminNav } from '../../../lib/admin-nav'
 import { apiFetch } from '../../../lib/api'
+import { useLanguage } from '../../../lib/i18n'
 
 interface GridRow {
   studentId: string
@@ -99,6 +100,7 @@ const DAY_FORMAT_STYLES: Record<string, { bg: string; icon: string; label: strin
 };
 
 export default function AdminReports() {
+  const { t } = useLanguage()
   const [classes, setClasses] = useState<ClassItem[]>([])
   const [selectedClassId, setSelectedClassId] = useState('')
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0])
@@ -350,15 +352,15 @@ export default function AdminReports() {
       <div className="page-content">
         <div className="h-14 lg:hidden" />
         <div className="page-header">
-          <h1 className="text-2xl font-bold text-slate-800">Attendance Reports</h1>
-          <p className="text-sm text-slate-500 mt-1">Cambodia Time (GMT+7)</p>
+          <h1 className="text-2xl font-bold text-slate-800">{t('reports.title')}</h1>
+          <p className="text-sm text-slate-500 mt-1">{t('reports.cambodiaTime')}</p>
         </div>
         <div className="page-body space-y-6">
           {/* Controls */}
           <div className="card p-4">
             <div className="flex flex-wrap gap-4 items-end">
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Class</label>
+                <label className="block text-xs font-medium text-slate-500 mb-1">{t('common.class')}</label>
                 <select
                   value={selectedClassId}
                   onChange={(e) => setSelectedClassId(e.target.value)}
@@ -370,7 +372,7 @@ export default function AdminReports() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Date</label>
+                <label className="block text-xs font-medium text-slate-500 mb-1">{t('common.date')}</label>
                 <div className="flex items-center gap-1">
                   <button onClick={() => goDay(-1)} className="px-2 py-2 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 text-sm">◀</button>
                   <input
@@ -383,10 +385,10 @@ export default function AdminReports() {
                 </div>
               </div>
               <button onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])} className="btn-ghost btn-sm">
-                📅 Today
+                📅 {t('common.today')}
               </button>
               <button onClick={() => { setExportClassId(selectedClassId); setExportDate(selectedDate); setShowExportForm(true) }} className="btn-primary btn-sm ml-auto border border-indigo-200">
-                📊 Export Report
+                📊 {t('common.exportReport')}
               </button>
             </div>
             <p className="mt-2 text-sm font-medium text-slate-700">{dayLabel} — {selectedClassName}</p>
@@ -398,7 +400,7 @@ export default function AdminReports() {
               <div className="flex flex-wrap items-center gap-4">
                 {/* Attendance Format Badge */}
                 <div>
-                  <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold mb-1">Attendance Format</p>
+                  <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold mb-1">{t('reports.attendanceFormat')}</p>
                   <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold ${classPreset.color}`}>
                     <span>{classPreset.icon}</span> {classPreset.name}
                   </span>
@@ -406,7 +408,7 @@ export default function AdminReports() {
 
                 {/* Session Time Ranges */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold mb-1">Session Times</p>
+                  <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold mb-1">{t('reports.sessionTimes')}</p>
                   <div className="flex flex-wrap gap-2">
                     {activeSessions.map(sd => {
                       const cfg = sessionConfigs.find(c => c.session === sd.session)
@@ -414,7 +416,7 @@ export default function AdminReports() {
                       return (
                         <span key={sd.session} className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-slate-50 border border-slate-200 text-slate-600">
                           <span className="font-medium">{cfg.type === 'CHECK_OUT' ? '🔴' : '🟢'}</span>
-                          <span className="font-semibold">{cfg.type === 'CHECK_OUT' ? 'Out' : 'In'}</span>
+                          <span className="font-semibold">{cfg.type === 'CHECK_OUT' ? t('common.checkOut') : t('common.checkIn')}</span>
                           <span className="text-slate-400">{cfg.startTime}–{cfg.endTime}</span>
                         </span>
                       )
@@ -425,7 +427,7 @@ export default function AdminReports() {
                 {/* Weekly Schedule Strip */}
                 {weeklySchedule && (
                   <div>
-                    <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold mb-1">Weekly Schedule</p>
+                    <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold mb-1">{t('reports.weeklySchedule')}</p>
                     <div className="flex gap-1">
                       {DAYS_OF_WEEK.map(day => {
                         const fmt = weeklySchedule[day.key] || 'same'
@@ -448,7 +450,7 @@ export default function AdminReports() {
                 {/* Today's Format Indicator */}
                 {todayDayFormat && todayDayFormat !== 'same' && (
                   <div>
-                    <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold mb-1">Today's Format</p>
+                    <p className="text-[10px] uppercase tracking-wide text-slate-400 font-semibold mb-1">{t('reports.todayFormat')}</p>
                     <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${DAY_FORMAT_STYLES[todayDayFormat]?.bg || 'bg-slate-100 text-slate-600'}`}>
                       {DAY_FORMAT_STYLES[todayDayFormat]?.icon} {DAY_FORMAT_STYLES[todayDayFormat]?.label || todayDayFormat}
                     </span>
@@ -461,14 +463,14 @@ export default function AdminReports() {
           {isHolidayDate && (
             <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-4 py-3 text-sm font-medium flex items-center gap-2">
               <span className="text-lg">📅</span>
-              <span>This date is a <strong>holiday</strong> — absent counts are excluded.</span>
+              <span dangerouslySetInnerHTML={{ __html: t('reports.holidayNotice') }} />
             </div>
           )}
 
           {isScheduleDayOff && !isHolidayDate && (
             <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 text-sm font-medium flex items-center gap-2">
               <span className="text-lg">🚫</span>
-              <span>This date is a <strong>scheduled day off</strong> for {selectedClassName} per the weekly schedule.</span>
+              <span dangerouslySetInnerHTML={{ __html: `${t('reports.scheduledDayOff')} ${selectedClassName} ${t('reports.perWeeklySchedule')}` }} />
             </div>
           )}
 
@@ -486,7 +488,7 @@ export default function AdminReports() {
                   activeTab === tab ? 'border-indigo-500 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'
                 }`}
               >
-                {tab === 'daily' ? '📋 Daily' : tab === 'weekly' ? '📅 Weekly' : tab === 'monthly' ? '📆 Monthly' : '📊 Yearly'}
+                {tab === 'daily' ? `📋 ${t('reports.daily')}` : tab === 'weekly' ? `📅 ${t('reports.weekly')}` : tab === 'monthly' ? `📆 ${t('reports.monthly')}` : `📊 ${t('reports.yearly')}`}
               </button>
             ))}
           </div>
@@ -502,19 +504,19 @@ export default function AdminReports() {
             <>
               {/* Day stats */}
               <div className="grid grid-cols-5 gap-4">
-                <div className="stat-card"><p className="stat-label">Total Students</p><p className="stat-value">{totalStudents}</p></div>
-                <div className="stat-card"><p className="stat-label">Present</p><p className="stat-value text-emerald-600">{dailyPresent}</p></div>
-                <div className="stat-card"><p className="stat-label">Present (Late)</p><p className="stat-value text-amber-600">{dailyLate}</p></div>
-                <div className="stat-card"><p className="stat-label">Absent</p><p className="stat-value text-red-600">{dailyAbsent}</p></div>
-                <div className="stat-card"><p className="stat-label">Permission</p><p className="stat-value text-purple-600">{dailyPermission}</p></div>
+                <div className="stat-card"><p className="stat-label">{t('reports.totalStudents')}</p><p className="stat-value">{totalStudents}</p></div>
+                <div className="stat-card"><p className="stat-label">{t('common.present')}</p><p className="stat-value text-emerald-600">{dailyPresent}</p></div>
+                <div className="stat-card"><p className="stat-label">{t('reports.presentLate')}</p><p className="stat-value text-amber-600">{dailyLate}</p></div>
+                <div className="stat-card"><p className="stat-label">{t('common.absent')}</p><p className="stat-value text-red-600">{dailyAbsent}</p></div>
+                <div className="stat-card"><p className="stat-label">{t('common.permission')}</p><p className="stat-value text-purple-600">{dailyPermission}</p></div>
               </div>
 
               {grid.length === 0 ? (
                 <div className="card p-12">
                   <div className="empty-state">
                     <p className="text-4xl mb-3">📊</p>
-                    <p className="font-semibold text-slate-600">No attendance data</p>
-                    <p className="text-sm text-slate-400 mt-1">No records for {selectedDate}.</p>
+                    <p className="font-semibold text-slate-600">{t('reports.noAttendanceData')}</p>
+                    <p className="text-sm text-slate-400 mt-1">{t('reports.noRecordsDay')}</p>
                   </div>
                 </div>
               ) : (
@@ -523,20 +525,20 @@ export default function AdminReports() {
                     <table className="w-full text-sm">
                       <thead className="bg-slate-50">
                         <tr className="text-left text-xs text-slate-500 uppercase tracking-wide">
-                          <th className="px-3 py-3 font-semibold">Day</th>
-                          <th className="px-3 py-3 font-semibold">ID</th>
-                          <th className="px-3 py-3 font-semibold">Student Name</th>
+                          <th className="px-3 py-3 font-semibold">{t('common.day')}</th>
+                          <th className="px-3 py-3 font-semibold">{t('common.id')}</th>
+                          <th className="px-3 py-3 font-semibold">{t('common.studentName')}</th>
                           {activeSessions.map(sd => {
                             const cfg = sessionConfigs.find(c => c.session === sd.session)
                             return (
                               <th key={sd.session} className="px-3 py-3 font-semibold text-center">
-                                <div>{cfg?.type === 'CHECK_OUT' ? 'CheckOut' : 'CheckIn'}</div>
+                                <div>{cfg?.type === 'CHECK_OUT' ? t('common.checkOut') : t('common.checkIn')}</div>
                                 <div className="text-[10px] normal-case font-normal text-slate-400">{getSessionLabel(sd.session)}</div>
                                 {cfg && <div className="text-[9px] normal-case font-normal text-slate-300">{cfg.startTime}–{cfg.endTime}</div>}
                               </th>
                             )
                           })}
-                          <th className="px-3 py-3 font-semibold text-center">Permission</th>
+                          <th className="px-3 py-3 font-semibold text-center">{t('common.permission')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -572,28 +574,28 @@ export default function AdminReports() {
                 <div className="card p-12">
                   <div className="empty-state">
                     <p className="text-4xl mb-3">📊</p>
-                    <p className="font-semibold text-slate-600">No data</p>
-                    <p className="text-sm text-slate-400 mt-1">Select a class to view totals.</p>
+                    <p className="font-semibold text-slate-600">{t('common.noData')}</p>
+                    <p className="text-sm text-slate-400 mt-1">{t('reports.selectClassTotals')}</p>
                   </div>
                 </div>
               ) : (() => {
                 const periodKey = activeTab === 'weekly' ? 'week' : activeTab === 'monthly' ? 'month' : 'year';
-                const periodLabel = activeTab === 'weekly' ? 'Weekly' : activeTab === 'monthly' ? 'Monthly' : 'Yearly';
+                const periodLabel = activeTab === 'weekly' ? t('reports.weekly') : activeTab === 'monthly' ? t('reports.monthly') : t('reports.yearly');
                 return (
                   <div className="card overflow-hidden">
                     <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
-                      <h3 className="text-sm font-semibold text-slate-700">{periodLabel} Attendance Totals</h3>
+                      <h3 className="text-sm font-semibold text-slate-700">{periodLabel} {t('reports.attendanceTotals')}</h3>
                     </div>
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead className="bg-slate-50">
                           <tr className="text-left text-xs text-slate-500 uppercase tracking-wide">
-                            <th className="px-3 py-3 font-semibold">ID</th>
-                            <th className="px-3 py-3 font-semibold">Name</th>
-                            <th className="px-3 py-3 font-semibold text-center">Total Present</th>
-                            <th className="px-3 py-3 font-semibold text-center">Total Late</th>
-                            <th className="px-3 py-3 font-semibold text-center">Total Absent</th>
-                            <th className="px-3 py-3 font-semibold text-center">Total Permission</th>
+                            <th className="px-3 py-3 font-semibold">{t('common.id')}</th>
+                            <th className="px-3 py-3 font-semibold">{t('common.name')}</th>
+                            <th className="px-3 py-3 font-semibold text-center">{t('reports.totalPresent')}</th>
+                            <th className="px-3 py-3 font-semibold text-center">{t('reports.totalLate')}</th>
+                            <th className="px-3 py-3 font-semibold text-center">{t('reports.totalAbsent')}</th>
+                            <th className="px-3 py-3 font-semibold text-center">{t('reports.totalPermission')}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -608,7 +610,7 @@ export default function AdminReports() {
                             </tr>
                           ))}
                           <tr className="border-t-2 border-slate-300 bg-slate-50 font-bold text-slate-700">
-                            <td className="px-3 py-2.5" colSpan={2}>Total</td>
+                            <td className="px-3 py-2.5" colSpan={2}>{t('common.total')}</td>
                             <td className="px-3 py-2.5 text-center text-emerald-700">{totals.reduce((s, r) => s + r[periodKey].present, 0)}</td>
                             <td className="px-3 py-2.5 text-center text-amber-600">{totals.reduce((s, r) => s + (r[periodKey].late || 0), 0)}</td>
                             <td className="px-3 py-2.5 text-center text-red-600">{totals.reduce((s, r) => s + r[periodKey].absent, 0)}</td>
@@ -659,13 +661,14 @@ function ExportReportModal({
   handleExportReport: () => void
 }) {
   if (!show) return null
-  const selectedClassName = exportClassId ? classes.find(c => c.id === exportClassId)?.name || '' : 'All Classes'
+  const { t } = useLanguage()
+  const selectedClassName = exportClassId ? classes.find(c => c.id === exportClassId)?.name || '' : t('reports.allClasses')
 
   const periodOptions = [
-    { value: 'daily', label: 'Daily', icon: '📅', desc: 'Session details for selected day' },
-    { value: 'weekly', label: 'Weekly', icon: '📆', desc: 'Mon–Sun attendance totals' },
-    { value: 'monthly', label: 'Monthly', icon: '🗓️', desc: 'Week-by-week totals for the month' },
-    { value: 'yearly', label: 'Yearly', icon: '📊', desc: 'Month-by-month totals for the year' },
+    { value: 'daily', label: t('reports.daily'), icon: '📅', desc: t('reports.sessionDetailsDay') },
+    { value: 'weekly', label: t('reports.weekly'), icon: '📆', desc: t('reports.weeklyTotals') },
+    { value: 'monthly', label: t('reports.monthly'), icon: '🗓️', desc: t('reports.monthlyTotals') },
+    { value: 'yearly', label: t('reports.yearly'), icon: '📊', desc: t('reports.yearlyTotals') },
   ] as const
 
   return (
@@ -674,8 +677,8 @@ function ExportReportModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-indigo-50 to-white rounded-t-2xl">
           <div>
-            <h2 className="text-lg font-bold text-slate-800">📊 Export Attendance Report</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Select period and download XLSX report</p>
+            <h2 className="text-lg font-bold text-slate-800">📊 {t('reports.exportAttendanceReport')}</h2>
+            <p className="text-xs text-slate-500 mt-0.5">{t('reports.selectPeriodDownload')}</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 text-sm">✕</button>
         </div>
@@ -683,13 +686,13 @@ function ExportReportModal({
         <div className="p-6 space-y-5">
           {/* Class Selector */}
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">📖 Class</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">📖 {t('common.class')}</label>
             <select
               value={exportClassId}
               onChange={e => setExportClassId(e.target.value)}
               className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none bg-white"
             >
-              <option value="">All Classes ({classes.length})</option>
+              <option value="">{t('reports.allClasses')} ({classes.length})</option>
               {classes.map(cls => (
                 <option key={cls.id} value={cls.id}>{cls.name} — {cls.subject || 'N/A'}</option>
               ))}
@@ -698,7 +701,7 @@ function ExportReportModal({
 
           {/* Period Selector */}
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">📋 Report Period</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">📋 {t('reports.reportPeriod')}</label>
             <div className="grid grid-cols-2 gap-2">
               {periodOptions.map(opt => (
                 <button
@@ -722,7 +725,7 @@ function ExportReportModal({
 
           {/* Date Picker */}
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">📆 Date</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">📆 {t('common.date')}</label>
             <input
               type="date"
               value={exportDate}
@@ -733,20 +736,20 @@ function ExportReportModal({
 
           {/* Preview/Summary */}
           <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-2">
-            <h4 className="text-xs uppercase tracking-wider font-semibold text-slate-400">Export Preview</h4>
+            <h4 className="text-xs uppercase tracking-wider font-semibold text-slate-400">{t('reports.exportPreview')}</h4>
             <div className="grid grid-cols-2 gap-y-1.5 text-sm">
-              <span className="text-slate-500">Class:</span>
+              <span className="text-slate-500">{t('common.class')}:</span>
               <span className="font-medium text-slate-800">{selectedClassName}</span>
-              <span className="text-slate-500">Date:</span>
+              <span className="text-slate-500">{t('common.date')}:</span>
               <span className="font-medium text-slate-800">{exportDate}</span>
-              <span className="text-slate-500">Period:</span>
+              <span className="text-slate-500">{t('reports.reportPeriod')}:</span>
               <span className="font-medium text-indigo-600 capitalize">{exportPeriod}</span>
-              <span className="text-slate-500">Format:</span>
+              <span className="text-slate-500">{t('reports.format')}:</span>
               <span className="font-medium text-indigo-600">XLSX</span>
               {!exportClassId && (
                 <>
-                  <span className="text-slate-500">Files:</span>
-                  <span className="font-medium text-indigo-600">{classes.length} XLSX files</span>
+                  <span className="text-slate-500">{t('reports.files')}:</span>
+                  <span className="font-medium text-indigo-600">{classes.length} XLSX {t('reports.files')}</span>
                 </>
               )}
             </div>
@@ -764,7 +767,7 @@ function ExportReportModal({
           {/* Action Buttons */}
           <div className="flex gap-3 pt-1">
             <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-300 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
-              Cancel
+              {t('common.cancel')}
             </button>
             <button
               onClick={handleExportReport}
@@ -772,9 +775,9 @@ function ExportReportModal({
               className="flex-1 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2"
             >
               {exporting ? (
-                <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Exporting…</>
+                <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> {t('reports.exporting')}</>
               ) : (
-                <>📥 Download XLSX</>
+                <>📥 {t('reports.downloadXLSX')}</>
               )}
             </button>
           </div>

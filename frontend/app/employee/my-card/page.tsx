@@ -5,6 +5,7 @@ import Sidebar from '../../../components/Sidebar'
 import AuthGuard from '../../../components/AuthGuard'
 import { employeeNav } from '../../../lib/employee-nav'
 import { apiFetch } from '../../../lib/api'
+import { useLanguage } from '../../../lib/i18n'
 import QRCode from 'qrcode'
 import { CardDesign, STAFF_TEMPLATE, loadSavedDesign } from '../../../components/card-designer/types'
 import { renderDesignToCanvas } from '../../../components/card-designer/renderDesignToCanvas'
@@ -31,6 +32,7 @@ interface UserInfo {
 }
 
 export default function MyIDCard() {
+  const { t } = useLanguage()
   const [user, setUser] = useState<UserInfo | null>(null)
   const [loading, setLoading] = useState(true)
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null)
@@ -157,8 +159,8 @@ export default function MyIDCard() {
         <Sidebar title="Employee" navItems={employeeNav} accentColor="emerald" />
         <main className="flex-1 p-4 md:p-8">
           <div className="max-w-2xl mx-auto">
-            <h1 className="text-2xl font-bold text-slate-800 mb-1">🪪 My ID Card</h1>
-            <p className="text-slate-500 mb-6">View and download your employee ID card</p>
+            <h1 className="text-2xl font-bold text-slate-800 mb-1">{t('myCard.title')}</h1>
+            <p className="text-slate-500 mb-6">{t('myCard.subtitle')}</p>
 
             {loading ? (
               <div className="text-center py-20 text-slate-400">Loading...</div>

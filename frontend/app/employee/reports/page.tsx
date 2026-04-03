@@ -5,6 +5,7 @@ import Sidebar from '../../../components/Sidebar'
 import AuthGuard from '../../../components/AuthGuard'
 import { employeeNav } from '../../../lib/employee-nav'
 import { apiFetch } from '../../../lib/api'
+import { useLanguage } from '../../../lib/i18n'
 
 interface GridRow {
   userId: string
@@ -34,6 +35,7 @@ interface TotalsRow {
 }
 
 export default function EmployeeReports() {
+  const { t } = useLanguage()
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0])
   const [grid, setGrid] = useState<GridRow[]>([])
   const [totals, setTotals] = useState<TotalsRow[]>([])
@@ -129,7 +131,7 @@ export default function EmployeeReports() {
               {/* Header */}
               <div className="page-header">
                 <div>
-                  <h1 className="text-2xl font-bold text-slate-900">📈 My Reports</h1>
+                  <h1 className="text-2xl font-bold text-slate-900">{t('reports.title')}</h1>
                   <p className="text-sm text-slate-500 mt-1">View your attendance history and statistics</p>
                 </div>
               </div>

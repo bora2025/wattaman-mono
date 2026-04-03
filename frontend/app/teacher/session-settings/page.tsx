@@ -5,6 +5,7 @@ import Sidebar from '../../../components/Sidebar'
 import AuthGuard from '../../../components/AuthGuard'
 import { teacherNav } from '../../../lib/teacher-nav'
 import { apiFetch, getCurrentUser } from '../../../lib/api'
+import { useLanguage } from '../../../lib/i18n'
 
 const SESSION_NAMES: Record<number, string> = {
   1: 'Morning 1',
@@ -140,6 +141,7 @@ const PRESET_ACTIVE: Record<string, string> = {
 }
 
 export default function TeacherSessionSettingsPage() {
+  const { t } = useLanguage()
   const [classes, setClasses] = useState<ClassItem[]>([])
   const [selectedClassId, setSelectedClassId] = useState<string>('')
   const [configs, setConfigs] = useState<SessionConfigItem[]>([])
@@ -305,7 +307,7 @@ export default function TeacherSessionSettingsPage() {
         <div className="page-content">
           <div className="h-14 lg:hidden" />
           <div className="page-header">
-            <h1 className="text-2xl font-bold text-slate-800">Session Time Settings</h1>
+            <h1 className="text-2xl font-bold text-slate-800">{t('sessionSettings.title')}</h1>
             <p className="text-sm text-slate-500 mt-1">
               Override global session time windows for your classes (Cambodia Time GMT+7).
             </p>

@@ -6,6 +6,7 @@ import QRCode from 'qrcode';
 import Sidebar from '../../../components/Sidebar';
 import { adminNav } from '../../../lib/admin-nav';
 import { apiFetch } from '../../../lib/api';
+import { useLanguage } from '../../../lib/i18n';
 import { CardDesign, CardType, ShapeElement, STUDENT_TEMPLATE, STAFF_TEMPLATE, BLANK_TEMPLATE, DESIGN_STORAGE_KEY, loadSavedDesign, saveDesign, SavedTemplate, loadSavedTemplates, saveTemplate, deleteTemplate } from '../../../components/card-designer/types';
 import { renderDesignToCanvas } from '../../../components/card-designer/renderDesignToCanvas';
 import CardCanvas from '../../../components/card-designer/CardCanvas';
@@ -58,6 +59,7 @@ function normalizePhotoUrl(url: string): string {
 }
 
 export default function GenerateQRCodes() {
+  const { t } = useLanguage();
   const [classes, setClasses] = useState<ClassWithStudents[]>([]);
   const [staffUsers, setStaffUsers] = useState<StaffUser[]>([]);
   const [qrCodes, setQrCodes] = useState<{ [key: string]: string }>({});
@@ -747,7 +749,7 @@ export default function GenerateQRCodes() {
         <div className="h-14 lg:hidden" />
         <div className="page-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">ID Card</h1>
+            <h1 className="text-2xl font-bold text-slate-800">{t('qrCodes.title')}</h1>
             <p className="text-sm text-slate-500 mt-1">
               ID Cards · {cardType === 'students' ? 'Students' : 'Staff'}
             </p>

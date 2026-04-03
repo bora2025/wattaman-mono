@@ -6,6 +6,7 @@ import Sidebar from '../../../components/Sidebar'
 import AuthGuard from '../../../components/AuthGuard'
 import { adminNav } from '../../../lib/admin-nav'
 import { apiFetch } from '../../../lib/api'
+import { useLanguage } from '../../../lib/i18n'
 
 interface Summary {
   total: number
@@ -25,6 +26,7 @@ interface ClassAttendance {
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042']
 
 export default function AdminDashboard() {
+  const { t } = useLanguage()
   const [summary, setSummary] = useState<Summary | null>(null)
   const [classData, setClassData] = useState<ClassAttendance[]>([])
   const [loading, setLoading] = useState(true)
@@ -56,12 +58,12 @@ export default function AdminDashboard() {
     }
   }
 
-  if (loading) return <div className="p-8">Loading analytics...</div>
+  if (loading) return <div className="p-8">{t('common.loading')}</div>
 
   const pieData = summary ? [
-    { name: 'Present', value: summary.present, color: '#00C49F' },
-    { name: 'Absent', value: summary.absent, color: '#FF8042' },
-    { name: 'Late', value: summary.late, color: '#FFBB28' }
+    { name: t('common.present'), value: summary.present, color: '#00C49F' },
+    { name: t('common.absent'), value: summary.absent, color: '#FF8042' },
+    { name: t('common.late'), value: summary.late, color: '#FFBB28' }
   ] : []
 
   return (
@@ -71,8 +73,8 @@ export default function AdminDashboard() {
         <div className="page-content">
           <div className="h-14 lg:hidden" />
           <div className="page-header">
-            <h1 className="text-2xl font-bold text-slate-800">Analytics Dashboard</h1>
-            <p className="text-sm text-slate-500 mt-1">Attendance overview and statistics</p>
+            <h1 className="text-2xl font-bold text-slate-800">{t('dashboard.title')}</h1>
+            <p className="text-sm text-slate-500 mt-1">{t('dashboard.subtitle')}</p>
           </div>
           <div className="page-body">
           {/* Summary Cards */}
@@ -89,7 +91,7 @@ export default function AdminDashboard() {
                     <div className="ml-5 w-0 flex-1">
                       <dl>
                         <dt className="text-sm font-medium text-gray-500 truncate">
-                          Total Students
+                          {t('dashboard.totalStudents')}
                         </dt>
                         <dd className="text-lg font-medium text-gray-900">
                           {summary.total}
@@ -111,7 +113,7 @@ export default function AdminDashboard() {
                     <div className="ml-5 w-0 flex-1">
                       <dl>
                         <dt className="text-sm font-medium text-gray-500 truncate">
-                          Present Today
+                          {t('dashboard.presentToday')}
                         </dt>
                         <dd className="text-lg font-medium text-gray-900">
                           {summary.present}
@@ -133,7 +135,7 @@ export default function AdminDashboard() {
                     <div className="ml-5 w-0 flex-1">
                       <dl>
                         <dt className="text-sm font-medium text-gray-500 truncate">
-                          Absent Today
+                          {t('dashboard.absentToday')}
                         </dt>
                         <dd className="text-lg font-medium text-gray-900">
                           {summary.absent}
@@ -155,7 +157,7 @@ export default function AdminDashboard() {
                     <div className="ml-5 w-0 flex-1">
                       <dl>
                         <dt className="text-sm font-medium text-gray-500 truncate">
-                          Attendance Rate
+                          {t('dashboard.attendanceRate')}
                         </dt>
                         <dd className="text-lg font-medium text-gray-900">
                           {summary.attendanceRate.toFixed(1)}%
@@ -172,7 +174,7 @@ export default function AdminDashboard() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Pie Chart */}
             <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Today's Attendance</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">{t('dashboard.todayAttendance')}</h3>
               <PieChart width={400} height={300}>
                 <Pie
                   data={pieData}
@@ -194,15 +196,15 @@ export default function AdminDashboard() {
 
             {/* Bar Chart */}
             <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Class-wise Attendance</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-4">{t('dashboard.classAttendance')}</h3>
               <BarChart width={400} height={300} data={classData}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="className" />
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="present" fill="#00C49F" name="Present" />
-                <Bar dataKey="absent" fill="#FF8042" name="Absent" />
+                <Bar dataKey="present" fill="#00C49F" name={t('common.present')} />
+                <Bar dataKey="absent" fill="#FF8042" name={t('common.absent')} />
               </BarChart>
             </div>
           </div>

@@ -2,8 +2,10 @@ import AuthGuard from '../../../components/AuthGuard';
 import Sidebar from '../../../components/Sidebar';
 import CardEditor from '../../../components/card-designer/CardEditor';
 import { adminNav } from '../../../lib/admin-nav';
+import { useLanguage } from '../../../lib/i18n';
 
 export default function CardDesignerPage() {
+  const { t } = useLanguage();
   return (
     <AuthGuard requiredRole="ADMIN">
       <div className="page-shell">
@@ -16,7 +18,7 @@ export default function CardDesignerPage() {
         <div className="page-content lg:ml-0">
           <div className="h-14 lg:hidden" />
           <div className="page-header">
-            <h1 className="text-2xl font-bold text-slate-800">Card Designer</h1>
+            <h1 className="text-2xl font-bold text-slate-800">{t('cardDesigner.title')}</h1>
             <p className="text-sm text-slate-500 mt-1">
               Design and customize ID cards for students and staff. Switch between card types, add logos, edit text fields, set colors, and export as PNG.
             </p>

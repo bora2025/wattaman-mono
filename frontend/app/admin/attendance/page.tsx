@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { BrowserMultiFormatReader } from '@zxing/library'
 import Link from 'next/link'
 import { apiFetch, getCurrentUser } from '../../../lib/api'
+import { useLanguage } from '../../../lib/i18n'
 
 interface Student {
   id: string
@@ -142,6 +143,7 @@ export default function AdminTakeAttendancePage() {
 }
 
 function AdminTakeAttendance() {
+  const { t } = useLanguage()
   const searchParams = useSearchParams()
   const initialClassId = searchParams.get('classId')
   const [classes, setClasses] = useState<ClassItem[]>([])
@@ -1022,7 +1024,7 @@ function AdminTakeAttendance() {
       <div className="bg-white border-b border-slate-200 sticky top-0 z-30">
         <div className="max-w-5xl mx-auto px-4 py-3 sm:py-4 flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <h1 className="text-lg sm:text-xl font-bold text-slate-800">Take Attendance</h1>
+            <h1 className="text-lg sm:text-xl font-bold text-slate-800">{t('attendance.title')}</h1>
             <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
               <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">{presentCount} present</span>
               <span className="text-slate-300 text-xs">·</span>

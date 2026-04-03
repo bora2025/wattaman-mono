@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Sidebar from '../../../components/Sidebar'
 import AuthGuard from '../../../components/AuthGuard'
 import { adminNav } from '../../../lib/admin-nav'
+import { useLanguage } from '../../../lib/i18n'
 
 interface CacheItem {
   key: string
@@ -61,6 +62,7 @@ function getCacheItems(): CacheItem[] {
 }
 
 export default function SettingsPage() {
+  const { t } = useLanguage()
   const [items, setItems] = useState<CacheItem[]>([])
   const [totalSize, setTotalSize] = useState('')
   const [message, setMessage] = useState('')
@@ -122,8 +124,8 @@ export default function SettingsPage() {
         <div className="page-content">
           <div className="h-14 lg:hidden" />
           <div className="page-header">
-            <h1 className="text-2xl font-bold text-slate-800">Settings & Cache</h1>
-            <p className="text-sm text-slate-500 mt-1">Clean up stored data to improve app performance.</p>
+            <h1 className="text-2xl font-bold text-slate-800">{t('settings.title')}</h1>
+            <p className="text-sm text-slate-500 mt-1">{t('settings.subtitle')}</p>
           </div>
 
           <div className="page-body space-y-6">
@@ -140,7 +142,7 @@ export default function SettingsPage() {
             <div className="card p-5">
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-800">Storage Overview</h2>
+                  <h2 className="text-lg font-semibold text-slate-800">{t('settings.storageOverview')}</h2>
                   <p className="text-sm text-slate-500 mt-0.5">
                     {items.length} item{items.length !== 1 ? 's' : ''} stored &bull; {totalSize} total
                   </p>
@@ -168,7 +170,7 @@ export default function SettingsPage() {
                     🧹
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold text-slate-800">Clear App Cache</h3>
+                    <h3 className="font-semibold text-slate-800">{t('settings.clearAppCache')}</h3>
                     <p className="text-sm text-slate-500 mt-1 mb-3">
                       Remove saved designs, settings, and temp data. Auth stays intact.
                     </p>
@@ -189,7 +191,7 @@ export default function SettingsPage() {
                     🌐
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold text-slate-800">Clear Browser Cache</h3>
+                    <h3 className="font-semibold text-slate-800">{t('settings.clearBrowserCache')}</h3>
                     <p className="text-sm text-slate-500 mt-1 mb-3">
                       Remove cached pages and assets. May reload resources on next visit.
                     </p>
@@ -205,7 +207,7 @@ export default function SettingsPage() {
             {removableItems.length > 0 && (
               <div className="card">
                 <div className="px-5 py-3 border-b border-slate-100">
-                  <h3 className="font-semibold text-slate-800">Removable Cache</h3>
+                  <h3 className="font-semibold text-slate-800">{t('settings.removableCache')}</h3>
                 </div>
                 <div className="divide-y divide-slate-100">
                   {removableItems.map(item => (
@@ -220,7 +222,7 @@ export default function SettingsPage() {
                           onClick={() => clearItem(item.key)}
                           className="text-red-500 hover:text-red-700 text-xs font-medium px-2 py-1 rounded hover:bg-red-50 transition-colors"
                         >
-                          Remove
+                          {t('common.remove')}
                         </button>
                       </div>
                     </div>
@@ -233,7 +235,7 @@ export default function SettingsPage() {
             {authItems.length > 0 && (
               <div className="card">
                 <div className="px-5 py-3 border-b border-slate-100">
-                  <h3 className="font-semibold text-slate-800">Protected Data</h3>
+                  <h3 className="font-semibold text-slate-800">{t('settings.protectedData')}</h3>
                   <p className="text-xs text-slate-400 mt-0.5">Auth and card designs are protected from cache cleanup.</p>
                 </div>
                 <div className="divide-y divide-slate-100">

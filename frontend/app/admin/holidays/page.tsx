@@ -5,6 +5,7 @@ import Sidebar from '../../../components/Sidebar'
 import AuthGuard from '../../../components/AuthGuard'
 import { adminNav } from '../../../lib/admin-nav'
 import { apiFetch, getCurrentUser } from '../../../lib/api'
+import { useLanguage } from '../../../lib/i18n'
 
 interface Holiday {
   id: string
@@ -57,6 +58,7 @@ const MONTH_NAMES = [
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 export default function HolidaysPage() {
+  const { t } = useLanguage()
   const cambodiaToday = getCambodiaDate()
   const [currentYear, setCurrentYear] = useState(cambodiaToday.getFullYear())
   const [currentMonth, setCurrentMonth] = useState(cambodiaToday.getMonth())
@@ -200,9 +202,9 @@ export default function HolidaysPage() {
         <div className="page-content lg:ml-0">
           <div className="h-14 lg:hidden" />
           <div className="page-header">
-            <h1 className="text-2xl font-bold text-slate-800">📅 Holiday Calendar</h1>
+            <h1 className="text-2xl font-bold text-slate-800">{t('holidays.title')}</h1>
             <p className="text-sm text-slate-500 mt-1">
-              Manage school holidays, events, and non-attendance days. Click any date to add a holiday.
+              {t('holidays.subtitle')}
             </p>
           </div>
 
@@ -211,18 +213,18 @@ export default function HolidaysPage() {
             <div className="card p-4">
               <div className="flex items-center justify-between">
                 <button onClick={prevMonth} className="btn-secondary px-3 py-2 rounded-lg text-sm font-medium">
-                  ← Previous
+                  ← {t('common.previous')}
                 </button>
                 <div className="flex items-center gap-3">
                   <h2 className="text-xl font-bold text-slate-800">
                     {MONTH_NAMES[currentMonth]} {currentYear}
                   </h2>
                   <button onClick={goToday} className="text-xs bg-indigo-50 text-indigo-600 px-2 py-1 rounded-md font-medium hover:bg-indigo-100 transition">
-                    Today
+                    {t('common.today')}
                   </button>
                 </div>
                 <button onClick={nextMonth} className="btn-secondary px-3 py-2 rounded-lg text-sm font-medium">
-                  Next →
+                  {t('common.next')} →
                 </button>
               </div>
             </div>
@@ -302,7 +304,7 @@ export default function HolidaysPage() {
                   onClick={() => openAddModal(toDateStr(getCambodiaDate()))}
                   className="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-700 transition flex items-center gap-1"
                 >
-                  + Add Holiday
+                  + {t('holidays.addHoliday')}
                 </button>
               </div>
               {loading ? (
@@ -343,7 +345,7 @@ export default function HolidaysPage() {
                           onClick={() => openEditModal(h)}
                           className="text-sm text-indigo-600 hover:text-indigo-800 font-medium px-2 py-1 rounded hover:bg-indigo-50 transition"
                         >
-                          Edit
+                          {t('common.edit')}
                         </button>
                         {deleteId === h.id ? (
                           <div className="flex items-center gap-1">
@@ -351,13 +353,13 @@ export default function HolidaysPage() {
                               onClick={() => handleDelete(h.id)}
                               className="text-sm text-red-600 font-medium px-2 py-1 rounded bg-red-50 hover:bg-red-100 transition"
                             >
-                              Confirm
+                              {t('common.confirm')}
                             </button>
                             <button
                               onClick={() => setDeleteId(null)}
                               className="text-sm text-slate-500 font-medium px-2 py-1 rounded hover:bg-slate-100 transition"
                             >
-                              Cancel
+                              {t('common.cancel')}
                             </button>
                           </div>
                         ) : (
@@ -383,12 +385,12 @@ export default function HolidaysPage() {
             <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowModal(false)} />
             <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
               <h3 className="text-lg font-bold text-slate-800 mb-4">
-                {editingHoliday ? 'Edit Holiday' : 'Add Holiday'}
+                {editingHoliday ? t('holidays.editHoliday') : t('holidays.addHoliday')}
               </h3>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-slate-600 mb-1">Date</label>
+                  <label className="block text-sm font-medium text-slate-600 mb-1">{t('common.date')}</label>
                   <input
                     type="date"
                     value={formDate}
@@ -398,7 +400,7 @@ export default function HolidaysPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-600 mb-1">Holiday Name</label>
+                  <label className="block text-sm font-medium text-slate-600 mb-1">{t('holidays.holidayName')}</label>
                   <input
                     type="text"
                     value={formName}
@@ -409,7 +411,7 @@ export default function HolidaysPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-600 mb-1">Description (optional)</label>
+                  <label className="block text-sm font-medium text-slate-600 mb-1">{t('common.description')}</label>
                   <textarea
                     value={formDescription}
                     onChange={e => setFormDescription(e.target.value)}
@@ -420,7 +422,7 @@ export default function HolidaysPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-600 mb-1">Type</label>
+                  <label className="block text-sm font-medium text-slate-600 mb-1">{t('common.type')}</label>
                   <div className="flex flex-wrap gap-2">
                     {HOLIDAY_TYPES.map(t => (
                       <button
@@ -444,14 +446,14 @@ export default function HolidaysPage() {
                   onClick={() => setShowModal(false)}
                   className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition"
                 >
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button
                   onClick={handleSave}
                   disabled={saving || !formDate || !formName.trim()}
                   className="px-4 py-2 rounded-lg text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {saving ? 'Saving...' : editingHoliday ? 'Update' : 'Save Holiday'}
+                  {saving ? t('common.loading') : editingHoliday ? t('common.save') : t('holidays.saveHoliday')}
                 </button>
               </div>
             </div>

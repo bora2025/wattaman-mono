@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Sidebar from '../../../components/Sidebar'
 import { adminNav } from '../../../lib/admin-nav'
 import { apiFetch } from '../../../lib/api'
+import { useLanguage } from '../../../lib/i18n'
 
 interface User {
   id: string
@@ -81,6 +82,7 @@ function normalizePhotoUrl(url: string): string {
 }
 
 export default function ManageUsers() {
+  const { t } = useLanguage()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
@@ -319,15 +321,15 @@ export default function ManageUsers() {
         <div className="h-14 lg:hidden" />
         <div className="page-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">Manage Users</h1>
+            <h1 className="text-2xl font-bold text-slate-800">{t('users.title')}</h1>
             <p className="text-sm text-slate-500 mt-1">{users.length} user{users.length !== 1 ? 's' : ''} registered</p>
           </div>
           <div className="flex gap-2">
             <button onClick={() => { setShowBulk(!showBulk); setShowForm(false) }} className="btn-outline">
-              {showBulk ? 'Cancel' : '📤 Import Bulk'}
+              {showBulk ? t('common.cancel') : t('users.importBulk')}
             </button>
             <button onClick={() => { setShowForm(!showForm); setShowBulk(false) }} className="btn-primary">
-              {showForm ? 'Cancel' : '+ Add User'}
+              {showForm ? t('common.cancel') : '+ ' + t('users.addUser')}
             </button>
           </div>
         </div>

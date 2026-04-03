@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Sidebar from '../../../components/Sidebar'
 import { teacherNav } from '../../../lib/teacher-nav'
 import { apiFetch, getCurrentUser } from '../../../lib/api'
+import { useLanguage } from '../../../lib/i18n'
 
 interface GridRow {
   studentId: string
@@ -37,6 +38,7 @@ interface ClassItem {
 }
 
 export default function TeacherReports() {
+  const { t } = useLanguage()
   const [classes, setClasses] = useState<ClassItem[]>([])
   const [selectedClassId, setSelectedClassId] = useState('')
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0])
@@ -159,15 +161,15 @@ export default function TeacherReports() {
       <div className="page-content">
         <div className="h-14 lg:hidden" />
         <div className="page-header">
-          <h1 className="text-2xl font-bold text-slate-800">Attendance Reports</h1>
-          <p className="text-sm text-slate-500 mt-1">Cambodia Time (GMT+7)</p>
+          <h1 className="text-2xl font-bold text-slate-800">{t('reports.title')}</h1>
+          <p className="text-sm text-slate-500 mt-1">{t('reports.cambodiaTime')}</p>
         </div>
         <div className="page-body space-y-6">
           {/* Controls */}
           <div className="card p-3 sm:p-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1.5">Class</label>
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">{t('common.class')}</label>
                 <select
                   value={selectedClassId}
                   onChange={(e) => setSelectedClassId(e.target.value)}
@@ -179,7 +181,7 @@ export default function TeacherReports() {
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1.5">Date</label>
+                <label className="block text-xs font-medium text-slate-500 mb-1.5">{t('common.date')}</label>
                 <div className="flex items-center gap-1">
                   <button onClick={() => goDay(-1)} className="px-3 py-2.5 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-50 active:bg-slate-100 text-sm transition-colors">◀</button>
                   <input
@@ -193,7 +195,7 @@ export default function TeacherReports() {
               </div>
               <div className="flex items-end">
                 <button onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])} className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-slate-300 text-slate-600 hover:bg-slate-50 active:bg-slate-100 text-sm font-medium transition-colors">
-                  📅 Today
+                  📅 {t('common.today')}
                 </button>
               </div>
               <div className="flex items-end">
@@ -208,7 +210,7 @@ export default function TeacherReports() {
           {isHolidayDate && (
             <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl px-4 py-3 text-sm font-medium flex items-center gap-2">
               <span className="text-lg">📅</span>
-              <span>This date is a <strong>holiday</strong> — absent counts are excluded.</span>
+              <span dangerouslySetInnerHTML={{ __html: t('reports.holidayNotice') }} />
             </div>
           )}
 
@@ -223,7 +225,7 @@ export default function TeacherReports() {
                 activeTab === 'daily' ? 'border-emerald-500 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-700'
               }`}
             >
-              📋 Daily Attendance
+              📋 {t('reports.dailyAttendance')}
             </button>
             <button
               onClick={() => setActiveTab('totals')}
@@ -231,7 +233,7 @@ export default function TeacherReports() {
                 activeTab === 'totals' ? 'border-emerald-500 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-700'
               }`}
             >
-              📊 Totals (Week / Month / Year)
+              📊 {t('reports.totals')}
             </button>
           </div>
 
@@ -246,18 +248,18 @@ export default function TeacherReports() {
             <>
               {/* Day stats */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
-                <div className="stat-card"><p className="stat-label">Total Students</p><p className="stat-value">{totalStudents}</p></div>
-                <div className="stat-card"><p className="stat-label">Present</p><p className="stat-value text-emerald-600">{dailyPresent}</p></div>
-                <div className="stat-card"><p className="stat-label">Late</p><p className="stat-value text-amber-600">{dailyLate}</p></div>
-                <div className="stat-card"><p className="stat-label">Absent / Day Off</p><p className="stat-value text-red-600">{dailyAbsent}</p></div>
+                <div className="stat-card"><p className="stat-label">{t('reports.totalStudents')}</p><p className="stat-value">{totalStudents}</p></div>
+                <div className="stat-card"><p className="stat-label">{t('common.present')}</p><p className="stat-value text-emerald-600">{dailyPresent}</p></div>
+                <div className="stat-card"><p className="stat-label">{t('common.late')}</p><p className="stat-value text-amber-600">{dailyLate}</p></div>
+                <div className="stat-card"><p className="stat-label">{t('reports.absentDayOff')}</p><p className="stat-value text-red-600">{dailyAbsent}</p></div>
               </div>
 
               {grid.length === 0 ? (
                 <div className="card p-12">
                   <div className="empty-state">
                     <p className="text-4xl mb-3">📊</p>
-                    <p className="font-semibold text-slate-600">No attendance data</p>
-                    <p className="text-sm text-slate-400 mt-1">No records for {selectedDate}.</p>
+                    <p className="font-semibold text-slate-600">{t('reports.noAttendanceData')}</p>
+                    <p className="text-sm text-slate-400 mt-1">{t('reports.noRecordsDay')}</p>
                   </div>
                 </div>
               ) : (
@@ -266,19 +268,19 @@ export default function TeacherReports() {
                     <table className="w-full text-sm">
                       <thead className="bg-slate-50">
                         <tr className="text-left text-xs text-slate-500 uppercase tracking-wide">
-                          <th className="px-3 py-3 font-semibold">Day</th>
-                          <th className="px-3 py-3 font-semibold">ID</th>
-                          <th className="px-3 py-3 font-semibold">Student Name</th>
+                          <th className="px-3 py-3 font-semibold">{t('common.day')}</th>
+                          <th className="px-3 py-3 font-semibold">{t('common.id')}</th>
+                          <th className="px-3 py-3 font-semibold">{t('common.studentName')}</th>
                           {activeSessions.map(sd => {
                             const cfg = sessionConfigs.find(c => c.session === sd.session)
                             return (
                               <th key={sd.session} className="px-3 py-3 font-semibold text-center">
-                                <div>{cfg?.type === 'CHECK_OUT' ? 'CheckOut' : 'CheckIn'}</div>
+                                <div>{cfg?.type === 'CHECK_OUT' ? t('common.checkOut') : t('common.checkIn')}</div>
                                 <div className="text-[10px] normal-case font-normal text-slate-400">{getSessionLabel(sd.session)}</div>
                               </th>
                             )
                           })}
-                          <th className="px-3 py-3 font-semibold text-center">Day Off</th>
+                          <th className="px-3 py-3 font-semibold text-center">{t('reports.absentDayOff')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -314,8 +316,8 @@ export default function TeacherReports() {
                 <div className="card p-12">
                   <div className="empty-state">
                     <p className="text-4xl mb-3">📊</p>
-                    <p className="font-semibold text-slate-600">No data</p>
-                    <p className="text-sm text-slate-400 mt-1">Select a class to view totals.</p>
+                    <p className="font-semibold text-slate-600">{t('common.noData')}</p>
+                    <p className="text-sm text-slate-400 mt-1">{t('reports.selectClassTotals')}</p>
                   </div>
                 </div>
               ) : (
@@ -324,33 +326,33 @@ export default function TeacherReports() {
                     <table className="w-full text-sm">
                       <thead className="bg-slate-50">
                         <tr className="text-left text-xs text-slate-500 uppercase tracking-wide">
-                          <th className="px-3 py-3 font-semibold">ID</th>
-                          <th className="px-3 py-3 font-semibold">Student Name</th>
+                          <th className="px-3 py-3 font-semibold">{t('common.id')}</th>
+                          <th className="px-3 py-3 font-semibold">{t('common.studentName')}</th>
                           <th className="px-3 py-3 font-semibold text-center" colSpan={4}>
-                            <div>Week</div>
+                            <div>{t('common.week')}</div>
                           </th>
                           <th className="px-3 py-3 font-semibold text-center" colSpan={4}>
-                            <div>Month</div>
+                            <div>{t('common.month')}</div>
                           </th>
                           <th className="px-3 py-3 font-semibold text-center" colSpan={4}>
-                            <div>Year</div>
+                            <div>{t('common.year')}</div>
                           </th>
                         </tr>
                         <tr className="text-[10px] text-slate-400 border-b border-slate-200">
                           <th className="px-3 pb-2"></th>
                           <th className="px-3 pb-2"></th>
-                          <th className="px-3 pb-2 text-center text-emerald-600 font-medium">Present</th>
-                          <th className="px-3 pb-2 text-center text-amber-500 font-medium">Late</th>
-                          <th className="px-3 pb-2 text-center text-red-500 font-medium">Absent</th>
-                          <th className="px-3 pb-2 text-center text-purple-500 font-medium">Day Off</th>
-                          <th className="px-3 pb-2 text-center text-emerald-600 font-medium">Present</th>
-                          <th className="px-3 pb-2 text-center text-amber-500 font-medium">Late</th>
-                          <th className="px-3 pb-2 text-center text-red-500 font-medium">Absent</th>
-                          <th className="px-3 pb-2 text-center text-purple-500 font-medium">Day Off</th>
-                          <th className="px-3 pb-2 text-center text-emerald-600 font-medium">Present</th>
-                          <th className="px-3 pb-2 text-center text-amber-500 font-medium">Late</th>
-                          <th className="px-3 pb-2 text-center text-red-500 font-medium">Absent</th>
-                          <th className="px-3 pb-2 text-center text-purple-500 font-medium">Day Off</th>
+                          <th className="px-3 pb-2 text-center text-emerald-600 font-medium">{t('common.present')}</th>
+                          <th className="px-3 pb-2 text-center text-amber-500 font-medium">{t('common.late')}</th>
+                          <th className="px-3 pb-2 text-center text-red-500 font-medium">{t('common.absent')}</th>
+                          <th className="px-3 pb-2 text-center text-purple-500 font-medium">{t('common.dayOff')}</th>
+                          <th className="px-3 pb-2 text-center text-emerald-600 font-medium">{t('common.present')}</th>
+                          <th className="px-3 pb-2 text-center text-amber-500 font-medium">{t('common.late')}</th>
+                          <th className="px-3 pb-2 text-center text-red-500 font-medium">{t('common.absent')}</th>
+                          <th className="px-3 pb-2 text-center text-purple-500 font-medium">{t('common.dayOff')}</th>
+                          <th className="px-3 pb-2 text-center text-emerald-600 font-medium">{t('common.present')}</th>
+                          <th className="px-3 pb-2 text-center text-amber-500 font-medium">{t('common.late')}</th>
+                          <th className="px-3 pb-2 text-center text-red-500 font-medium">{t('common.absent')}</th>
+                          <th className="px-3 pb-2 text-center text-purple-500 font-medium">{t('common.dayOff')}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -374,7 +376,7 @@ export default function TeacherReports() {
                         ))}
                         {/* Totals footer */}
                         <tr className="border-t-2 border-slate-300 bg-slate-50 font-bold text-slate-700">
-                          <td className="px-3 py-2.5" colSpan={2}>Total</td>
+                          <td className="px-3 py-2.5" colSpan={2}>{t('common.total')}</td>
                           <td className="px-3 py-2.5 text-center text-emerald-700">{totals.reduce((s, r) => s + r.week.present, 0)}</td>
                           <td className="px-3 py-2.5 text-center text-amber-600">{totals.reduce((s, r) => s + (r.week.late || 0), 0)}</td>
                           <td className="px-3 py-2.5 text-center text-red-600">{totals.reduce((s, r) => s + r.week.absent, 0)}</td>

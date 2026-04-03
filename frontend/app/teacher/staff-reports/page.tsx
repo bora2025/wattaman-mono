@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Sidebar from '../../../components/Sidebar'
 import { teacherNav } from '../../../lib/teacher-nav'
 import { apiFetch } from '../../../lib/api'
+import { useLanguage } from '../../../lib/i18n'
 
 interface StaffGridRow {
   userId: string
@@ -35,6 +36,7 @@ interface StaffTotalsRow {
 }
 
 export default function TeacherStaffReports() {
+  const { t } = useLanguage()
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0])
   const [grid, setGrid] = useState<StaffGridRow[]>([])
   const [totals, setTotals] = useState<StaffTotalsRow[]>([])
@@ -101,7 +103,7 @@ export default function TeacherStaffReports() {
       <div className="page-content">
         <div className="h-14 lg:hidden" />
         <div className="page-header">
-          <h1 className="text-2xl font-bold text-slate-800">👔 Staff Attendance Reports</h1>
+          <h1 className="text-2xl font-bold text-slate-800">{t('reports.staffTitle')}</h1>
           <p className="text-sm text-slate-500 mt-1">Cambodia Time (GMT+7) · Staff & Admin only</p>
         </div>
         <div className="page-body space-y-6">

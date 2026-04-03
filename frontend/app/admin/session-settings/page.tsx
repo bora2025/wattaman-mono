@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Sidebar from '../../../components/Sidebar'
 import { adminNav } from '../../../lib/admin-nav'
 import { apiFetch } from '../../../lib/api'
+import { useLanguage } from '../../../lib/i18n'
 
 const SESSION_NAMES: Record<number, string> = {
   1: 'Morning 1',
@@ -147,6 +148,7 @@ const PRESET_ACTIVE: Record<string, string> = {
 }
 
 export default function SessionSettingsPage() {
+  const { t } = useLanguage()
   const [activeTab, setActiveTab] = useState<'CLASS' | 'STAFF'>('CLASS')
   const [configs, setConfigs] = useState<SessionConfigItem[]>(DEFAULT_CONFIGS)
   const [staffConfigs, setStaffConfigs] = useState<SessionConfigItem[]>(STAFF_DEFAULT_CONFIGS)
@@ -270,9 +272,9 @@ export default function SessionSettingsPage() {
       <div className="page-content">
         <div className="h-14 lg:hidden" />
         <div className="page-header">
-          <h1 className="text-2xl font-bold text-slate-800">Session Time Settings</h1>
+          <h1 className="text-2xl font-bold text-slate-800">{t('sessionSettings.title')}</h1>
           <p className="text-sm text-slate-500 mt-1">
-            Configure time windows for attendance sessions (Cambodia Time GMT+7).
+            {t('sessionSettings.subtitle')}
           </p>
         </div>
         <div className="page-body space-y-6">
@@ -286,7 +288,7 @@ export default function SessionSettingsPage() {
                   : 'text-slate-500 hover:text-slate-700'
               }`}
             >
-              📖 Class Sessions
+              {t('sessionSettings.classSessions')}
             </button>
             <button
               onClick={() => setActiveTab('STAFF')}
@@ -296,7 +298,7 @@ export default function SessionSettingsPage() {
                   : 'text-slate-500 hover:text-slate-700'
               }`}
             >
-              👔 Staff Sessions
+              {t('sessionSettings.staffSessions')}
             </button>
           </div>
 
@@ -310,7 +312,7 @@ export default function SessionSettingsPage() {
           {/* Attendance Format Presets — Class Sessions only */}
           {activeTab === 'CLASS' && (
             <div>
-              <h3 className="text-sm font-semibold text-slate-700 mb-3">📋 Quick Presets — Choose Attendance Format</h3>
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">{t('sessionSettings.quickPresets')}</h3>
               <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
                 {ATTENDANCE_PRESETS.map(preset => (
                   <button

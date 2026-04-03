@@ -5,6 +5,7 @@ import Sidebar from '../../../components/Sidebar'
 import AuthGuard from '../../../components/AuthGuard'
 import { adminNav } from '../../../lib/admin-nav'
 import { apiFetch } from '../../../lib/api'
+import { useLanguage } from '../../../lib/i18n'
 
 interface AuditLog {
   id: string
@@ -24,6 +25,7 @@ interface AuditLog {
 }
 
 export default function AuditLogs() {
+  const { t } = useLanguage()
   const [logs, setLogs] = useState<AuditLog[]>([])
 
   useEffect(() => {
@@ -48,19 +50,19 @@ export default function AuditLogs() {
         <div className="page-content">
           <div className="h-14 lg:hidden" />
           <div className="page-header">
-            <h1 className="text-2xl font-bold text-slate-800">Audit Logs</h1>
-            <p className="text-sm text-slate-500 mt-1">Recent attendance activity log</p>
+            <h1 className="text-2xl font-bold text-slate-800">{t('audit.title')}</h1>
+            <p className="text-sm text-slate-500 mt-1">{t('audit.subtitle')}</p>
           </div>
           <div className="page-body">
             <div className="card overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200">
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">Student</th>
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">Class</th>
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">Status</th>
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">Marked By</th>
-                    <th className="px-4 py-3 text-left font-medium text-slate-600">Timestamp</th>
+                    <th className="px-4 py-3 text-left font-medium text-slate-600">{t('common.studentName')}</th>
+                    <th className="px-4 py-3 text-left font-medium text-slate-600">{t('common.class')}</th>
+                    <th className="px-4 py-3 text-left font-medium text-slate-600">{t('common.status')}</th>
+                    <th className="px-4 py-3 text-left font-medium text-slate-600">{t('common.markedBy')}</th>
+                    <th className="px-4 py-3 text-left font-medium text-slate-600">{t('common.timestamp')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -81,7 +83,7 @@ export default function AuditLogs() {
                     </tr>
                   ))}
                   {logs.length === 0 && (
-                    <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400">No audit logs found</td></tr>
+                    <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400">{t('audit.noLogs')}</td></tr>
                   )}
                 </tbody>
               </table>

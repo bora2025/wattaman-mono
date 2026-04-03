@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Sidebar from '../../../components/Sidebar';
 import { teacherNav } from '../../../lib/teacher-nav';
 import { apiFetch, getCurrentUser } from '../../../lib/api';
+import { useLanguage } from '../../../lib/i18n';
 
 interface Class {
   id: string;
@@ -26,6 +27,7 @@ interface Student {
 }
 
 export default function MyClasses() {
+  const { t } = useLanguage();
   const [classes, setClasses] = useState<Class[]>([]);
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
@@ -118,7 +120,7 @@ export default function MyClasses() {
       <div className="page-content">
         <div className="h-14 lg:hidden" />
         <div className="page-header">
-          <h1 className="text-2xl font-bold text-slate-800">My Classes</h1>
+          <h1 className="text-2xl font-bold text-slate-800">{t('teacherClasses.title')}</h1>
           <p className="text-sm text-slate-500 mt-1">{classes.length} class{classes.length !== 1 ? 'es' : ''} assigned</p>
         </div>
 

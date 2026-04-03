@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Sidebar from '../../../components/Sidebar';
 import { adminNav } from '../../../lib/admin-nav';
 import { apiFetch } from '../../../lib/api';
+import { useLanguage } from '../../../lib/i18n';
 
 interface Class {
   id: string;
@@ -171,6 +172,7 @@ const DAY_COLORS: Record<string, string> = {
 };
 
 export default function ManageClasses() {
+  const { t } = useLanguage();
   const [classes, setClasses] = useState<Class[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -515,11 +517,11 @@ export default function ManageClasses() {
         <div className="h-14 lg:hidden" />
         <div className="page-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">Manage Classes</h1>
+            <h1 className="text-2xl font-bold text-slate-800">{t('classes.title')}</h1>
             <p className="text-sm text-slate-500 mt-1">{classes.length} class{classes.length !== 1 ? 'es' : ''} total</p>
           </div>
           <button onClick={() => { setShowForm(true); setEditingClass(null); setFormData({ name: '', subject: '', teacherId: '' }); setSelectedPreset('global-default'); setCustomConfigs([]); setWeeklySchedule({ ...DEFAULT_SCHEDULE }); setShowWeekly(false); }} className="btn-primary">
-            + Add Class
+            + {t('classes.addClass')}
           </button>
         </div>
 
@@ -855,10 +857,10 @@ export default function ManageClasses() {
                   <div className="space-y-6">
                     {/* Available Students */}
                     <div>
-                      <h4 className="text-sm font-semibold text-slate-600 uppercase tracking-wider mb-3">Available Students</h4>
+                      <h4 className="text-sm font-semibold text-slate-600 uppercase tracking-wider mb-3">{t('classes.availableStudents')}</h4>
                       <div className="card max-h-48 overflow-y-auto divide-y divide-slate-100">
                         {availableStudents.length === 0 ? (
-                          <div className="empty-state py-8"><p className="text-sm">No available students</p></div>
+                          <div className="empty-state py-8"><p className="text-sm">{t('classes.noAvailableStudents')}</p></div>
                         ) : (
                           <div className="grid sm:grid-cols-2 lg:grid-cols-3">
                             {availableStudents.map((s) => (
@@ -881,7 +883,7 @@ export default function ManageClasses() {
                     {/* Class Students Table */}
                     <div>
                       <h4 className="text-sm font-semibold text-slate-600 uppercase tracking-wider mb-3">
-                        Class Students ({classStudents.length})
+                        {t('classes.classStudents')} ({classStudents.length})
                       </h4>
                       <div className="card overflow-hidden">
                         <div className="max-h-[28rem] overflow-y-auto">
@@ -1045,7 +1047,7 @@ export default function ManageClasses() {
           {classes.length === 0 && (
             <div className="empty-state">
               <p className="text-lg mb-1">📖</p>
-              <p className="font-medium">No classes yet</p>
+              <p className="font-medium">{t('classes.noClasses')}</p>
               <p className="text-sm mt-1">Click &quot;Add Class&quot; to create your first class.</p>
             </div>
           )}

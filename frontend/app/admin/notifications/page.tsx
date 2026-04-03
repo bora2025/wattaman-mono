@@ -4,8 +4,10 @@ import { useState, useEffect } from 'react';
 import Sidebar from '../../../components/Sidebar';
 import AuthGuard from '../../../components/AuthGuard';
 import { adminNav } from '../../../lib/admin-nav';
+import { useLanguage } from '../../../lib/i18n';
 
 export default function NotificationSettings() {
+  const { t } = useLanguage();
   const [settings, setSettings] = useState({
     emailEnabled: true,
     smsEnabled: false,
@@ -38,8 +40,8 @@ export default function NotificationSettings() {
         <div className="page-content">
           <div className="h-14 lg:hidden" />
           <div className="page-header">
-            <h1 className="text-2xl font-bold text-slate-800">Notification Settings</h1>
-            <p className="text-sm text-slate-500 mt-1">Configure notification preferences</p>
+            <h1 className="text-2xl font-bold text-slate-800">{t('notifications.title')}</h1>
+            <p className="text-sm text-slate-500 mt-1">{t('notifications.subtitle')}</p>
           </div>
           <div className="page-body">
             {message && (
@@ -53,10 +55,10 @@ export default function NotificationSettings() {
               </h3>
               <div className="space-y-4">
                 {[
-                  { key: 'emailEnabled', label: 'Enable email notifications' },
-                  { key: 'smsEnabled', label: 'Enable SMS notifications' },
-                  { key: 'parentNotifications', label: 'Notify parents of student absences' },
-                  { key: 'teacherReminders', label: 'Send reminders to teachers for attendance' },
+                  { key: 'emailEnabled', label: t('notifications.enableEmail') },
+                  { key: 'smsEnabled', label: t('notifications.enableSMS') },
+                  { key: 'parentNotifications', label: t('notifications.notifyParents') },
+                  { key: 'teacherReminders', label: t('notifications.sendReminders') },
                 ].map(({ key, label }) => (
                   <label key={key} className="flex items-center gap-3 cursor-pointer">
                     <input
@@ -71,7 +73,7 @@ export default function NotificationSettings() {
               </div>
               <div className="mt-6">
                 <button onClick={saveSettings} className="btn-primary">
-                  Save Settings
+                  {t('sessionSettings.saveSettings')}
                 </button>
               </div>
             </div>

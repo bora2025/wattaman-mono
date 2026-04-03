@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Sidebar from '../../../../components/Sidebar'
 import { adminNav } from '../../../../lib/admin-nav'
 import { apiFetch } from '../../../../lib/api'
+import { useLanguage } from '../../../../lib/i18n'
 
 const STATUSES = ['PRESENT', 'LATE', 'ABSENT', 'PERMISSION', 'DAY_OFF']
 
@@ -29,6 +30,7 @@ interface ClassItem {
 }
 
 export default function EditAttendance() {
+  const { t } = useLanguage()
   const [classes, setClasses] = useState<ClassItem[]>([])
   const [selectedClassId, setSelectedClassId] = useState('')
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0])
@@ -154,7 +156,7 @@ export default function EditAttendance() {
       <div className="page-content">
         <div className="h-14 lg:hidden" />
         <div className="page-header">
-          <h1 className="text-2xl font-bold text-slate-800">Edit Student Attendance</h1>
+          <h1 className="text-2xl font-bold text-slate-800">{t('editAttendance.title')}</h1>
           <p className="text-sm text-slate-500 mt-1">Update student attendance status for any date and session</p>
         </div>
         <div className="page-body space-y-6">

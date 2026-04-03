@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Sidebar from '../../../components/Sidebar'
 import { adminNav } from '../../../lib/admin-nav'
 import { apiFetch } from '../../../lib/api'
+import { useLanguage } from '../../../lib/i18n'
 
 interface Department {
   id: string
@@ -77,6 +78,7 @@ function normalizePhotoUrl(url: string): string {
 }
 
 export default function ManageEmployees() {
+  const { t } = useLanguage()
   const [users, setUsers] = useState<User[]>([])
   const [departments, setDepartments] = useState<Department[]>([])
   const [filter, setFilter] = useState('ALL')
@@ -328,12 +330,12 @@ export default function ManageEmployees() {
             {/* Header */}
             <div className="page-header">
               <div>
-                <h1 className="text-2xl font-bold text-slate-900">👔 Manage Employees</h1>
-                <p className="text-sm text-slate-500 mt-1">{filtered.length} employees · {departments.length} departments</p>
+                <h1 className="text-2xl font-bold text-slate-900">{t('employees.title')}</h1>
+                <p className="text-sm text-slate-500 mt-1">{filtered.length} {t('employees.employees')} · {departments.length} {t('employees.departments')}</p>
               </div>
               <div className="flex gap-2">
                 <Link href="/admin/qr-codes" className="btn-outline flex items-center gap-1">
-                  🪪 ID Cards
+                  {t('employees.idCards')}
                 </Link>
               </div>
             </div>
@@ -353,13 +355,13 @@ export default function ManageEmployees() {
                   onClick={() => setActiveSection('employees')}
                   className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeSection === 'employees' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:border-indigo-300'}`}
                 >
-                  👔 Employees ({users.length})
+                  {t('employees.employees')} ({users.length})
                 </button>
                 <button
                   onClick={() => setActiveSection('departments')}
                   className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${activeSection === 'departments' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-white text-slate-600 border border-slate-200 hover:border-indigo-300'}`}
                 >
-                  🏢 Departments ({departments.length})
+                  {t('employees.departments')} ({departments.length})
                 </button>
               </div>
 
@@ -368,14 +370,14 @@ export default function ManageEmployees() {
                   {/* Add Employee Button */}
                   <div className="flex justify-end">
                     <button onClick={() => setShowForm(!showForm)} className="btn-primary">
-                      {showForm ? '✕ Close' : '➕ Add Employee'}
+                      {showForm ? '✕' : '+ ' + t('employees.addEmployee')}
                     </button>
                   </div>
 
                   {/* Create Form */}
                   {showForm && (
                     <div className="card p-5">
-                      <h3 className="text-sm font-semibold text-slate-700 mb-3">New Employee</h3>
+                      <h3 className="text-sm font-semibold text-slate-700 mb-3">{t('employees.newEmployee')}</h3>
                       <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                         <div>
                           <label className="form-label">Name *</label>
@@ -427,19 +429,19 @@ export default function ManageEmployees() {
                     <input
                       value={search}
                       onChange={e => setSearch(e.target.value)}
-                      placeholder="Search employees..."
+                      placeholder={t('employees.searchPlaceholder')}
                       className="rounded-lg border border-slate-300 px-3 py-2 text-sm w-64"
                     />
                     <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
-                      <option value="ALL">All Departments</option>
-                      <option value="NONE">No Department</option>
+                      <option value="ALL">{t('employees.allDepartments')}</option>
+                      <option value="NONE">{t('employees.noDepartment')}</option>
                       {departments.map(d => (
                         <option key={d.id} value={d.id}>{d.name}{d.nameKh ? ` (${d.nameKh})` : ''}</option>
                       ))}
                     </select>
                     <div className="flex flex-wrap gap-1">
                       <button onClick={() => setFilter('ALL')} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${filter === 'ALL' ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-                        All ({users.length})
+                        {t('common.all')} ({users.length})
                       </button>
                       {presentRoles.map(r => (
                         <button key={r} onClick={() => setFilter(r)} className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${filter === r ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
@@ -455,12 +457,12 @@ export default function ManageEmployees() {
                       <table>
                         <thead>
                           <tr>
-                            <th>Employee</th>
-                            <th>Email</th>
-                            <th>Phone</th>
-                            <th>Position</th>
-                            <th>Department</th>
-                            <th>Actions</th>
+                            <th>{t('common.name')}</th>
+                            <th>{t('common.email')}</th>
+                            <th>{t('common.phone')}</th>
+                            <th>{t('common.role')}</th>
+                            <th>{t('employees.departments')}</th>
+                            <th>{t('common.actions')}</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -496,7 +498,7 @@ export default function ManageEmployees() {
                           ))}
                           {filtered.length === 0 && (
                             <tr>
-                              <td colSpan={6} className="text-center text-slate-400 py-8">No employees found</td>
+                              <td colSpan={6} className="text-center text-slate-400 py-8">{t('employees.noEmployeesFound')}</td>
                             </tr>
                           )}
                         </tbody>
