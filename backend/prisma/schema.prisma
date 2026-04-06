@@ -174,3 +174,15 @@ model RefreshToken {
   @@index([expiresAt])
 }
 
+model AttendanceFormatRule {
+  id                    String   @id @default(cuid())
+  scope                 String   // CLASS or STAFF
+  permissionsPerAbsent  Int      @default(3)  // X permissions = 1 absent full day
+  latesPerAbsentHalf    Int      @default(3)  // X lates = 1 absent half day
+  enabled               Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([scope])
+}
+

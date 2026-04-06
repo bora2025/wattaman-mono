@@ -42,4 +42,27 @@ export class SessionConfigController {
   async deleteClassConfigs(@Query('classId') classId: string) {
     return this.sessionConfigService.deleteClassConfigs(classId);
   }
+
+  /** Get attendance format rules (all scopes or specific) */
+  @Get('format-rules')
+  async getFormatRules(@Query('scope') scope?: string) {
+    if (scope) {
+      return this.sessionConfigService.getFormatRules(scope);
+    }
+    return this.sessionConfigService.getAllFormatRules();
+  }
+
+  /** Save attendance format rules for a scope */
+  @Post('format-rules')
+  async saveFormatRules(
+    @Body()
+    body: {
+      scope: string;
+      permissionsPerAbsent: number;
+      latesPerAbsentHalf: number;
+      enabled: boolean;
+    },
+  ) {
+    return this.sessionConfigService.saveFormatRules(body);
+  }
 }

@@ -26,9 +26,9 @@ interface TotalsRow {
   studentId: string
   studentNumber: string
   studentName: string
-  week: { present: number; late: number; absent: number; dayOff: number }
-  month: { present: number; late: number; absent: number; dayOff: number }
-  year: { present: number; late: number; absent: number; dayOff: number }
+  week: { present: number; late: number; absent: number; dayOff: number; convertedAbsentFromPermission?: number; convertedAbsentHalfFromLate?: number }
+  month: { present: number; late: number; absent: number; dayOff: number; convertedAbsentFromPermission?: number; convertedAbsentHalfFromLate?: number }
+  year: { present: number; late: number; absent: number; dayOff: number; convertedAbsentFromPermission?: number; convertedAbsentHalfFromLate?: number }
 }
 
 interface ClassItem {
@@ -587,6 +587,9 @@ export default function AdminReports() {
                       <h3 className="text-sm font-semibold text-slate-700">{periodLabel} {t('reports.attendanceTotals')}</h3>
                     </div>
                     <div className="overflow-x-auto">
+                      {(() => {
+                        const hasFormatRules = totals.length > 0 && totals[0][periodKey].convertedAbsentFromPermission !== undefined && (totals[0][periodKey].convertedAbsentFromPermission! > 0 || totals[0][periodKey].convertedAbsentHalfFromLate! > 0 || totals.some(r => (r[periodKey].convertedAbsentFromPermission || 0) > 0 || (r[periodKey].convertedAbsentHalfFromLate || 0) > 0));
+                        return (
                       <table className="w-full text-sm">
                         <thead className="bg-slate-50">
                           <tr className="text-left text-xs text-slate-500 uppercase tracking-wide">
@@ -596,6 +599,12 @@ export default function AdminReports() {
                             <th className="px-3 py-3 font-semibold text-center">{t('reports.totalLate')}</th>
                             <th className="px-3 py-3 font-semibold text-center">{t('reports.totalAbsent')}</th>
                             <th className="px-3 py-3 font-semibold text-center">{t('reports.totalPermission')}</th>
+                            {hasFormatRules && (
+                              <>
+                                <th className="px-3 py-3 font-semibold text-center text-orange-600">Perm→Absent</th>
+                                <th className="px-3 py-3 font-semibold text-center text-orange-600">Late→½Absent</th>
+                              </>
+                            )}
                           </tr>
                         </thead>
                         <tbody>
@@ -607,6 +616,12 @@ export default function AdminReports() {
                               <td className="px-3 py-2.5 text-center text-amber-600 font-semibold">{row[periodKey].late || 0}</td>
                               <td className="px-3 py-2.5 text-center text-red-600 font-semibold">{row[periodKey].absent}</td>
                               <td className="px-3 py-2.5 text-center text-purple-600 font-semibold">{row[periodKey].dayOff || 0}</td>
+                              {hasFormatRules && (
+                                <>
+                                  <td className="px-3 py-2.5 text-center text-orange-700 font-semibold">{row[periodKey].convertedAbsentFromPermission || 0}</td>
+                                  <td className="px-3 py-2.5 text-center text-orange-600 font-semibold">{row[periodKey].convertedAbsentHalfFromLate || 0}</td>
+                                </>
+                              )}
                             </tr>
                           ))}
                           <tr className="border-t-2 border-slate-300 bg-slate-50 font-bold text-slate-700">
@@ -615,9 +630,17 @@ export default function AdminReports() {
                             <td className="px-3 py-2.5 text-center text-amber-600">{totals.reduce((s, r) => s + (r[periodKey].late || 0), 0)}</td>
                             <td className="px-3 py-2.5 text-center text-red-600">{totals.reduce((s, r) => s + r[periodKey].absent, 0)}</td>
                             <td className="px-3 py-2.5 text-center text-purple-600">{totals.reduce((s, r) => s + (r[periodKey].dayOff || 0), 0)}</td>
+                            {hasFormatRules && (
+                              <>
+                                <td className="px-3 py-2.5 text-center text-orange-700">{totals.reduce((s, r) => s + (r[periodKey].convertedAbsentFromPermission || 0), 0)}</td>
+                                <td className="px-3 py-2.5 text-center text-orange-600">{totals.reduce((s, r) => s + (r[periodKey].convertedAbsentHalfFromLate || 0), 0)}</td>
+                              </>
+                            )}
                           </tr>
                         </tbody>
                       </table>
+                        );
+                      })()}
                     </div>
                   </div>
                 );

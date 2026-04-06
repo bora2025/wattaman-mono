@@ -157,6 +157,10 @@ export default function SessionSettingsPage() {
   const [message, setMessage] = useState('')
   const [selectedPreset, setSelectedPreset] = useState<string>('custom')
 
+  // Attendance format rules state
+  const [classFormatRule, setClassFormatRule] = useState({ permissionsPerAbsent: 3, latesPerAbsentHalf: 3, enabled: false })
+  const [staffFormatRule, setStaffFormatRule] = useState({ permissionsPerAbsent: 3, latesPerAbsentHalf: 3, enabled: false })
+
   const detectPreset = (cfgs: SessionConfigItem[]): string => {
     for (const preset of ATTENDANCE_PRESETS) {
       const match = preset.configs.every(pc => {
@@ -182,9 +186,10 @@ export default function SessionSettingsPage() {
 
   const fetchAllConfigs = async () => {
     try {
-      const [classRes, staffRes] = await Promise.all([
+      const [classRes, staffRes, rulesRes] = await Promise.all([
         apiFetch('/api/session-config/global'),
         apiFetch('/api/session-config/staff'),
+        apiFetch('/api/session-config/format-rules'),
       ])
       if (classRes.ok) {
         const data = await classRes.json()
@@ -204,6 +209,11 @@ export default function SessionSettingsPage() {
           })))
         }
       }
+      if (rulesRes.ok) {
+        const rules = await rulesRes.json()
+        if (rules.CLASS) setClassFormatRule(rules.CLASS)
+        if (rules.STAFF) setStaffFormatRule(rules.STAFF)
+      }
     } catch (e) {
       console.error('Error fetching session configs:', e)
     } finally {
@@ -216,18 +226,29 @@ export default function SessionSettingsPage() {
     setMessage('')
     try {
       const isStaff = activeTab === 'STAFF'
-      const res = await apiFetch('/api/session-config', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-                  },
-        body: JSON.stringify({
-          classId: null,
-          scope: isStaff ? 'STAFF' : 'CLASS',
-          configs: isStaff ? staffConfigs : configs,
+      const currentRule = isStaff ? staffFormatRule : classFormatRule
+      const [res, rulesRes] = await Promise.all([
+        apiFetch('/api/session-config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            classId: null,
+            scope: isStaff ? 'STAFF' : 'CLASS',
+            configs: isStaff ? staffConfigs : configs,
+          }),
         }),
-      })
-      if (res.ok) {
+        apiFetch('/api/session-config/format-rules', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            scope: isStaff ? 'STAFF' : 'CLASS',
+            permissionsPerAbsent: currentRule.permissionsPerAbsent,
+            latesPerAbsentHalf: currentRule.latesPerAbsentHalf,
+            enabled: currentRule.enabled,
+          }),
+        }),
+      ])
+      if (res.ok && rulesRes.ok) {
         setMessage(`${isStaff ? 'Staff' : 'Class'} session time settings saved successfully!`)
       } else {
         setMessage('Failed to save settings.')
@@ -429,6 +450,102 @@ export default function SessionSettingsPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* Attendance Format Rules */}
+              <div className="card p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-lg shadow-sm bg-gradient-to-br from-orange-500 to-red-500">
+                      📊
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-slate-800">Attendance Format Rules</h3>
+                      <p className="text-xs text-slate-500">
+                        Convert accumulated lates/permissions into absences for {activeTab === 'STAFF' ? 'staff' : 'student'} reports
+                      </p>
+                    </div>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={activeTab === 'STAFF' ? staffFormatRule.enabled : classFormatRule.enabled}
+                      onChange={(e) => {
+                        const val = e.target.checked
+                        if (activeTab === 'STAFF') {
+                          setStaffFormatRule(prev => ({ ...prev, enabled: val }))
+                        } else {
+                          setClassFormatRule(prev => ({ ...prev, enabled: val }))
+                        }
+                      }}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                    <span className="ml-2 text-sm font-medium text-slate-600">
+                      {(activeTab === 'STAFF' ? staffFormatRule.enabled : classFormatRule.enabled) ? 'Enabled' : 'Disabled'}
+                    </span>
+                  </label>
+                </div>
+
+                {(activeTab === 'STAFF' ? staffFormatRule.enabled : classFormatRule.enabled) && (
+                  <div className="grid gap-4 sm:grid-cols-2 mt-4">
+                    <div className="p-4 rounded-xl border border-orange-200 bg-orange-50">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-lg">🔄</span>
+                        <h4 className="font-medium text-sm text-slate-800">Permissions → Absent (Full Day)</h4>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={1}
+                          max={99}
+                          value={activeTab === 'STAFF' ? staffFormatRule.permissionsPerAbsent : classFormatRule.permissionsPerAbsent}
+                          onChange={(e) => {
+                            const val = Math.max(1, parseInt(e.target.value) || 1)
+                            if (activeTab === 'STAFF') {
+                              setStaffFormatRule(prev => ({ ...prev, permissionsPerAbsent: val }))
+                            } else {
+                              setClassFormatRule(prev => ({ ...prev, permissionsPerAbsent: val }))
+                            }
+                          }}
+                          className="w-20 rounded-lg border border-slate-300 px-3 py-2 text-sm text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                        />
+                        <span className="text-sm text-slate-600">permissions = <strong>1 absent full day</strong></span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-2">
+                        Every {activeTab === 'STAFF' ? staffFormatRule.permissionsPerAbsent : classFormatRule.permissionsPerAbsent} accumulated permissions will be converted to 1 full-day absence in reports
+                      </p>
+                    </div>
+
+                    <div className="p-4 rounded-xl border border-red-200 bg-red-50">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-lg">⏰</span>
+                        <h4 className="font-medium text-sm text-slate-800">Lates → Absent (Half Day)</h4>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min={1}
+                          max={99}
+                          value={activeTab === 'STAFF' ? staffFormatRule.latesPerAbsentHalf : classFormatRule.latesPerAbsentHalf}
+                          onChange={(e) => {
+                            const val = Math.max(1, parseInt(e.target.value) || 1)
+                            if (activeTab === 'STAFF') {
+                              setStaffFormatRule(prev => ({ ...prev, latesPerAbsentHalf: val }))
+                            } else {
+                              setClassFormatRule(prev => ({ ...prev, latesPerAbsentHalf: val }))
+                            }
+                          }}
+                          className="w-20 rounded-lg border border-slate-300 px-3 py-2 text-sm text-center focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                        />
+                        <span className="text-sm text-slate-600">lates = <strong>1 absent half day</strong></span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-2">
+                        Every {activeTab === 'STAFF' ? staffFormatRule.latesPerAbsentHalf : classFormatRule.latesPerAbsentHalf} accumulated lates will be converted to 1 half-day absence in reports
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3">

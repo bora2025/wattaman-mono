@@ -58,6 +58,27 @@ export class ReportsService {
     private holidaysService: HolidaysService,
   ) {}
 
+  /** Apply attendance format rules: convert accumulated lates/permissions into absences */
+  private applyFormatRules(
+    counts: { present: number; late: number; absent: number; dayOff: number },
+    rule: { permissionsPerAbsent: number; latesPerAbsentHalf: number; enabled: boolean } | null,
+  ) {
+    if (!rule || !rule.enabled) {
+      return { ...counts, convertedAbsentFromPermission: 0, convertedAbsentHalfFromLate: 0 };
+    }
+    const convertedAbsentFromPermission = rule.permissionsPerAbsent > 0
+      ? Math.floor(counts.dayOff / rule.permissionsPerAbsent)
+      : 0;
+    const convertedAbsentHalfFromLate = rule.latesPerAbsentHalf > 0
+      ? Math.floor(counts.late / rule.latesPerAbsentHalf)
+      : 0;
+    return {
+      ...counts,
+      convertedAbsentFromPermission,
+      convertedAbsentHalfFromLate,
+    };
+  }
+
   async getSystemStatus() {
     const lastAttendance = await this.prisma.attendance.findFirst({
       orderBy: { timestamp: 'desc' },
@@ -383,14 +404,18 @@ export class ReportsService {
     const yearHolidays = await this.holidaysService.getHolidaysInRange(yearStart, yearEnd);
     const holidayDateSet = new Set(yearHolidays.map(h => h.date.toISOString().split('T')[0]));
 
+    // Fetch format rules for CLASS scope
+    const formatRule = await this.sessionConfigService.getFormatRules('CLASS');
+
     const countFor = (recs: any[], studentId: string) => {
       const studentRecs = recs.filter(r => r.studentId === studentId);
-      return {
+      const raw = {
         present: studentRecs.filter(r => r.status === 'PRESENT').length,
         late: studentRecs.filter(r => r.status === 'LATE').length,
         absent: studentRecs.filter(r => r.status === 'ABSENT' && !holidayDateSet.has(r.date.toISOString().split('T')[0])).length,
         dayOff: studentRecs.filter(r => r.status === 'DAY_OFF').length,
       };
+      return this.applyFormatRules(raw, formatRule as any);
     };
 
     return cls.students.map((s, idx) => ({
@@ -601,14 +626,18 @@ export class ReportsService {
     const yearHolidays = await this.holidaysService.getHolidaysInRange(yearStart, yearEnd);
     const holidayDateSet = new Set(yearHolidays.map(h => h.date.toISOString().split('T')[0]));
 
+    // Fetch format rules for STAFF scope
+    const formatRule = await this.sessionConfigService.getFormatRules('STAFF');
+
     const countFor = (recs: any[], userId: string) => {
       const userRecs = recs.filter(r => r.userId === userId);
-      return {
+      const raw = {
         present: userRecs.filter(r => r.status === 'PRESENT').length,
         late: userRecs.filter(r => r.status === 'LATE').length,
         absent: userRecs.filter(r => r.status === 'ABSENT' && !holidayDateSet.has(r.date.toISOString().split('T')[0])).length,
         dayOff: userRecs.filter(r => r.status === 'DAY_OFF').length,
       };
+      return this.applyFormatRules(raw, formatRule as any);
     };
 
     return staff.map((u, idx) => ({
@@ -763,16 +792,19 @@ export class ReportsService {
     const yearHolidays = await this.holidaysService.getHolidaysInRange(yearStart, yearEnd);
     const holidayDateSet = new Set(yearHolidays.map(h => h.date.toISOString().split('T')[0]));
 
+    // Fetch format rules for CLASS scope
+    const formatRule = await this.sessionConfigService.getFormatRules('CLASS');
+
     const p = (period || 'daily').toLowerCase();
 
     if (p === 'daily') {
-      await this.buildDailySheet(workbook, cls, configs, d, holidayDateSet);
+      await this.buildDailySheet(workbook, cls, configs, d, holidayDateSet, formatRule as any);
     } else if (p === 'weekly') {
-      await this.buildWeeklySheet(workbook, cls, d, holidayDateSet);
+      await this.buildWeeklySheet(workbook, cls, d, holidayDateSet, formatRule as any);
     } else if (p === 'monthly') {
-      await this.buildMonthlySheet(workbook, cls, d, holidayDateSet);
+      await this.buildMonthlySheet(workbook, cls, d, holidayDateSet, formatRule as any);
     } else if (p === 'yearly') {
-      await this.buildYearlySheet(workbook, cls, d, holidayDateSet);
+      await this.buildYearlySheet(workbook, cls, d, holidayDateSet, formatRule as any);
     }
 
     const buffer = await workbook.xlsx.writeBuffer();
@@ -782,6 +814,7 @@ export class ReportsService {
   /** Build the Daily attendance sheet */
   private async buildDailySheet(
     workbook: ExcelJS.Workbook, cls: any, configs: any[], date: Date, holidayDateSet: Set<string>,
+    formatRule?: { permissionsPerAbsent: number; latesPerAbsentHalf: number; enabled: boolean },
   ) {
     const ws = workbook.addWorksheet('Daily');
     const dayStart = toUTCMidnight(date);
@@ -905,6 +938,7 @@ export class ReportsService {
   /** Build the Weekly attendance sheet */
   private async buildWeeklySheet(
     workbook: ExcelJS.Workbook, cls: any, date: Date, holidayDateSet: Set<string>,
+    formatRule?: { permissionsPerAbsent: number; latesPerAbsentHalf: number; enabled: boolean },
   ) {
     const ws = workbook.addWorksheet('Weekly');
     const d = toUTCMidnight(date);
@@ -935,10 +969,11 @@ export class ReportsService {
       dayHeaders.push(`${dayNames[i]} (${dateStr})`);
     }
 
-    // Row 1: ID | Student Name | Mon(4cols) | Tue(4cols) | ... | Sun(4cols) | Total(4cols)
+    // Row 1: ID | Student Name | Mon(4cols) | Tue(4cols) | ... | Sun(4cols) | Total(4cols) | [Converted(2cols)]
     const headerValues: any[] = ['ID', 'Student Name'];
     for (const dh of dayHeaders) headerValues.push(dh, '', '', '');
     headerValues.push('Total', '', '', '');
+    if (formatRule?.enabled) headerValues.push('Converted Absence', '');
     const headerRow1 = ws.addRow(headerValues);
 
     // Merge day headers
@@ -949,11 +984,16 @@ export class ReportsService {
       col += 4;
     }
     ws.mergeCells(1, col, 1, col + 3); // Total
+    if (formatRule?.enabled) {
+      const convCol = col + 4;
+      ws.mergeCells(1, convCol, 1, convCol + 1);
+    }
     this.styleHeaderRow(headerRow1);
 
     // Row 2: Sub-headers
     const subValues: any[] = ['', ''];
     for (let i = 0; i < 8; i++) subValues.push('Present', 'Absent', 'Late', 'Permission');
+    if (formatRule?.enabled) subValues.push(`${formatRule.permissionsPerAbsent} Perm=1 Absent`, `${formatRule.latesPerAbsentHalf} Late=½ Absent`);
     const headerRow2 = ws.addRow(subValues);
     this.styleHeaderRow(headerRow2, 'FFFFFF');
 
@@ -1021,6 +1061,13 @@ export class ReportsService {
       }
 
       rowVals.push(hasPastDays ? totalP : '', hasPastDays ? totalA : '', hasPastDays ? totalL : '', hasPastDays ? totalPerm : '');
+      if (formatRule?.enabled && hasPastDays) {
+        const convAbsent = formatRule.permissionsPerAbsent > 0 ? Math.floor(totalPerm / formatRule.permissionsPerAbsent) : 0;
+        const convHalf = formatRule.latesPerAbsentHalf > 0 ? Math.floor(totalL / formatRule.latesPerAbsentHalf) : 0;
+        rowVals.push(convAbsent, convHalf);
+      } else if (formatRule?.enabled) {
+        rowVals.push('', '');
+      }
       const row = ws.addRow(rowVals);
       this.styleDataRow(row);
     }
@@ -1028,12 +1075,14 @@ export class ReportsService {
     // Column widths
     const colWidths = [{ width: 10 }, { width: 20 }];
     for (let i = 0; i < 32; i++) colWidths.push({ width: 10 });
+    if (formatRule?.enabled) { colWidths.push({ width: 18 }); colWidths.push({ width: 18 }); }
     ws.columns = colWidths;
   }
 
   /** Build the Monthly attendance sheet */
   private async buildMonthlySheet(
     workbook: ExcelJS.Workbook, cls: any, date: Date, holidayDateSet: Set<string>,
+    formatRule?: { permissionsPerAbsent: number; latesPerAbsentHalf: number; enabled: boolean },
   ) {
     const ws = workbook.addWorksheet('Monthly');
     const d = toUTCMidnight(date);
@@ -1078,6 +1127,7 @@ export class ReportsService {
     const headerValues: any[] = ['Month', 'ID', 'Student Name'];
     for (const w of weeks) headerValues.push(w.label, '', '', '');
     headerValues.push('Total', '', '', '');
+    if (formatRule?.enabled) headerValues.push('Converted Absence', '');
     const headerRow1 = ws.addRow(headerValues);
 
     // Merges
@@ -1088,11 +1138,16 @@ export class ReportsService {
       col += 4;
     }
     ws.mergeCells(1, col, 1, col + 3);
+    if (formatRule?.enabled) {
+      const convCol = col + 4;
+      ws.mergeCells(1, convCol, 1, convCol + 1);
+    }
     this.styleHeaderRow(headerRow1);
 
     // Row 2 sub-headers
     const subValues: any[] = ['', '', ''];
     for (let i = 0; i < weeks.length + 1; i++) subValues.push('Present', 'Absent', 'Late', 'Permission');
+    if (formatRule?.enabled) subValues.push(`${formatRule.permissionsPerAbsent} Perm=1 Absent`, `${formatRule.latesPerAbsentHalf} Late=½ Absent`);
     const headerRow2 = ws.addRow(subValues);
     this.styleHeaderRow(headerRow2, 'FFFFFF');
 
@@ -1163,6 +1218,13 @@ export class ReportsService {
       }
 
       rowVals.push(hasPastDays ? totalP : '', hasPastDays ? totalA : '', hasPastDays ? totalL : '', hasPastDays ? totalPerm : '');
+      if (formatRule?.enabled && hasPastDays) {
+        const convAbsent = formatRule.permissionsPerAbsent > 0 ? Math.floor(totalPerm / formatRule.permissionsPerAbsent) : 0;
+        const convHalf = formatRule.latesPerAbsentHalf > 0 ? Math.floor(totalL / formatRule.latesPerAbsentHalf) : 0;
+        rowVals.push(convAbsent, convHalf);
+      } else if (formatRule?.enabled) {
+        rowVals.push('', '');
+      }
       const row = ws.addRow(rowVals);
       this.styleDataRow(row);
     }
@@ -1170,12 +1232,14 @@ export class ReportsService {
     // Column widths
     const colWidths = [{ width: 14 }, { width: 10 }, { width: 20 }];
     for (let i = 0; i < (weeks.length + 1) * 4; i++) colWidths.push({ width: 10 });
+    if (formatRule?.enabled) { colWidths.push({ width: 18 }); colWidths.push({ width: 18 }); }
     ws.columns = colWidths;
   }
 
   /** Build the Yearly attendance sheet */
   private async buildYearlySheet(
     workbook: ExcelJS.Workbook, cls: any, date: Date, holidayDateSet: Set<string>,
+    formatRule?: { permissionsPerAbsent: number; latesPerAbsentHalf: number; enabled: boolean },
   ) {
     const ws = workbook.addWorksheet('Yearly');
     const d = toUTCMidnight(date);
@@ -1200,6 +1264,7 @@ export class ReportsService {
     const headerValues: any[] = ['Year', 'ID', 'Student Name'];
     for (const mn of months) headerValues.push(mn, '', '', '');
     headerValues.push('Total', '', '', '');
+    if (formatRule?.enabled) headerValues.push('Converted Absence', '');
     const headerRow1 = ws.addRow(headerValues);
 
     // Merges
@@ -1209,11 +1274,15 @@ export class ReportsService {
       ws.mergeCells(1, col, 1, col + 3);
       col += 4;
     }
+    if (formatRule?.enabled) {
+      ws.mergeCells(1, col, 1, col + 1);
+    }
     this.styleHeaderRow(headerRow1);
 
     // Row 2 sub-headers
     const subValues: any[] = ['', '', ''];
     for (let i = 0; i < 13; i++) subValues.push('Present', 'Absent', 'Late', 'Permission');
+    if (formatRule?.enabled) subValues.push(`${formatRule.permissionsPerAbsent} Perm=1 Absent`, `${formatRule.latesPerAbsentHalf} Late=½ Absent`);
     const headerRow2 = ws.addRow(subValues);
     this.styleHeaderRow(headerRow2, 'FFFFFF');
 
@@ -1288,6 +1357,13 @@ export class ReportsService {
       }
 
       rowVals.push(hasPastDays ? totalP : '', hasPastDays ? totalA : '', hasPastDays ? totalL : '', hasPastDays ? totalPerm : '');
+      if (formatRule?.enabled && hasPastDays) {
+        const convAbsent = formatRule.permissionsPerAbsent > 0 ? Math.floor(totalPerm / formatRule.permissionsPerAbsent) : 0;
+        const convHalf = formatRule.latesPerAbsentHalf > 0 ? Math.floor(totalL / formatRule.latesPerAbsentHalf) : 0;
+        rowVals.push(convAbsent, convHalf);
+      } else if (formatRule?.enabled) {
+        rowVals.push('', '');
+      }
       const row = ws.addRow(rowVals);
       this.styleDataRow(row);
     }
@@ -1295,6 +1371,7 @@ export class ReportsService {
     // Column widths
     const colWidths = [{ width: 10 }, { width: 10 }, { width: 20 }];
     for (let i = 0; i < 52; i++) colWidths.push({ width: 10 });
+    if (formatRule?.enabled) { colWidths.push({ width: 18 }); colWidths.push({ width: 18 }); }
     ws.columns = colWidths;
   }
 
@@ -1353,16 +1430,19 @@ export class ReportsService {
     const yearHolidays = await this.holidaysService.getHolidaysInRange(yearStart, yearEnd);
     const holidayDateSet = new Set(yearHolidays.map(h => h.date.toISOString().split('T')[0]));
 
+    // Fetch format rules for STAFF scope
+    const formatRule = await this.sessionConfigService.getFormatRules('STAFF');
+
     const p = (period || 'daily').toLowerCase();
 
     if (p === 'daily') {
-      await this.buildStaffDailySheet(workbook, staff, d, holidayDateSet);
+      await this.buildStaffDailySheet(workbook, staff, d, holidayDateSet, formatRule as any);
     } else if (p === 'weekly') {
-      await this.buildStaffWeeklySheet(workbook, staff, d, holidayDateSet);
+      await this.buildStaffWeeklySheet(workbook, staff, d, holidayDateSet, formatRule as any);
     } else if (p === 'monthly') {
-      await this.buildStaffMonthlySheet(workbook, staff, d, holidayDateSet);
+      await this.buildStaffMonthlySheet(workbook, staff, d, holidayDateSet, formatRule as any);
     } else if (p === 'yearly') {
-      await this.buildStaffYearlySheet(workbook, staff, d, holidayDateSet);
+      await this.buildStaffYearlySheet(workbook, staff, d, holidayDateSet, formatRule as any);
     }
 
     const buffer = await workbook.xlsx.writeBuffer();
@@ -1372,6 +1452,7 @@ export class ReportsService {
   /** Staff Daily XLSX sheet */
   private async buildStaffDailySheet(
     workbook: ExcelJS.Workbook, staff: any[], date: Date, holidayDateSet: Set<string>,
+    formatRule?: { permissionsPerAbsent: number; latesPerAbsentHalf: number; enabled: boolean },
   ) {
     const ws = workbook.addWorksheet('Daily');
     const dayStart = toUTCMidnight(date);
@@ -1467,6 +1548,7 @@ export class ReportsService {
   /** Staff Weekly XLSX sheet */
   private async buildStaffWeeklySheet(
     workbook: ExcelJS.Workbook, staff: any[], date: Date, holidayDateSet: Set<string>,
+    formatRule?: { permissionsPerAbsent: number; latesPerAbsentHalf: number; enabled: boolean },
   ) {
     const ws = workbook.addWorksheet('Weekly');
     const d = toUTCMidnight(date);
@@ -1489,16 +1571,19 @@ export class ReportsService {
     const headerValues: any[] = ['ID', 'Staff Name'];
     for (const dh of dayHeaders) headerValues.push(dh, '', '', '');
     headerValues.push('Total', '', '', '');
+    if (formatRule?.enabled) headerValues.push('Converted Absence', '');
     const headerRow1 = ws.addRow(headerValues);
 
     ws.mergeCells('A1:A2'); ws.mergeCells('B1:B2');
     let col = 3;
     for (let i = 0; i < 7; i++) { ws.mergeCells(1, col, 1, col + 3); col += 4; }
     ws.mergeCells(1, col, 1, col + 3);
+    if (formatRule?.enabled) { const cc = col + 4; ws.mergeCells(1, cc, 1, cc + 1); }
     this.styleHeaderRow(headerRow1);
 
     const subValues: any[] = ['', ''];
     for (let i = 0; i < 8; i++) subValues.push('Present', 'Absent', 'Late', 'Permission');
+    if (formatRule?.enabled) subValues.push(`${formatRule.permissionsPerAbsent} Perm=1 Absent`, `${formatRule.latesPerAbsentHalf} Late=½ Absent`);
     const headerRow2 = ws.addRow(subValues);
     this.styleHeaderRow(headerRow2, 'FFFFFF');
 
@@ -1550,18 +1635,27 @@ export class ReportsService {
       }
 
       rowVals.push(hasPastDays ? totalP : '', hasPastDays ? totalA : '', hasPastDays ? totalL : '', hasPastDays ? totalPerm : '');
+      if (formatRule?.enabled && hasPastDays) {
+        const convAbsent = formatRule.permissionsPerAbsent > 0 ? Math.floor(totalPerm / formatRule.permissionsPerAbsent) : 0;
+        const convHalf = formatRule.latesPerAbsentHalf > 0 ? Math.floor(totalL / formatRule.latesPerAbsentHalf) : 0;
+        rowVals.push(convAbsent, convHalf);
+      } else if (formatRule?.enabled) {
+        rowVals.push('', '');
+      }
       const row = ws.addRow(rowVals);
       this.styleDataRow(row);
     }
 
     const colWidths = [{ width: 10 }, { width: 20 }];
     for (let i = 0; i < 32; i++) colWidths.push({ width: 10 });
+    if (formatRule?.enabled) { colWidths.push({ width: 18 }); colWidths.push({ width: 18 }); }
     ws.columns = colWidths;
   }
 
   /** Staff Monthly XLSX sheet */
   private async buildStaffMonthlySheet(
     workbook: ExcelJS.Workbook, staff: any[], date: Date, holidayDateSet: Set<string>,
+    formatRule?: { permissionsPerAbsent: number; latesPerAbsentHalf: number; enabled: boolean },
   ) {
     const ws = workbook.addWorksheet('Monthly');
     const d = toUTCMidnight(date);
@@ -1590,16 +1684,19 @@ export class ReportsService {
     const headerValues: any[] = ['Month', 'ID', 'Staff Name'];
     for (let i = 0; i < weeks.length; i++) headerValues.push(`Week ${i + 1} (${weeks[i].label})`, '', '', '');
     headerValues.push('Total', '', '', '');
+    if (formatRule?.enabled) headerValues.push('Converted Absence', '');
     const headerRow1 = ws.addRow(headerValues);
 
     ws.mergeCells('A1:A2'); ws.mergeCells('B1:B2'); ws.mergeCells('C1:C2');
     let col2 = 4;
     for (let i = 0; i < weeks.length; i++) { ws.mergeCells(1, col2, 1, col2 + 3); col2 += 4; }
     ws.mergeCells(1, col2, 1, col2 + 3);
+    if (formatRule?.enabled) { const cc = col2 + 4; ws.mergeCells(1, cc, 1, cc + 1); }
     this.styleHeaderRow(headerRow1);
 
     const subValues: any[] = ['', '', ''];
     for (let i = 0; i < weeks.length + 1; i++) subValues.push('Present', 'Absent', 'Late', 'Permission');
+    if (formatRule?.enabled) subValues.push(`${formatRule.permissionsPerAbsent} Perm=1 Absent`, `${formatRule.latesPerAbsentHalf} Late=½ Absent`);
     const headerRow2 = ws.addRow(subValues);
     this.styleHeaderRow(headerRow2, 'FFFFFF');
 
@@ -1652,18 +1749,25 @@ export class ReportsService {
       }
 
       rowVals.push(totalP, totalA, totalL, totalPerm);
+      if (formatRule?.enabled) {
+        const convAbsent = formatRule.permissionsPerAbsent > 0 ? Math.floor(totalPerm / formatRule.permissionsPerAbsent) : 0;
+        const convHalf = formatRule.latesPerAbsentHalf > 0 ? Math.floor(totalL / formatRule.latesPerAbsentHalf) : 0;
+        rowVals.push(convAbsent, convHalf);
+      }
       const row = ws.addRow(rowVals);
       this.styleDataRow(row);
     }
 
     const colWidths = [{ width: 12 }, { width: 10 }, { width: 20 }];
     for (let i = 0; i < (weeks.length + 1) * 4; i++) colWidths.push({ width: 10 });
+    if (formatRule?.enabled) { colWidths.push({ width: 18 }); colWidths.push({ width: 18 }); }
     ws.columns = colWidths;
   }
 
   /** Staff Yearly XLSX sheet */
   private async buildStaffYearlySheet(
     workbook: ExcelJS.Workbook, staff: any[], date: Date, holidayDateSet: Set<string>,
+    formatRule?: { permissionsPerAbsent: number; latesPerAbsentHalf: number; enabled: boolean },
   ) {
     const ws = workbook.addWorksheet('Yearly');
     const d = toUTCMidnight(date);
@@ -1680,16 +1784,19 @@ export class ReportsService {
     const headerValues: any[] = ['Year', 'ID', 'Staff Name'];
     for (const mn of monthNames) headerValues.push(mn, '', '', '');
     headerValues.push('Total', '', '', '');
+    if (formatRule?.enabled) headerValues.push('Converted Absence', '');
     const headerRow1 = ws.addRow(headerValues);
 
     ws.mergeCells('A1:A2'); ws.mergeCells('B1:B2'); ws.mergeCells('C1:C2');
     let col3 = 4;
     for (let i = 0; i < 12; i++) { ws.mergeCells(1, col3, 1, col3 + 3); col3 += 4; }
     ws.mergeCells(1, col3, 1, col3 + 3);
+    if (formatRule?.enabled) { const cc = col3 + 4; ws.mergeCells(1, cc, 1, cc + 1); }
     this.styleHeaderRow(headerRow1);
 
     const subValues: any[] = ['', '', ''];
     for (let i = 0; i < 13; i++) subValues.push('Present', 'Absent', 'Late', 'Permission');
+    if (formatRule?.enabled) subValues.push(`${formatRule.permissionsPerAbsent} Perm=1 Absent`, `${formatRule.latesPerAbsentHalf} Late=½ Absent`);
     const headerRow2 = ws.addRow(subValues);
     this.styleHeaderRow(headerRow2, 'FFFFFF');
 
@@ -1745,12 +1852,18 @@ export class ReportsService {
       }
 
       rowVals.push(totalP, totalA, totalL, totalPerm);
+      if (formatRule?.enabled) {
+        const convAbsent = formatRule.permissionsPerAbsent > 0 ? Math.floor(totalPerm / formatRule.permissionsPerAbsent) : 0;
+        const convHalf = formatRule.latesPerAbsentHalf > 0 ? Math.floor(totalL / formatRule.latesPerAbsentHalf) : 0;
+        rowVals.push(convAbsent, convHalf);
+      }
       const row = ws.addRow(rowVals);
       this.styleDataRow(row);
     }
 
     const colWidths = [{ width: 10 }, { width: 10 }, { width: 20 }];
     for (let i = 0; i < 52; i++) colWidths.push({ width: 10 });
+    if (formatRule?.enabled) { colWidths.push({ width: 18 }); colWidths.push({ width: 18 }); }
     ws.columns = colWidths;
   }
 

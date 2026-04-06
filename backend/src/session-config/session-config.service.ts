@@ -144,4 +144,54 @@ export class SessionConfigService {
   async deleteClassConfigs(classId: string) {
     return this.prisma.sessionConfig.deleteMany({ where: { classId } });
   }
+
+  // ========== ATTENDANCE FORMAT RULES ==========
+
+  /** Get attendance format rules for a scope (CLASS or STAFF) */
+  async getFormatRules(scope: string) {
+    const rule = await this.prisma.attendanceFormatRule.findUnique({
+      where: { scope },
+    });
+    if (rule) return rule;
+    // Return defaults
+    return {
+      id: null,
+      scope,
+      permissionsPerAbsent: 3,
+      latesPerAbsentHalf: 3,
+      enabled: false,
+    };
+  }
+
+  /** Get all format rules (both CLASS and STAFF) */
+  async getAllFormatRules() {
+    const [classRule, staffRule] = await Promise.all([
+      this.getFormatRules('CLASS'),
+      this.getFormatRules('STAFF'),
+    ]);
+    return { CLASS: classRule, STAFF: staffRule };
+  }
+
+  /** Upsert attendance format rules for a scope */
+  async saveFormatRules(data: {
+    scope: string;
+    permissionsPerAbsent: number;
+    latesPerAbsentHalf: number;
+    enabled: boolean;
+  }) {
+    return this.prisma.attendanceFormatRule.upsert({
+      where: { scope: data.scope },
+      update: {
+        permissionsPerAbsent: data.permissionsPerAbsent,
+        latesPerAbsentHalf: data.latesPerAbsentHalf,
+        enabled: data.enabled,
+      },
+      create: {
+        scope: data.scope,
+        permissionsPerAbsent: data.permissionsPerAbsent,
+        latesPerAbsentHalf: data.latesPerAbsentHalf,
+        enabled: data.enabled,
+      },
+    });
+  }
 }
