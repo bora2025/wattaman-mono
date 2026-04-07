@@ -26,38 +26,39 @@ interface QuickAction {
   label: string;
   icon: keyof typeof Ionicons.glyphMap;
   navigateTo?: string;
+  params?: any;
 }
 
 const adminActions: QuickAction[] = [
-  { label: 'Search', icon: 'search-outline' },
-  { label: 'Manage\nUsers', icon: 'people-outline' },
-  { label: 'Manage\nOfficer', icon: 'briefcase-outline' },
-  { label: 'Manage\nClasses', icon: 'book-outline' },
+  { label: 'Search', icon: 'search-outline', navigateTo: 'Search' },
+  { label: 'Manage\nUsers', icon: 'people-outline', navigateTo: 'Users' },
+  { label: 'Manage\nOfficer', icon: 'briefcase-outline', navigateTo: 'Users' },
+  { label: 'Manage\nClasses', icon: 'book-outline', navigateTo: 'Classes' },
   { label: 'Take\nAttendance', icon: 'camera-outline', navigateTo: 'Scanner' },
   { label: 'Officer\nAttendance', icon: 'scan-outline', navigateTo: 'Scanner' },
-  { label: 'Edit\nAttendance', icon: 'create-outline' },
-  { label: 'Edit Officer\nAttendance', icon: 'document-text-outline' },
-  { label: 'Student\nReport', icon: 'bar-chart-outline' },
-  { label: 'Officer\nReport', icon: 'analytics-outline' },
+  { label: 'Edit\nAttendance', icon: 'create-outline', navigateTo: 'EditAttendance' },
+  { label: 'Edit Officer\nAttendance', icon: 'document-text-outline', navigateTo: 'EditAttendance', params: { isStaff: true } },
+  { label: 'Student\nReport', icon: 'bar-chart-outline', navigateTo: 'Reports' },
+  { label: 'Officer\nReport', icon: 'analytics-outline', navigateTo: 'StaffReports' },
   { label: 'Card\nDesigner', icon: 'card-outline' },
   { label: 'ID Card', icon: 'reader-outline' },
-  { label: 'Session\nSettings', icon: 'time-outline' },
-  { label: 'Holidays', icon: 'calendar-outline' },
-  { label: 'Settings', icon: 'settings-outline' },
+  { label: 'Session\nSettings', icon: 'time-outline', navigateTo: 'SessionSettings' },
+  { label: 'Holidays', icon: 'calendar-outline', navigateTo: 'Holidays' },
+  { label: 'Settings', icon: 'settings-outline', navigateTo: 'Settings' },
 ];
 
 const teacherActions: QuickAction[] = [
-  { label: 'Search', icon: 'search-outline' },
+  { label: 'Search', icon: 'search-outline', navigateTo: 'Search' },
   { label: 'Take\nAttendance', icon: 'camera-outline', navigateTo: 'Scanner' },
   { label: 'Officer\nAttendance', icon: 'scan-outline', navigateTo: 'Scanner' },
-  { label: 'My Classes', icon: 'book-outline' },
-  { label: 'Reports', icon: 'bar-chart-outline' },
-  { label: 'Staff\nReports', icon: 'analytics-outline' },
+  { label: 'My Classes', icon: 'book-outline', navigateTo: 'Classes' },
+  { label: 'Reports', icon: 'bar-chart-outline', navigateTo: 'Reports' },
+  { label: 'Staff\nReports', icon: 'analytics-outline', navigateTo: 'StaffReports' },
 ];
 
 const employeeActions: QuickAction[] = [
   { label: 'Scan\nAttendance', icon: 'camera-outline', navigateTo: 'Scanner' },
-  { label: 'My Reports', icon: 'bar-chart-outline' },
+  { label: 'My Reports', icon: 'bar-chart-outline', navigateTo: 'MyReports' },
   { label: 'My ID Card', icon: 'card-outline' },
 ];
 
@@ -147,15 +148,23 @@ export default function DashboardScreen({ navigation }: any) {
 
   const handleAction = (action: QuickAction) => {
     if (action.navigateTo) {
-      navigation.navigate(action.navigateTo);
+      navigation.navigate(action.navigateTo, action.params || {});
     } else {
-      Alert.alert(action.label.replace('\n', ' '), 'This feature is available on the web dashboard.');
+      Alert.alert(action.label.replace('\n', ' '), 'This feature is coming soon.');
     }
   };
 
   const handleTabPress = (tab: TabName) => {
     if (tab === 'camera') {
       navigation.navigate('Scanner');
+      return;
+    }
+    if (tab === 'search') {
+      navigation.navigate('Search');
+      return;
+    }
+    if (tab === 'settings') {
+      navigation.navigate('Settings');
       return;
     }
     setActiveTab(tab);

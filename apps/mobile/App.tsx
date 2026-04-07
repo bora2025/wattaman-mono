@@ -11,6 +11,16 @@ import LoginScreen from './src/screens/LoginScreen';
 import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
 import DashboardScreen from './src/screens/DashboardScreen';
 import ScannerScreen from './src/screens/ScannerScreen';
+import SearchScreen from './src/screens/SearchScreen';
+import UsersScreen from './src/screens/UsersScreen';
+import ClassesScreen from './src/screens/ClassesScreen';
+import ReportsScreen from './src/screens/ReportsScreen';
+import StaffReportsScreen from './src/screens/StaffReportsScreen';
+import EditAttendanceScreen from './src/screens/EditAttendanceScreen';
+import HolidaysScreen from './src/screens/HolidaysScreen';
+import SessionSettingsScreen from './src/screens/SessionSettingsScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
+import MyReportsScreen from './src/screens/MyReportsScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -65,6 +75,56 @@ export default function App() {
               <Stack.Screen
                 name="Scanner"
                 component={ScannerScreen}
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen
+                name="Search"
+                component={SearchScreen}
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen
+                name="Users"
+                component={UsersScreen}
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen
+                name="Classes"
+                component={ClassesScreen}
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen
+                name="Reports"
+                component={ReportsScreen}
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen
+                name="StaffReports"
+                component={StaffReportsScreen}
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen
+                name="EditAttendance"
+                component={EditAttendanceScreen}
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen
+                name="Holidays"
+                component={HolidaysScreen}
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen
+                name="SessionSettings"
+                component={SessionSettingsScreen}
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen
+                name="Settings"
+                component={SettingsScreen}
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen
+                name="MyReports"
+                component={MyReportsScreen}
                 options={{ animation: 'slide_from_right' }}
               />
             </>
