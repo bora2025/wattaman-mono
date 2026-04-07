@@ -7,9 +7,23 @@ import { Ionicons } from '@expo/vector-icons';
 import { fetchWithAuth } from '../api';
 import { COLORS } from '../theme';
 
-const ROLES = ['ADMIN', 'TEACHER', 'EMPLOYEE'];
+const USER_ROLES = ['ADMIN', 'TEACHER', 'STUDENT', 'PARENT'];
+const OFFICER_ROLES = [
+  'OFFICER', 'STAFF', 'OFFICE_HEAD', 'DEPUTY_OFFICE_HEAD',
+  'DEPARTMENT_HEAD', 'DEPUTY_DEPARTMENT_HEAD',
+  'GENERAL_DEPARTMENT_DIRECTOR', 'DEPUTY_GENERAL_DEPARTMENT_DIRECTOR',
+  'PRIMARY_SCHOOL_PRINCIPAL', 'SECONDARY_SCHOOL_PRINCIPAL',
+  'HIGH_SCHOOL_PRINCIPAL', 'UNIVERSITY_RECTOR',
+  'COMPANY_CEO', 'PROJECT_MANAGER', 'BRANCH_MANAGER',
+  'EXECUTIVE_DIRECTOR', 'HR_MANAGER', 'CREDIT_OFFICER',
+  'SECURITY_GUARD', 'JANITOR', 'TRAINER',
+  'ATHLETE_MALE', 'ATHLETE_FEMALE',
+  'BARISTA', 'CASHIER', 'RECEPTIONIST', 'GENERAL_MANAGER',
+];
 
-export default function UsersScreen({ navigation }: any) {
+export default function UsersScreen({ navigation, route }: any) {
+  const userType = route?.params?.userType || 'users'; // 'users' or 'officers'
+  const isOfficerMode = userType === 'officers';
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -20,18 +34,27 @@ export default function UsersScreen({ navigation }: any) {
   const loadUsers = async () => {
     try {
       const res = await fetchWithAuth('/auth/users');
-      if (res.ok) setUsers(await res.json());
+      if (res.ok) {
+        const all = await res.json();
+        // Filter based on mode: users (core roles) vs officers (staff roles)
+        const filtered = isOfficerMode
+          ? all.filter((u: any) => !USER_ROLES.includes(u.role))
+          : all.filter((u: any) => USER_ROLES.includes(u.role));
+        setUsers(filtered);
+      }
     } catch {} finally { setLoading(false); setRefreshing(false); }
   };
 
+  const filterChips = isOfficerMode ? ['ALL'] : ['ALL', ...USER_ROLES];
   const filtered = selectedRole === 'ALL' ? users : users.filter(u => u.role === selectedRole);
 
   const getRoleIcon = (role: string): keyof typeof Ionicons.glyphMap => {
     switch (role) {
       case 'ADMIN': return 'shield-outline';
       case 'TEACHER': return 'school-outline';
-      case 'EMPLOYEE': return 'briefcase-outline';
-      default: return 'person-outline';
+      case 'STUDENT': return 'person-outline';
+      case 'PARENT': return 'people-outline';
+      default: return 'briefcase-outline';
     }
   };
 
@@ -39,8 +62,9 @@ export default function UsersScreen({ navigation }: any) {
     switch (role) {
       case 'ADMIN': return '#EF4444';
       case 'TEACHER': return '#3B82F6';
-      case 'EMPLOYEE': return '#F59E0B';
-      default: return COLORS.textSecondary;
+      case 'STUDENT': return '#10B981';
+      case 'PARENT': return '#8B5CF6';
+      default: return '#F59E0B';
     }
   };
 
@@ -56,19 +80,19 @@ export default function UsersScreen({ navigation }: any) {
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Manage Users</Text>
+        <Text style={styles.headerTitle}>{isOfficerMode ? 'Manage Officers' : 'Manage Users'}</Text>
         <Text style={styles.countBadge}>{filtered.length}</Text>
       </View>
 
       <View style={styles.filterRow}>
-        {['ALL', ...ROLES].map(role => (
+        {filterChips.map(role => (
           <TouchableOpacity
             key={role}
             style={[styles.filterChip, selectedRole === role && styles.filterChipActive]}
             onPress={() => setSelectedRole(role)}
           >
             <Text style={[styles.filterText, selectedRole === role && styles.filterTextActive]}>
-              {role === 'ALL' ? 'All' : role.charAt(0) + role.slice(1).toLowerCase()}
+              {role === 'ALL' ? 'All' : role.charAt(0) + role.slice(1).toLowerCase().replace(/_/g, ' ')}
             </Text>
           </TouchableOpacity>
         ))}

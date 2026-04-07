@@ -5,9 +5,11 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { fetchWithAuth } from '../api';
+import { useAuth } from '../AuthContext';
 import { COLORS } from '../theme';
 
 export default function ReportsScreen({ navigation }: any) {
+  const { user } = useAuth();
   const [classes, setClasses] = useState<any[]>([]);
   const [selectedClass, setSelectedClass] = useState<any>(null);
   const [dateStr, setDateStr] = useState(new Date().toISOString().split('T')[0]);
@@ -21,7 +23,9 @@ export default function ReportsScreen({ navigation }: any) {
 
   const loadClasses = async () => {
     try {
-      const res = await fetchWithAuth('/classes');
+      const teacherId = user?.role === 'TEACHER' ? user.id : undefined;
+      const url = teacherId ? `/classes?teacherId=${teacherId}` : '/classes';
+      const res = await fetchWithAuth(url);
       if (res.ok) setClasses(await res.json());
     } catch {} finally { setLoading(false); }
   };

@@ -31,11 +31,11 @@ interface QuickAction {
 
 const adminActions: QuickAction[] = [
   { label: 'Search', icon: 'search-outline', navigateTo: 'Search' },
-  { label: 'Manage\nUsers', icon: 'people-outline', navigateTo: 'Users' },
-  { label: 'Manage\nOfficer', icon: 'briefcase-outline', navigateTo: 'Users' },
+  { label: 'Manage\nUsers', icon: 'people-outline', navigateTo: 'Users', params: { userType: 'users' } },
+  { label: 'Manage\nOfficer', icon: 'briefcase-outline', navigateTo: 'Users', params: { userType: 'officers' } },
   { label: 'Manage\nClasses', icon: 'book-outline', navigateTo: 'Classes' },
-  { label: 'Take\nAttendance', icon: 'camera-outline', navigateTo: 'Scanner' },
-  { label: 'Officer\nAttendance', icon: 'scan-outline', navigateTo: 'Scanner' },
+  { label: 'Take\nAttendance', icon: 'camera-outline', navigateTo: 'Scanner', params: { scanMode: 'student' } },
+  { label: 'Officer\nAttendance', icon: 'scan-outline', navigateTo: 'Scanner', params: { scanMode: 'staff' } },
   { label: 'Edit\nAttendance', icon: 'create-outline', navigateTo: 'EditAttendance' },
   { label: 'Edit Officer\nAttendance', icon: 'document-text-outline', navigateTo: 'EditAttendance', params: { isStaff: true } },
   { label: 'Student\nReport', icon: 'bar-chart-outline', navigateTo: 'Reports' },
@@ -49,17 +49,22 @@ const adminActions: QuickAction[] = [
 
 const teacherActions: QuickAction[] = [
   { label: 'Search', icon: 'search-outline', navigateTo: 'Search' },
-  { label: 'Take\nAttendance', icon: 'camera-outline', navigateTo: 'Scanner' },
-  { label: 'Officer\nAttendance', icon: 'scan-outline', navigateTo: 'Scanner' },
   { label: 'My Classes', icon: 'book-outline', navigateTo: 'Classes' },
-  { label: 'Reports', icon: 'bar-chart-outline', navigateTo: 'Reports' },
-  { label: 'Staff\nReports', icon: 'analytics-outline', navigateTo: 'StaffReports' },
+  { label: 'Take\nAttendance', icon: 'camera-outline', navigateTo: 'Scanner', params: { scanMode: 'student' } },
+  { label: 'Student\nReport', icon: 'bar-chart-outline', navigateTo: 'Reports' },
+  { label: 'Settings', icon: 'settings-outline', navigateTo: 'Settings' },
 ];
 
 const employeeActions: QuickAction[] = [
-  { label: 'Scan\nAttendance', icon: 'camera-outline', navigateTo: 'Scanner' },
+  { label: 'Scan\nAttendance', icon: 'camera-outline', navigateTo: 'Scanner', params: { scanMode: 'self' } },
   { label: 'My Reports', icon: 'bar-chart-outline', navigateTo: 'MyReports' },
   { label: 'My ID Card', icon: 'card-outline' },
+  { label: 'Settings', icon: 'settings-outline', navigateTo: 'Settings' },
+];
+
+const studentActions: QuickAction[] = [
+  { label: 'My\nAttendance', icon: 'calendar-outline', navigateTo: 'MyReports' },
+  { label: 'Settings', icon: 'settings-outline', navigateTo: 'Settings' },
 ];
 
 interface SystemStatus {
@@ -123,8 +128,12 @@ export default function DashboardScreen({ navigation }: any) {
   const [refreshing, setRefreshing] = useState(false);
 
   const role = user?.role || 'TEACHER';
-  const quickActions = role === 'ADMIN' ? adminActions : role === 'TEACHER' ? teacherActions : employeeActions;
-  const tabs = role === 'ADMIN' ? adminTabs : simpleTabs;
+  const isAdmin = role === 'ADMIN';
+  const isTeacher = role === 'TEACHER';
+  const isStudent = role === 'STUDENT';
+  // All other roles (OFFICER, STAFF, SECURITY_GUARD, etc.) are treated as employees
+  const quickActions = isAdmin ? adminActions : isTeacher ? teacherActions : isStudent ? studentActions : employeeActions;
+  const tabs = isAdmin ? adminTabs : simpleTabs;
 
   useEffect(() => {
     fetchStatus();
@@ -156,7 +165,7 @@ export default function DashboardScreen({ navigation }: any) {
 
   const handleTabPress = (tab: TabName) => {
     if (tab === 'camera') {
-      navigation.navigate('Scanner');
+      navigation.navigate('Scanner', { scanMode: 'student' });
       return;
     }
     if (tab === 'search') {

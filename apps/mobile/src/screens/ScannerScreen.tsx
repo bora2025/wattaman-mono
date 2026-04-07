@@ -8,10 +8,12 @@ import {
   Animated,
   Dimensions,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
+import { Ionicons } from '@expo/vector-icons';
 import { fetchWithAuth } from '../api';
 import { useAuth } from '../AuthContext';
 import { COLORS } from '../theme';
@@ -19,42 +21,44 @@ import { COLORS } from '../theme';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const SCAN_AREA_SIZE = SCREEN_WIDTH * 0.7;
 
-interface StudentInfo {
+type ScanMode = 'student' | 'staff' | 'self';
+
+interface ScanResult {
   id: string;
   name: string;
   photo?: string;
   status: string;
+  role?: string;
+  action?: string;
 }
 
-export default function ScannerScreen({ navigation }: any) {
+export default function ScannerScreen({ navigation, route }: any) {
   const { user, signOut } = useAuth();
+  const scanMode: ScanMode = route?.params?.scanMode || 'student';
   const [permission, requestPermission] = useCameraPermissions();
+  // Student mode state
   const [classes, setClasses] = useState<any[]>([]);
   const [selectedClass, setSelectedClass] = useState<any>(null);
   const [students, setStudents] = useState<any[]>([]);
   const [mode, setMode] = useState<'check-in' | 'check-out'>('check-in');
   const [session, setSession] = useState(1);
-  const [scannedStudents, setScannedStudents] = useState<Map<string, StudentInfo>>(new Map());
-  const [lastScanned, setLastScanned] = useState<StudentInfo | null>(null);
+  const [scannedStudents, setScannedStudents] = useState<Map<string, ScanResult>>(new Map());
+  // Shared state
+  const [lastScanned, setLastScanned] = useState<ScanResult | null>(null);
   const [showPopup, setShowPopup] = useState(false);
   const [scanning, setScanning] = useState(true);
+  const [selfScanLoading, setSelfScanLoading] = useState(false);
   const popupAnim = useRef(new Animated.Value(0)).current;
   const scanLineAnim = useRef(new Animated.Value(0)).current;
   const processingRef = useRef(false);
   const successSoundRef = useRef<Audio.Sound | null>(null);
-  const errorSoundRef = useRef<Audio.Sound | null>(null);
 
-  // Load classes on mount
   useEffect(() => {
-    loadClasses();
+    if (scanMode === 'student') loadClasses();
     loadSounds();
-    return () => {
-      successSoundRef.current?.unloadAsync();
-      errorSoundRef.current?.unloadAsync();
-    };
+    return () => { successSoundRef.current?.unloadAsync(); };
   }, []);
 
-  // Animate scan line
   useEffect(() => {
     const anim = Animated.loop(
       Animated.sequence([
@@ -74,10 +78,9 @@ export default function ScannerScreen({ navigation }: any) {
       );
       successSoundRef.current = success;
     } catch {}
-    // We'll use haptics as primary feedback instead of relying on remote audio
   };
 
-  const playSuccessSound = async () => {
+  const playSuccess = async () => {
     try {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (successSoundRef.current) {
@@ -87,21 +90,17 @@ export default function ScannerScreen({ navigation }: any) {
     } catch {}
   };
 
-  const playErrorSound = async () => {
-    try {
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    } catch {}
+  const playError = async () => {
+    try { await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error); } catch {}
   };
 
+  // ─── Student mode helpers ───
   const loadClasses = async () => {
     try {
       const teacherId = user.role === 'TEACHER' ? user.id : undefined;
       const url = teacherId ? `/classes?teacherId=${teacherId}` : '/classes';
       const res = await fetchWithAuth(url);
-      if (res.ok) {
-        const data = await res.json();
-        setClasses(data);
-      }
+      if (res.ok) setClasses(await res.json());
     } catch (err) {
       console.error('Failed to load classes', err);
     }
@@ -112,152 +111,187 @@ export default function ScannerScreen({ navigation }: any) {
     setScannedStudents(new Map());
     try {
       const res = await fetchWithAuth(`/classes/${cls.id}/students`);
-      if (res.ok) {
-        const data = await res.json();
-        setStudents(data);
-      }
+      if (res.ok) setStudents(await res.json());
     } catch (err) {
       console.error('Failed to load students', err);
     }
   };
 
-  const showStudentPopup = (student: StudentInfo) => {
-    setLastScanned(student);
+  const showResultPopup = (result: ScanResult, autoGoBack = false) => {
+    setLastScanned(result);
     setShowPopup(true);
     popupAnim.setValue(0);
     Animated.sequence([
       Animated.spring(popupAnim, { toValue: 1, useNativeDriver: true, tension: 80, friction: 8 }),
-      Animated.delay(2000),
+      Animated.delay(autoGoBack ? 3000 : 2000),
       Animated.timing(popupAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
     ]).start(() => {
       setShowPopup(false);
       processingRef.current = false;
+      if (autoGoBack) navigation.goBack();
     });
   };
 
-  const handleBarCodeScanned = useCallback(
+  // ─── Employee self-scan (no QR needed) ───
+  const handleSelfScan = async () => {
+    if (selfScanLoading) return;
+    setSelfScanLoading(true);
+    try {
+      const res = await fetchWithAuth('/attendance/employee/self-scan', {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        await playSuccess();
+        showResultPopup({
+          id: user.id,
+          name: data.userName || user.name || 'You',
+          status: data.action === 'CHECK_OUT' ? 'checked-out' : 'present',
+          action: data.action,
+          role: data.userRole,
+        }, true);
+      } else {
+        await playError();
+        Alert.alert('Error', data.message || 'Self-scan failed');
+      }
+    } catch {
+      await playError();
+      Alert.alert('Error', 'Network error');
+    } finally {
+      setSelfScanLoading(false);
+    }
+  };
+
+  // ─── Staff mode QR handler ───
+  const handleStaffScan = useCallback(async ({ data }: { data: string }) => {
+    if (processingRef.current) return;
+    processingRef.current = true;
+
+    let staffId: string | null = null;
+    try {
+      const parsed = JSON.parse(data);
+      if (parsed.staffId) staffId = parsed.staffId;
+      else if (parsed.userId) staffId = parsed.userId;
+    } catch {}
+
+    if (!staffId) {
+      await playError();
+      showResultPopup({ id: '', name: 'Not a staff QR code', status: 'error' });
+      return;
+    }
+
+    try {
+      const res = await fetchWithAuth('/attendance/staff/auto-scan', {
+        method: 'POST',
+        body: JSON.stringify({ userId: staffId }),
+      });
+      const result = await res.json();
+      if (res.ok) {
+        await playSuccess();
+        showResultPopup({
+          id: staffId,
+          name: result.userName || 'Staff Member',
+          status: result.action === 'CHECK_OUT' ? 'checked-out' : 'present',
+          action: result.action,
+          role: result.userRole,
+        });
+      } else {
+        await playError();
+        showResultPopup({ id: staffId, name: result.message || 'Error', status: 'error' });
+      }
+    } catch {
+      await playError();
+      showResultPopup({ id: staffId, name: 'Network Error', status: 'error' });
+    }
+  }, []);
+
+  // ─── Student mode QR handler ───
+  const handleStudentScan = useCallback(
     async ({ data }: { data: string }) => {
       if (processingRef.current || !selectedClass) return;
       processingRef.current = true;
 
-      // Parse QR data
       let studentId = data;
-      let staffId: string | null = null;
       try {
         const parsed = JSON.parse(data);
         if (parsed.studentId) studentId = parsed.studentId;
-        if (parsed.staffId) staffId = parsed.staffId;
       } catch {}
 
-      // Handle staff QR code
-      if (staffId) {
-        const endpoint = mode === 'check-out' ? '/attendance/staff/check-out' : '/attendance/staff/record';
-        const body = mode === 'check-out'
-          ? { userId: staffId, session }
-          : { userId: staffId, status: 'PRESENT', session, checkInTime: new Date().toISOString() };
-        try {
-          const res = await fetchWithAuth(endpoint, { method: 'POST', body: JSON.stringify(body) });
-          if (res.ok) {
-            await playSuccessSound();
-            showStudentPopup({ id: staffId, name: 'Staff Member', status: mode === 'check-out' ? 'checked-out' : 'present' });
-          } else {
-            await playErrorSound();
-            const err = await res.json().catch(() => ({}));
-            showStudentPopup({ id: staffId, name: err.message || 'Staff Error', status: 'error' });
-          }
-        } catch {
-          await playErrorSound();
-          showStudentPopup({ id: staffId, name: 'Staff Error', status: 'error' });
-        }
-        return;
-      }
-
-      // Find student in class
       const student = students.find(
         (s: any) => s.id === studentId || s.userId === studentId || s.qrCode === studentId || s.qrCode === data
       );
 
       if (!student) {
-        await playErrorSound();
-        showStudentPopup({ id: '', name: 'Unknown Student', status: 'error' });
+        await playError();
+        showResultPopup({ id: '', name: 'Unknown Student', status: 'error' });
         return;
       }
 
-      // Check if already scanned
       if (scannedStudents.has(student.id)) {
-        await playErrorSound();
-        showStudentPopup({ id: student.id, name: student.name, status: 'duplicate' });
+        await playError();
+        showResultPopup({ id: student.id, name: student.name, status: 'duplicate' });
         return;
       }
 
       if (mode === 'check-out') {
-        // Immediate check-out API call
         try {
           const res = await fetchWithAuth('/attendance/check-out', {
             method: 'POST',
-            body: JSON.stringify({
-              studentId: student.id,
-              classId: selectedClass.id,
-              session,
-            }),
+            body: JSON.stringify({ studentId: student.id, classId: selectedClass.id, session }),
           });
           if (res.ok) {
-            await playSuccessSound();
+            await playSuccess();
             const updated = new Map(scannedStudents);
             updated.set(student.id, { id: student.id, name: student.name, status: 'checked-out' });
             setScannedStudents(updated);
-            showStudentPopup({ id: student.id, name: student.name, photo: student.photo, status: 'checked-out' });
+            showResultPopup({ id: student.id, name: student.name, photo: student.photo, status: 'checked-out' });
           } else {
-            await playErrorSound();
-            showStudentPopup({ id: student.id, name: student.name, status: 'error' });
+            await playError();
+            showResultPopup({ id: student.id, name: student.name, status: 'error' });
           }
         } catch {
-          await playErrorSound();
-          showStudentPopup({ id: student.id, name: student.name, status: 'error' });
+          await playError();
+          showResultPopup({ id: student.id, name: student.name, status: 'error' });
         }
       } else {
-        // Check-in: record immediately
         try {
           const now = new Date().toISOString();
           const res = await fetchWithAuth('/attendance/record', {
             method: 'POST',
             body: JSON.stringify({
-              studentId: student.id,
-              classId: selectedClass.id,
-              status: 'PRESENT',
-              session,
-              checkInTime: now,
+              studentId: student.id, classId: selectedClass.id,
+              status: 'PRESENT', session, checkInTime: now,
             }),
           });
           if (res.ok) {
-            await playSuccessSound();
+            await playSuccess();
             const updated = new Map(scannedStudents);
             updated.set(student.id, { id: student.id, name: student.name, status: 'present' });
             setScannedStudents(updated);
-            showStudentPopup({ id: student.id, name: student.name, photo: student.photo, status: 'present' });
+            showResultPopup({ id: student.id, name: student.name, photo: student.photo, status: 'present' });
           } else {
-            await playErrorSound();
-            showStudentPopup({ id: student.id, name: student.name, status: 'error' });
+            await playError();
+            showResultPopup({ id: student.id, name: student.name, status: 'error' });
           }
         } catch {
-          await playErrorSound();
-          showStudentPopup({ id: student.id, name: student.name, status: 'error' });
+          await playError();
+          showResultPopup({ id: student.id, name: student.name, status: 'error' });
         }
       }
     },
     [selectedClass, students, mode, session, scannedStudents]
   );
 
-  const handleLogout = async () => {
-    await signOut();
-  };
+  // Choose handler based on mode
+  const handleBarCodeScanned = scanMode === 'staff' ? handleStaffScan : handleStudentScan;
 
-  // Permission not granted yet
+  // ─── Permission screens ───
   if (!permission) {
     return <View style={styles.container}><Text style={styles.loadingText}>Loading...</Text></View>;
   }
 
-  if (!permission.granted) {
+  if (!permission.granted && scanMode !== 'self') {
     return (
       <View style={styles.container}>
         <Text style={styles.permTitle}>Camera Permission</Text>
@@ -269,6 +303,151 @@ export default function ScannerScreen({ navigation }: any) {
     );
   }
 
+  // ─── SELF-SCAN MODE (Employee) ───
+  if (scanMode === 'self') {
+    return (
+      <View style={styles.selfContainer}>
+        <View style={styles.selfHeader}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+          </TouchableOpacity>
+          <Text style={styles.selfHeaderTitle}>My Attendance</Text>
+          <View style={{ width: 24 }} />
+        </View>
+
+        <View style={styles.selfContent}>
+          <View style={styles.selfCard}>
+            <View style={styles.selfAvatar}>
+              <Ionicons name="person" size={48} color={COLORS.primary} />
+            </View>
+            <Text style={styles.selfName}>{user?.name || 'User'}</Text>
+            <Text style={styles.selfRole}>{user?.role || 'Employee'}</Text>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.quickScanButton, selfScanLoading && styles.quickScanButtonDisabled]}
+            onPress={handleSelfScan}
+            activeOpacity={0.7}
+            disabled={selfScanLoading}
+          >
+            {selfScanLoading ? (
+              <ActivityIndicator size="small" color={COLORS.white} />
+            ) : (
+              <Ionicons name="finger-print-outline" size={32} color={COLORS.white} />
+            )}
+            <Text style={styles.quickScanText}>
+              {selfScanLoading ? 'Processing...' : 'Quick Scan'}
+            </Text>
+            <Text style={styles.quickScanHint}>Tap to check in / check out</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Self-scan popup */}
+        {showPopup && lastScanned && (
+          <Animated.View
+            style={[
+              styles.popup,
+              { opacity: popupAnim, transform: [{ scale: popupAnim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }) }] },
+              lastScanned.status === 'error' ? styles.popupError : styles.popupSuccess,
+            ]}
+          >
+            <View style={[styles.popupIcon, lastScanned.status === 'error' ? styles.popupIconError : styles.popupIconSuccess]}>
+              <Text style={styles.popupIconText}>{lastScanned.status === 'error' ? '✗' : '✓'}</Text>
+            </View>
+            <Text style={styles.popupName}>{lastScanned.name}</Text>
+            <Text style={styles.popupStatus}>
+              {lastScanned.action === 'CHECK_IN' && '✅ Checked In'}
+              {lastScanned.action === 'CHECK_OUT' && '👋 Checked Out'}
+              {lastScanned.status === 'error' && '❌ Error'}
+            </Text>
+            {lastScanned.role && <Text style={styles.popupRole}>{lastScanned.role}</Text>}
+          </Animated.View>
+        )}
+      </View>
+    );
+  }
+
+  // ─── STAFF SCAN MODE (Admin/Teacher scanning officers) ───
+  if (scanMode === 'staff') {
+    if (!permission.granted) {
+      return (
+        <View style={styles.container}>
+          <Text style={styles.permTitle}>Camera Permission</Text>
+          <Text style={styles.permText}>We need camera access to scan officer QR codes.</Text>
+          <TouchableOpacity style={styles.permButton} onPress={requestPermission}>
+            <Text style={styles.permButtonText}>Grant Permission</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    const scanLineTranslate = scanLineAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, SCAN_AREA_SIZE - 4],
+    });
+
+    return (
+      <View style={styles.scannerContainer}>
+        <CameraView
+          style={StyleSheet.absoluteFillObject}
+          facing="back"
+          barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+          onBarcodeScanned={scanning ? handleBarCodeScanned : undefined}
+        />
+        <View style={styles.overlay}>
+          <View style={styles.topBar}>
+            <TouchableOpacity onPress={() => navigation.goBack()}>
+              <Text style={styles.backText}>← Back</Text>
+            </TouchableOpacity>
+            <Text style={styles.topBarTitle}>Officer Attendance</Text>
+            <View style={{ width: 50 }} />
+          </View>
+
+          <View style={styles.staffBanner}>
+            <Ionicons name="briefcase" size={18} color={COLORS.white} />
+            <Text style={styles.staffBannerText}>Scan officer/staff QR code</Text>
+          </View>
+
+          <View style={styles.scanAreaWrapper}>
+            <View style={styles.scanArea}>
+              <View style={[styles.corner, styles.cornerTL]} />
+              <View style={[styles.corner, styles.cornerTR]} />
+              <View style={[styles.corner, styles.cornerBL]} />
+              <View style={[styles.corner, styles.cornerBR]} />
+              <Animated.View style={[styles.scanLine, { transform: [{ translateY: scanLineTranslate }] }]} />
+            </View>
+            <Text style={styles.scanHint}>Point camera at officer QR code</Text>
+          </View>
+        </View>
+
+        {/* Staff popup */}
+        {showPopup && lastScanned && (
+          <Animated.View
+            style={[
+              styles.popup,
+              { opacity: popupAnim, transform: [{ scale: popupAnim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }) }] },
+              lastScanned.status === 'error' ? styles.popupError : styles.popupSuccess,
+            ]}
+          >
+            <View style={[styles.popupIcon, lastScanned.status === 'error' ? styles.popupIconError : styles.popupIconSuccess]}>
+              <Text style={styles.popupIconText}>{lastScanned.status === 'error' ? '✗' : '✓'}</Text>
+            </View>
+            <Text style={styles.popupName}>{lastScanned.name}</Text>
+            <Text style={styles.popupStatus}>
+              {lastScanned.action === 'CHECK_IN' && '✅ Checked In'}
+              {lastScanned.action === 'CHECK_OUT' && '👋 Checked Out'}
+              {lastScanned.status === 'error' && '❌ ' + lastScanned.name}
+            </Text>
+            {lastScanned.role && lastScanned.status !== 'error' && (
+              <Text style={styles.popupRole}>{lastScanned.role}</Text>
+            )}
+          </Animated.View>
+        )}
+      </View>
+    );
+  }
+
+  // ─── STUDENT SCAN MODE (class-based) ───
   // Class selection screen
   if (!selectedClass) {
     return (
@@ -278,9 +457,7 @@ export default function ScannerScreen({ navigation }: any) {
             <Text style={styles.backNavText}>← Back</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Select Class</Text>
-          <TouchableOpacity onPress={handleLogout}>
-            <Text style={styles.logoutText}>Logout</Text>
-          </TouchableOpacity>
+          <View style={{ width: 50 }} />
         </View>
         <Text style={styles.welcomeText}>Welcome, {user?.name || user?.email}</Text>
 
@@ -305,7 +482,7 @@ export default function ScannerScreen({ navigation }: any) {
     );
   }
 
-  // Scanner screen
+  // Student scanner screen
   const scanLineTranslate = scanLineAnim.interpolate({
     inputRange: [0, 1],
     outputRange: [0, SCAN_AREA_SIZE - 4],
@@ -320,9 +497,7 @@ export default function ScannerScreen({ navigation }: any) {
         onBarcodeScanned={scanning ? handleBarCodeScanned : undefined}
       />
 
-      {/* Overlay */}
       <View style={styles.overlay}>
-        {/* Top bar */}
         <View style={styles.topBar}>
           <TouchableOpacity onPress={() => { setSelectedClass(null); setScannedStudents(new Map()); }}>
             <Text style={styles.backText}>← Back</Text>
@@ -331,7 +506,6 @@ export default function ScannerScreen({ navigation }: any) {
           <Text style={styles.scanCount}>{scannedStudents.size}/{students.length}</Text>
         </View>
 
-        {/* Mode & Session controls */}
         <View style={styles.controlsRow}>
           <View style={styles.modeToggle}>
             <TouchableOpacity
@@ -360,26 +534,17 @@ export default function ScannerScreen({ navigation }: any) {
           </View>
         </View>
 
-        {/* Scan area */}
         <View style={styles.scanAreaWrapper}>
           <View style={styles.scanArea}>
-            {/* Corner markers */}
             <View style={[styles.corner, styles.cornerTL]} />
             <View style={[styles.corner, styles.cornerTR]} />
             <View style={[styles.corner, styles.cornerBL]} />
             <View style={[styles.corner, styles.cornerBR]} />
-            {/* Scan line */}
-            <Animated.View
-              style={[
-                styles.scanLine,
-                { transform: [{ translateY: scanLineTranslate }] },
-              ]}
-            />
+            <Animated.View style={[styles.scanLine, { transform: [{ translateY: scanLineTranslate }] }]} />
           </View>
           <Text style={styles.scanHint}>Point camera at student QR code</Text>
         </View>
 
-        {/* Recent scans */}
         {scannedStudents.size > 0 && (
           <View style={styles.recentScans}>
             <Text style={styles.recentTitle}>Recent Scans</Text>
@@ -397,36 +562,16 @@ export default function ScannerScreen({ navigation }: any) {
         )}
       </View>
 
-      {/* Student popup */}
       {showPopup && lastScanned && (
         <Animated.View
           style={[
             styles.popup,
-            {
-              opacity: popupAnim,
-              transform: [
-                {
-                  scale: popupAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [0.5, 1],
-                  }),
-                },
-              ],
-            },
-            lastScanned.status === 'error' || lastScanned.status === 'duplicate'
-              ? styles.popupError
-              : styles.popupSuccess,
+            { opacity: popupAnim, transform: [{ scale: popupAnim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }) }] },
+            lastScanned.status === 'error' || lastScanned.status === 'duplicate' ? styles.popupError : styles.popupSuccess,
           ]}
         >
-          <View style={[
-            styles.popupIcon,
-            lastScanned.status === 'error' || lastScanned.status === 'duplicate'
-              ? styles.popupIconError
-              : styles.popupIconSuccess,
-          ]}>
-            <Text style={styles.popupIconText}>
-              {lastScanned.status === 'error' || lastScanned.status === 'duplicate' ? '✗' : '✓'}
-            </Text>
+          <View style={[styles.popupIcon, lastScanned.status === 'error' || lastScanned.status === 'duplicate' ? styles.popupIconError : styles.popupIconSuccess]}>
+            <Text style={styles.popupIconText}>{lastScanned.status === 'error' || lastScanned.status === 'duplicate' ? '✗' : '✓'}</Text>
           </View>
           <Text style={styles.popupName}>{lastScanned.name}</Text>
           <Text style={styles.popupStatus}>
@@ -759,5 +904,107 @@ const styles = StyleSheet.create({
   popupStatus: {
     color: 'rgba(255,255,255,0.9)',
     fontSize: 16,
+  },
+  popupRole: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 13,
+    marginTop: 4,
+  },
+  // Staff mode banner
+  staffBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingVertical: 8,
+    gap: 8,
+  },
+  staffBannerText: {
+    color: COLORS.white,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  // Self-scan mode
+  selfContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+  },
+  selfHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+  },
+  selfHeaderTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  selfContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 30,
+  },
+  selfCard: {
+    backgroundColor: COLORS.white,
+    borderRadius: 20,
+    padding: 30,
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 30,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  selfAvatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: COLORS.primaryLight,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  selfName: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  selfRole: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    marginTop: 4,
+  },
+  quickScanButton: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 24,
+    paddingVertical: 24,
+    paddingHorizontal: 40,
+    alignItems: 'center',
+    width: '100%',
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 8,
+  },
+  quickScanButtonDisabled: {
+    opacity: 0.7,
+  },
+  quickScanText: {
+    color: COLORS.white,
+    fontSize: 20,
+    fontWeight: '700',
+    marginTop: 8,
+  },
+  quickScanHint: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 13,
+    marginTop: 4,
   },
 });
