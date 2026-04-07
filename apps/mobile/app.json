@@ -18,7 +18,12 @@
       }
     },
     "android": {
-      "permissions": ["CAMERA"],
+      "package": "com.wattaman.app",
+      "permissions": [
+        "CAMERA",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#EEFFF7",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -37,8 +42,13 @@
           "cameraPermission": "Wattaman needs camera access to scan QR codes for attendance."
         }
       ],
-      "expo-barcode-scanner",
-      "expo-secure-store"
-    ]
+      "expo-secure-store",
+      "expo-font"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "f6bf2081-bd1f-40af-98ae-54cd8eef338f"
+      }
+    }
   }
 }
