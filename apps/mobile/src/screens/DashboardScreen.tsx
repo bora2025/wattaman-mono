@@ -51,7 +51,9 @@ const teacherActions: QuickAction[] = [
   { label: 'Search', icon: 'search-outline', navigateTo: 'Search' },
   { label: 'My Classes', icon: 'book-outline', navigateTo: 'Classes' },
   { label: 'Take\nAttendance', icon: 'camera-outline', navigateTo: 'Scanner', params: { scanMode: 'student' } },
+  { label: 'Scan\nAttendance', icon: 'scan-outline', navigateTo: 'Scanner', params: { scanMode: 'self' } },
   { label: 'Student\nReport', icon: 'bar-chart-outline', navigateTo: 'Reports' },
+  { label: 'My Reports', icon: 'analytics-outline', navigateTo: 'MyReports' },
   { label: 'Settings', icon: 'settings-outline', navigateTo: 'Settings' },
 ];
 

@@ -8,9 +8,9 @@ import {
   Animated,
   Dimensions,
   Platform,
-  ActivityIndicator,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import * as Location from 'expo-location';
 import * as Haptics from 'expo-haptics';
 import { Audio } from 'expo-av';
 import { Ionicons } from '@expo/vector-icons';
@@ -47,7 +47,6 @@ export default function ScannerScreen({ navigation, route }: any) {
   const [lastScanned, setLastScanned] = useState<ScanResult | null>(null);
   const [showPopup, setShowPopup] = useState(false);
   const [scanning, setScanning] = useState(true);
-  const [selfScanLoading, setSelfScanLoading] = useState(false);
   const popupAnim = useRef(new Animated.Value(0)).current;
   const scanLineAnim = useRef(new Animated.Value(0)).current;
   const processingRef = useRef(false);
@@ -132,36 +131,74 @@ export default function ScannerScreen({ navigation, route }: any) {
     });
   };
 
-  // ─── Employee self-scan (no QR needed) ───
-  const handleSelfScan = async () => {
-    if (selfScanLoading) return;
-    setSelfScanLoading(true);
+  // ─── Employee self-scan (QR triggers attendance with GPS) ───
+  const locationRef = useRef<{ latitude: number; longitude: number; locationName?: string } | null>(null);
+
+  useEffect(() => {
+    if (scanMode === 'self') {
+      (async () => {
+        try {
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (status === 'granted') {
+            const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+            locationRef.current = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+            try {
+              const [addr] = await Location.reverseGeocodeAsync({
+                latitude: loc.coords.latitude, longitude: loc.coords.longitude,
+              });
+              if (addr) {
+                const parts = [addr.street, addr.city, addr.district].filter(Boolean);
+                if (parts.length) locationRef.current = { ...locationRef.current!, locationName: parts.join(', ') };
+              }
+            } catch {}
+          }
+        } catch {}
+      })();
+    }
+  }, [scanMode]);
+
+  const handleSelfScan = useCallback(async ({ data }: { data: string }) => {
+    if (processingRef.current) return;
+    processingRef.current = true;
+
+    // Update GPS before submitting
+    try {
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+      locationRef.current = { latitude: loc.coords.latitude, longitude: loc.coords.longitude, locationName: locationRef.current?.locationName };
+    } catch {}
+
+    const loc = locationRef.current;
     try {
       const res = await fetchWithAuth('/attendance/employee/self-scan', {
         method: 'POST',
-        body: JSON.stringify({}),
+        body: JSON.stringify({
+          qrData: data,
+          ...(loc ? {
+            latitude: loc.latitude,
+            longitude: loc.longitude,
+            location: loc.locationName || `${loc.latitude.toFixed(6)}, ${loc.longitude.toFixed(6)}`,
+          } : {}),
+        }),
       });
-      const data = await res.json();
+      const result = await res.json();
       if (res.ok) {
         await playSuccess();
         showResultPopup({
           id: user.id,
-          name: data.userName || user.name || 'You',
-          status: data.action === 'CHECK_OUT' ? 'checked-out' : 'present',
-          action: data.action,
-          role: data.userRole,
+          name: result.userName || user.name || 'You',
+          status: result.action === 'CHECK_OUT' ? 'checked-out' : 'present',
+          action: result.action,
+          role: result.userRole,
         }, true);
       } else {
         await playError();
-        Alert.alert('Error', data.message || 'Self-scan failed');
+        showResultPopup({ id: '', name: result.message || 'Scan failed', status: 'error' });
       }
     } catch {
       await playError();
-      Alert.alert('Error', 'Network error');
-    } finally {
-      setSelfScanLoading(false);
+      showResultPopup({ id: '', name: 'Network error', status: 'error' });
     }
-  };
+  }, [user]);
 
   // ─── Student mode QR handler ───
   const handleStudentScan = useCallback(
@@ -248,7 +285,7 @@ export default function ScannerScreen({ navigation, route }: any) {
     return <View style={styles.container}><Text style={styles.loadingText}>Loading...</Text></View>;
   }
 
-  if (!permission.granted && scanMode !== 'self') {
+  if (!permission.granted) {
     return (
       <View style={styles.container}>
         <Text style={styles.permTitle}>Camera Permission</Text>
@@ -260,46 +297,71 @@ export default function ScannerScreen({ navigation, route }: any) {
     );
   }
 
-  // ─── SELF-SCAN MODE (Employee) ───
+  // ─── SELF-SCAN MODE (Officer/Teacher/Employee — camera QR scan) ───
   if (scanMode === 'self') {
-    return (
-      <View style={styles.selfContainer}>
-        <View style={styles.selfHeader}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="arrow-back" size={24} color={COLORS.text} />
-          </TouchableOpacity>
-          <Text style={styles.selfHeaderTitle}>My Attendance</Text>
-          <View style={{ width: 24 }} />
-        </View>
+    const scanLineTranslate = scanLineAnim.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, SCAN_AREA_SIZE - 4],
+    });
 
-        <View style={styles.selfContent}>
-          <View style={styles.selfCard}>
-            <View style={styles.selfAvatar}>
-              <Ionicons name="person" size={48} color={COLORS.primary} />
-            </View>
-            <Text style={styles.selfName}>{user?.name || 'User'}</Text>
-            <Text style={styles.selfRole}>{user?.role || 'Employee'}</Text>
+    return (
+      <View style={styles.scannerContainer}>
+        <CameraView
+          style={StyleSheet.absoluteFillObject}
+          facing="back"
+          barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+          onBarcodeScanned={scanning ? handleSelfScan : undefined}
+        />
+
+        <View style={styles.overlay}>
+          {/* Top bar */}
+          <View style={styles.topBar}>
+            <TouchableOpacity onPress={() => navigation.goBack()}>
+              <Text style={styles.backText}>← Back</Text>
+            </TouchableOpacity>
+            <Text style={styles.topBarTitle}>My Attendance</Text>
+            <View style={{ width: 50 }} />
           </View>
 
-          <TouchableOpacity
-            style={[styles.quickScanButton, selfScanLoading && styles.quickScanButtonDisabled]}
-            onPress={handleSelfScan}
-            activeOpacity={0.7}
-            disabled={selfScanLoading}
-          >
-            {selfScanLoading ? (
-              <ActivityIndicator size="small" color={COLORS.white} />
-            ) : (
-              <Ionicons name="finger-print-outline" size={32} color={COLORS.white} />
+          {/* User info banner */}
+          <View style={styles.selfBanner}>
+            <View style={styles.selfBannerAvatar}>
+              <Ionicons name="person" size={20} color={COLORS.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.selfBannerName}>{user?.name || 'User'}</Text>
+              <Text style={styles.selfBannerRole}>{user?.role || 'Employee'}</Text>
+            </View>
+            {locationRef.current && (
+              <View style={styles.selfGpsBadge}>
+                <Ionicons name="location" size={12} color={COLORS.success} />
+                <Text style={styles.selfGpsText}>GPS</Text>
+              </View>
             )}
-            <Text style={styles.quickScanText}>
-              {selfScanLoading ? 'Processing...' : 'Quick Scan'}
-            </Text>
-            <Text style={styles.quickScanHint}>Tap to check in / check out</Text>
-          </TouchableOpacity>
+          </View>
+
+          {/* Scan area */}
+          <View style={styles.scanAreaWrapper}>
+            <View style={styles.scanArea}>
+              <View style={[styles.corner, styles.cornerTL]} />
+              <View style={[styles.corner, styles.cornerTR]} />
+              <View style={[styles.corner, styles.cornerBL]} />
+              <View style={[styles.corner, styles.cornerBR]} />
+              <Animated.View style={[styles.scanLine, { transform: [{ translateY: scanLineTranslate }] }]} />
+            </View>
+            <Text style={styles.scanHint}>Scan any QR code to check in / check out</Text>
+          </View>
+
+          {/* Bottom indicator */}
+          <View style={styles.selfBottomBar}>
+            <View style={styles.selfScanIndicator}>
+              <View style={styles.pulseDot} />
+              <Text style={styles.selfScanStatusText}>Scanning...</Text>
+            </View>
+          </View>
         </View>
 
-        {/* Self-scan popup */}
+        {/* Result popup */}
         {showPopup && lastScanned && (
           <Animated.View
             style={[
@@ -317,7 +379,9 @@ export default function ScannerScreen({ navigation, route }: any) {
               {lastScanned.action === 'CHECK_OUT' && '👋 Checked Out'}
               {lastScanned.status === 'error' && '❌ Error'}
             </Text>
-            {lastScanned.role && <Text style={styles.popupRole}>{lastScanned.role}</Text>}
+            {lastScanned.role && lastScanned.status !== 'error' && (
+              <Text style={styles.popupRole}>{lastScanned.role}</Text>
+            )}
           </Animated.View>
         )}
       </View>
@@ -787,87 +851,69 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 4,
   },
-  // Self-scan mode
-  selfContainer: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
-  },
-  selfHeader: {
+  // Self-scan camera mode
+  selfBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 16,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    gap: 10,
   },
-  selfHeaderTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  selfContent: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 30,
-  },
-  selfCard: {
-    backgroundColor: COLORS.white,
-    borderRadius: 20,
-    padding: 30,
-    alignItems: 'center',
-    width: '100%',
-    marginBottom: 30,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  selfAvatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: COLORS.primaryLight,
+  selfBannerAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
   },
-  selfName: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  selfRole: {
+  selfBannerName: {
+    color: '#fff',
     fontSize: 14,
-    color: COLORS.textSecondary,
-    marginTop: 4,
-  },
-  quickScanButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 24,
-    paddingVertical: 24,
-    paddingHorizontal: 40,
-    alignItems: 'center',
-    width: '100%',
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 14,
-    elevation: 8,
-  },
-  quickScanButtonDisabled: {
-    opacity: 0.7,
-  },
-  quickScanText: {
-    color: COLORS.white,
-    fontSize: 20,
     fontWeight: '700',
-    marginTop: 8,
   },
-  quickScanHint: {
-    color: 'rgba(255,255,255,0.7)',
+  selfBannerRole: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 11,
+  },
+  selfGpsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(34,197,94,0.2)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 10,
+    gap: 4,
+  },
+  selfGpsText: {
+    color: '#6EE7B7',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  selfBottomBar: {
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 14,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    alignItems: 'center',
+  },
+  selfScanIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  pulseDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: COLORS.primary,
+  },
+  selfScanStatusText: {
+    color: 'rgba(255,255,255,0.8)',
     fontSize: 13,
-    marginTop: 4,
+    fontWeight: '500',
   },
 });
