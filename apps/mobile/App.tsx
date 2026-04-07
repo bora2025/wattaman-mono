@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
@@ -66,87 +67,43 @@ export default function App() {
   }
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <AuthContext.Provider value={authContext}>
       <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
+        <Stack.Navigator screenOptions={{
+          headerShown: false,
+          animation: 'slide_from_right',
+          gestureEnabled: true,
+          gestureDirection: 'horizontal',
+          fullScreenGestureEnabled: true,
+        }}>
           {user ? (
             <>
-              <Stack.Screen name="Dashboard" component={DashboardScreen} />
-              <Stack.Screen
-                name="Scanner"
-                component={ScannerScreen}
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen
-                name="Search"
-                component={SearchScreen}
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen
-                name="Users"
-                component={UsersScreen}
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen
-                name="Classes"
-                component={ClassesScreen}
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen
-                name="Reports"
-                component={ReportsScreen}
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen
-                name="StaffReports"
-                component={StaffReportsScreen}
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen
-                name="EditAttendance"
-                component={EditAttendanceScreen}
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen
-                name="Holidays"
-                component={HolidaysScreen}
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen
-                name="SessionSettings"
-                component={SessionSettingsScreen}
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen
-                name="Settings"
-                component={SettingsScreen}
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen
-                name="MyReports"
-                component={MyReportsScreen}
-                options={{ animation: 'slide_from_right' }}
-              />
+              <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ animation: 'fade' }} />
+              <Stack.Screen name="Scanner" component={ScannerScreen} />
+              <Stack.Screen name="Search" component={SearchScreen} />
+              <Stack.Screen name="Users" component={UsersScreen} />
+              <Stack.Screen name="Classes" component={ClassesScreen} />
+              <Stack.Screen name="Reports" component={ReportsScreen} />
+              <Stack.Screen name="StaffReports" component={StaffReportsScreen} />
+              <Stack.Screen name="EditAttendance" component={EditAttendanceScreen} />
+              <Stack.Screen name="Holidays" component={HolidaysScreen} />
+              <Stack.Screen name="SessionSettings" component={SessionSettingsScreen} />
+              <Stack.Screen name="Settings" component={SettingsScreen} />
+              <Stack.Screen name="MyReports" component={MyReportsScreen} />
             </>
           ) : (
             <>
-              <Stack.Screen name="Welcome" component={WelcomeScreen} />
-              <Stack.Screen
-                name="Login"
-                component={LoginScreen}
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen
-                name="ForgotPassword"
-                component={ForgotPasswordScreen}
-                options={{ animation: 'slide_from_right' }}
-              />
+              <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ animation: 'fade' }} />
+              <Stack.Screen name="Login" component={LoginScreen} />
+              <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
             </>
           )}
         </Stack.Navigator>
       </NavigationContainer>
       <StatusBar style="dark" />
     </AuthContext.Provider>
+    </GestureHandlerRootView>
   );
 }
 
