@@ -21,7 +21,7 @@ import { COLORS } from '../theme';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const SCAN_AREA_SIZE = SCREEN_WIDTH * 0.7;
 
-type ScanMode = 'student' | 'staff' | 'self';
+type ScanMode = 'student' | 'self';
 
 interface ScanResult {
   id: string;
@@ -163,49 +163,6 @@ export default function ScannerScreen({ navigation, route }: any) {
     }
   };
 
-  // ─── Staff mode QR handler ───
-  const handleStaffScan = useCallback(async ({ data }: { data: string }) => {
-    if (processingRef.current) return;
-    processingRef.current = true;
-
-    let staffId: string | null = null;
-    try {
-      const parsed = JSON.parse(data);
-      if (parsed.staffId) staffId = parsed.staffId;
-      else if (parsed.userId) staffId = parsed.userId;
-    } catch {}
-
-    if (!staffId) {
-      await playError();
-      showResultPopup({ id: '', name: 'Not a staff QR code', status: 'error' });
-      return;
-    }
-
-    try {
-      const res = await fetchWithAuth('/attendance/staff/auto-scan', {
-        method: 'POST',
-        body: JSON.stringify({ userId: staffId }),
-      });
-      const result = await res.json();
-      if (res.ok) {
-        await playSuccess();
-        showResultPopup({
-          id: staffId,
-          name: result.userName || 'Staff Member',
-          status: result.action === 'CHECK_OUT' ? 'checked-out' : 'present',
-          action: result.action,
-          role: result.userRole,
-        });
-      } else {
-        await playError();
-        showResultPopup({ id: staffId, name: result.message || 'Error', status: 'error' });
-      }
-    } catch {
-      await playError();
-      showResultPopup({ id: staffId, name: 'Network Error', status: 'error' });
-    }
-  }, []);
-
   // ─── Student mode QR handler ───
   const handleStudentScan = useCallback(
     async ({ data }: { data: string }) => {
@@ -284,7 +241,7 @@ export default function ScannerScreen({ navigation, route }: any) {
   );
 
   // Choose handler based on mode
-  const handleBarCodeScanned = scanMode === 'staff' ? handleStaffScan : handleStudentScan;
+  const handleBarCodeScanned = handleStudentScan;
 
   // ─── Permission screens ───
   if (!permission) {
@@ -361,86 +318,6 @@ export default function ScannerScreen({ navigation, route }: any) {
               {lastScanned.status === 'error' && '❌ Error'}
             </Text>
             {lastScanned.role && <Text style={styles.popupRole}>{lastScanned.role}</Text>}
-          </Animated.View>
-        )}
-      </View>
-    );
-  }
-
-  // ─── STAFF SCAN MODE (Admin/Teacher scanning officers) ───
-  if (scanMode === 'staff') {
-    if (!permission.granted) {
-      return (
-        <View style={styles.container}>
-          <Text style={styles.permTitle}>Camera Permission</Text>
-          <Text style={styles.permText}>We need camera access to scan officer QR codes.</Text>
-          <TouchableOpacity style={styles.permButton} onPress={requestPermission}>
-            <Text style={styles.permButtonText}>Grant Permission</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
-    const scanLineTranslate = scanLineAnim.interpolate({
-      inputRange: [0, 1],
-      outputRange: [0, SCAN_AREA_SIZE - 4],
-    });
-
-    return (
-      <View style={styles.scannerContainer}>
-        <CameraView
-          style={StyleSheet.absoluteFillObject}
-          facing="back"
-          barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-          onBarcodeScanned={scanning ? handleBarCodeScanned : undefined}
-        />
-        <View style={styles.overlay}>
-          <View style={styles.topBar}>
-            <TouchableOpacity onPress={() => navigation.goBack()}>
-              <Text style={styles.backText}>← Back</Text>
-            </TouchableOpacity>
-            <Text style={styles.topBarTitle}>Officer Attendance</Text>
-            <View style={{ width: 50 }} />
-          </View>
-
-          <View style={styles.staffBanner}>
-            <Ionicons name="briefcase" size={18} color={COLORS.white} />
-            <Text style={styles.staffBannerText}>Scan officer/staff QR code</Text>
-          </View>
-
-          <View style={styles.scanAreaWrapper}>
-            <View style={styles.scanArea}>
-              <View style={[styles.corner, styles.cornerTL]} />
-              <View style={[styles.corner, styles.cornerTR]} />
-              <View style={[styles.corner, styles.cornerBL]} />
-              <View style={[styles.corner, styles.cornerBR]} />
-              <Animated.View style={[styles.scanLine, { transform: [{ translateY: scanLineTranslate }] }]} />
-            </View>
-            <Text style={styles.scanHint}>Point camera at officer QR code</Text>
-          </View>
-        </View>
-
-        {/* Staff popup */}
-        {showPopup && lastScanned && (
-          <Animated.View
-            style={[
-              styles.popup,
-              { opacity: popupAnim, transform: [{ scale: popupAnim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 1] }) }] },
-              lastScanned.status === 'error' ? styles.popupError : styles.popupSuccess,
-            ]}
-          >
-            <View style={[styles.popupIcon, lastScanned.status === 'error' ? styles.popupIconError : styles.popupIconSuccess]}>
-              <Text style={styles.popupIconText}>{lastScanned.status === 'error' ? '✗' : '✓'}</Text>
-            </View>
-            <Text style={styles.popupName}>{lastScanned.name}</Text>
-            <Text style={styles.popupStatus}>
-              {lastScanned.action === 'CHECK_IN' && '✅ Checked In'}
-              {lastScanned.action === 'CHECK_OUT' && '👋 Checked Out'}
-              {lastScanned.status === 'error' && '❌ ' + lastScanned.name}
-            </Text>
-            {lastScanned.role && lastScanned.status !== 'error' && (
-              <Text style={styles.popupRole}>{lastScanned.role}</Text>
-            )}
           </Animated.View>
         )}
       </View>
@@ -909,20 +786,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.7)',
     fontSize: 13,
     marginTop: 4,
-  },
-  // Staff mode banner
-  staffBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingVertical: 8,
-    gap: 8,
-  },
-  staffBannerText: {
-    color: COLORS.white,
-    fontSize: 14,
-    fontWeight: '600',
   },
   // Self-scan mode
   selfContainer: {

@@ -22,6 +22,7 @@ import HolidaysScreen from './src/screens/HolidaysScreen';
 import SessionSettingsScreen from './src/screens/SessionSettingsScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import MyReportsScreen from './src/screens/MyReportsScreen';
+import StaffAttendanceScreen from './src/screens/StaffAttendanceScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -81,6 +82,7 @@ export default function App() {
             <>
               <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ animation: 'fade' }} />
               <Stack.Screen name="Scanner" component={ScannerScreen} />
+              <Stack.Screen name="StaffAttendance" component={StaffAttendanceScreen} />
               <Stack.Screen name="Search" component={SearchScreen} />
               <Stack.Screen name="Users" component={UsersScreen} />
               <Stack.Screen name="Classes" component={ClassesScreen} />

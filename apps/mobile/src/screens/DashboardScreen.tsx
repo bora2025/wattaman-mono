@@ -35,7 +35,7 @@ const adminActions: QuickAction[] = [
   { label: 'Manage\nOfficer', icon: 'briefcase-outline', navigateTo: 'Users', params: { userType: 'officers' } },
   { label: 'Manage\nClasses', icon: 'book-outline', navigateTo: 'Classes' },
   { label: 'Take\nAttendance', icon: 'camera-outline', navigateTo: 'Scanner', params: { scanMode: 'student' } },
-  { label: 'Officer\nAttendance', icon: 'scan-outline', navigateTo: 'Scanner', params: { scanMode: 'staff' } },
+  { label: 'Officer\nAttendance', icon: 'scan-outline', navigateTo: 'StaffAttendance' },
   { label: 'Edit\nAttendance', icon: 'create-outline', navigateTo: 'EditAttendance' },
   { label: 'Edit Officer\nAttendance', icon: 'document-text-outline', navigateTo: 'EditAttendance', params: { isStaff: true } },
   { label: 'Student\nReport', icon: 'bar-chart-outline', navigateTo: 'Reports' },
