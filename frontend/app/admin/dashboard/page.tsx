@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from 'react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import Sidebar from '../../../components/Sidebar'
 import AuthGuard from '../../../components/AuthGuard'
 import { adminNav } from '../../../lib/admin-nav'
@@ -79,7 +79,7 @@ export default function AdminDashboard() {
           <div className="page-body">
           {/* Summary Cards */}
           {summary && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 mb-8">
               <div className="bg-white overflow-hidden shadow rounded-lg">
                 <div className="p-5">
                   <div className="flex items-center">
@@ -171,41 +171,49 @@ export default function AdminDashboard() {
           )}
 
           {/* Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-8">
             {/* Pie Chart */}
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">{t('dashboard.todayAttendance')}</h3>
-              <PieChart width={400} height={300}>
-                <Pie
-                  data={pieData}
-                  cx={200}
-                  cy={150}
-                  labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent ? (percent * 100).toFixed(0) : '0')}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {pieData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
+            <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
+              <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-4">{t('dashboard.todayAttendance')}</h3>
+              <div className="w-full" style={{ height: '280px' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${name} ${(percent ? (percent * 100).toFixed(0) : '0')}%`}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
             </div>
 
             {/* Bar Chart */}
-            <div className="bg-white p-6 rounded-lg shadow">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">{t('dashboard.classAttendance')}</h3>
-              <BarChart width={400} height={300} data={classData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="className" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="present" fill="#00C49F" name={t('common.present')} />
-                <Bar dataKey="absent" fill="#FF8042" name={t('common.absent')} />
-              </BarChart>
+            <div className="bg-white p-4 sm:p-6 rounded-lg shadow">
+              <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-4">{t('dashboard.classAttendance')}</h3>
+              <div className="w-full" style={{ height: '280px' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={classData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="className" tick={{ fontSize: 12 }} />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="present" fill="#00C49F" name={t('common.present')} />
+                    <Bar dataKey="absent" fill="#FF8042" name={t('common.absent')} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           </div>
           </div>

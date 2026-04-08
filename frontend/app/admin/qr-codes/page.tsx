@@ -738,7 +738,7 @@ export default function GenerateQRCodes() {
     <div className="page-shell">
       {exporting && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/30 backdrop-blur-sm">
-          <div className="bg-white rounded-xl shadow-lg px-8 py-6 flex flex-col items-center gap-3">
+          <div className="bg-white rounded-xl shadow-lg px-4 sm:px-8 py-4 sm:py-6 flex flex-col items-center gap-3">
             <div className="animate-spin h-8 w-8 border-4 border-indigo-500 border-t-transparent rounded-full" />
             <p className="text-sm font-medium text-slate-700">Exporting, please wait…</p>
           </div>
@@ -1090,7 +1090,7 @@ export default function GenerateQRCodes() {
                             </div>
                             <div className="sm:ml-auto flex items-center gap-2 flex-wrap">
                               {/* Student search */}
-                              <div className="relative flex-1 min-w-[180px]">
+                              <div className="relative flex-1 min-w-0 sm:min-w-[180px]">
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
                                 <input
                                   type="text"

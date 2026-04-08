@@ -311,7 +311,7 @@ export default function SearchPage() {
             </div>
 
             {/* Info Grid */}
-            <div className="px-6 pb-4">
+            <div className="px-4 sm:px-6 pb-3 sm:pb-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="p-3 rounded-xl bg-slate-50">
                   <p className="text-xs text-slate-400 mb-1">{t('common.email')}</p>
@@ -369,7 +369,7 @@ export default function SearchPage() {
             </div>
 
             {/* Daily Attendance */}
-            <div className="px-6 pb-6">
+            <div className="px-4 sm:px-6 pb-4 sm:pb-6">
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-sm font-semibold text-slate-700">{t('search.dailyAttendance')}</h4>
                 <input

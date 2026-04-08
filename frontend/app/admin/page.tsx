@@ -138,8 +138,8 @@ export default function AdminDashboard() {
 
             {/* System Status Bar */}
             {status && (
-              <div className="card p-4">
-                <div className="flex flex-wrap items-center gap-6">
+              <div className="card p-3 sm:p-4">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3 sm:gap-6">
                   <div className="flex items-center gap-2">
                     <span className="relative flex h-2.5 w-2.5">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -148,12 +148,12 @@ export default function AdminDashboard() {
                     <span className="text-sm font-medium text-slate-700">{t('admin.systemOnline')}</span>
                   </div>
                   {status.lastUpdated && (
-                    <div className="text-sm text-slate-500">
+                    <div className="text-xs sm:text-sm text-slate-500">
                       {t('admin.lastUpdated')}: <span className="font-medium text-slate-700">{timeAgo(status.lastUpdated)}</span>
-                      <span className="text-slate-400 ml-1">({formatCambodiaTime(status.lastUpdated)})</span>
+                      <span className="text-slate-400 ml-1 hidden sm:inline">({formatCambodiaTime(status.lastUpdated)})</span>
                     </div>
                   )}
-                  <div className="flex gap-4 ml-auto text-sm">
+                  <div className="flex flex-wrap gap-3 sm:gap-4 sm:ml-auto text-xs sm:text-sm">
                     <span className="text-slate-500">👥 <span className="font-semibold text-slate-700">{status.totalUsers}</span> {t('common.users')}</span>
                     <span className="text-slate-500">🎓 <span className="font-semibold text-slate-700">{status.totalStudents}</span> {t('common.students')}</span>
                     <span className="text-slate-500">📖 <span className="font-semibold text-slate-700">{status.totalClasses}</span> {t('common.classes')}</span>
@@ -163,16 +163,16 @@ export default function AdminDashboard() {
             )}
 
             {/* Quick Actions Grid */}
-            <h2 className="text-lg font-semibold text-slate-700 mb-4">{t('admin.quickActions')}</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <h2 className="text-base sm:text-lg font-semibold text-slate-700 mb-3 sm:mb-4">{t('admin.quickActions')}</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {quickActions.map((action) => (
                 <Link key={action.href} href={action.href}>
-                  <div className="card-hover p-5 h-full cursor-pointer">
-                    <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center text-xl shadow-sm mb-3`}>
+                  <div className="card-hover p-3 sm:p-5 h-full cursor-pointer">
+                    <div className={`w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center text-lg sm:text-xl shadow-sm mb-2 sm:mb-3`}>
                       {action.icon}
                     </div>
-                    <h3 className="font-semibold text-slate-800 mb-1">{t(action.titleKey)}</h3>
-                    <p className="text-sm text-slate-500 leading-relaxed">{t(action.descKey)}</p>
+                    <h3 className="font-semibold text-slate-800 mb-0.5 sm:mb-1 text-sm sm:text-base">{t(action.titleKey)}</h3>
+                    <p className="text-xs sm:text-sm text-slate-500 leading-relaxed hidden xs:block">{t(action.descKey)}</p>
                   </div>
                 </Link>
               ))}

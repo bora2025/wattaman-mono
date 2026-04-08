@@ -592,7 +592,7 @@ export default function ManageClasses() {
                           <div key={cfg.session} className={`flex flex-wrap items-center gap-3 p-3 rounded-lg border ${
                             !enabled ? 'bg-slate-50 border-slate-200 opacity-50' : 'bg-white border-slate-200'
                           }`}>
-                            <div className="flex items-center gap-2 min-w-[180px]">
+                            <div className="flex items-center gap-2 min-w-0 sm:min-w-[180px]">
                               <input
                                 type="checkbox"
                                 checked={enabled}
@@ -762,7 +762,7 @@ export default function ManageClasses() {
             <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-start justify-center p-4 pt-16 overflow-y-auto">
               <div className="card w-full max-w-6xl shadow-xl">
                 {/* Modal Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+                <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200">
                   <div>
                     <h3 className="text-lg font-semibold text-slate-800">Manage Students</h3>
                     <p className="text-sm text-slate-500">{selectedClass.name} &middot; {classStudents.length} student{classStudents.length !== 1 ? 's' : ''}</p>

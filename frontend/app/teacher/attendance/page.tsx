@@ -837,7 +837,7 @@ function TakeAttendance() {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Gradient header */}
-            <div className={`relative px-6 py-6 text-white text-center overflow-hidden ${
+            <div className={`relative px-4 sm:px-6 py-4 sm:py-6 text-white text-center overflow-hidden ${
               isLateByConfig()
                 ? 'bg-gradient-to-br from-amber-500 via-orange-500 to-red-500'
                 : 'bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500'
@@ -864,7 +864,7 @@ function TakeAttendance() {
               <h2 className="text-2xl font-extrabold tracking-tight">{currentStudent.name}</h2>
             </div>
             {/* Student photo + details */}
-            <div className="px-6 py-5 flex flex-col items-center">
+            <div className="px-4 sm:px-6 py-3 sm:py-5 flex flex-col items-center">
               <div className="relative -mt-12 mb-4">
                 <div className={`w-24 h-24 rounded-full border-4 shadow-xl flex items-center justify-center overflow-hidden text-3xl font-bold ${
                   isLateByConfig()

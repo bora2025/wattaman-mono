@@ -51,7 +51,7 @@ export default function TeacherDashboard() {
         <div className="page-content">
           <div className="h-14 lg:hidden" />
           <div className="page-header">
-            <h1 className="text-2xl font-bold text-slate-800">{t('teacher.title')}</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-800">{t('teacher.title')}</h1>
             <p className="text-sm text-slate-500 mt-1">{t('teacher.subtitle')}</p>
           </div>
 

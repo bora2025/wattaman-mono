@@ -63,16 +63,18 @@ export default function Sidebar({ title, subtitle, navItems, accentColor = 'indi
   return (
     <>
       {/* Mobile top bar */}
-      <div className={`lg:hidden fixed top-0 left-0 right-0 z-40 bg-gradient-to-r ${colors.gradient} text-white px-4 py-3 flex items-center justify-between shadow-lg`}>
+      <div className={`lg:hidden fixed top-0 left-0 right-0 z-40 bg-gradient-to-r ${colors.gradient} text-white px-4 py-3 flex items-center justify-between shadow-lg`} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center text-sm font-bold">
             {title.charAt(0)}
           </div>
-          <span className="font-semibold text-sm">{title}</span>
+          <span className="font-semibold text-sm truncate">{title}</span>
         </div>
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+          className="p-2 -mr-2 rounded-lg hover:bg-white/10 transition-colors"
+          style={{ minWidth: '44px', minHeight: '44px' }}
+          aria-label="Toggle menu"
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             {collapsed ? (
@@ -111,7 +113,7 @@ export default function Sidebar({ title, subtitle, navItems, accentColor = 'indi
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto overscroll-contain">
           {navItems.map((item) => {
             const isActive = pathname === item.href;
             return (
@@ -119,7 +121,7 @@ export default function Sidebar({ title, subtitle, navItems, accentColor = 'indi
                 key={item.href}
                 href={item.href}
                 onClick={() => setCollapsed(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150 ${
+                className={`flex items-center gap-3 px-3 py-3 lg:py-2.5 rounded-lg text-sm transition-all duration-150 ${
                   isActive
                     ? colors.active
                     : `${colors.text} ${colors.hover}`
@@ -133,11 +135,11 @@ export default function Sidebar({ title, subtitle, navItems, accentColor = 'indi
         </nav>
 
         {/* Bottom */}
-        <div className="px-3 py-4 border-t border-white/10 space-y-1">
+        <div className="px-3 py-4 border-t border-white/10 space-y-0.5">
           {/* Language Toggle */}
           <button
             onClick={() => setLang(lang === 'en' ? 'kh' : 'en')}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm w-full text-left ${colors.text} ${colors.hover} transition-colors`}
+            className={`flex items-center gap-3 px-3 py-3 lg:py-2.5 rounded-lg text-sm w-full text-left ${colors.text} ${colors.hover} transition-colors`}
           >
             <span className="text-lg leading-none">🌐</span>
             <span>{lang === 'en' ? 'ភាសាខ្មែរ' : 'English'}</span>
@@ -145,14 +147,14 @@ export default function Sidebar({ title, subtitle, navItems, accentColor = 'indi
           <Link
             href="/"
             onClick={() => setCollapsed(false)}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm ${colors.text} ${colors.hover} transition-colors`}
+            className={`flex items-center gap-3 px-3 py-3 lg:py-2.5 rounded-lg text-sm ${colors.text} ${colors.hover} transition-colors`}
           >
             <span className="text-lg leading-none">🏠</span>
             <span>{t('common.backToHome')}</span>
           </Link>
           <button
             onClick={handleLogout}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm w-full text-left ${colors.text} ${colors.hover} transition-colors`}
+            className={`flex items-center gap-3 px-3 py-3 lg:py-2.5 rounded-lg text-sm w-full text-left ${colors.text} ${colors.hover} transition-colors`}
           >
             <span className="text-lg leading-none">🚪</span>
             <span>{t('common.logout')}</span>

@@ -120,7 +120,7 @@ export default function MyClasses() {
       <div className="page-content">
         <div className="h-14 lg:hidden" />
         <div className="page-header">
-          <h1 className="text-2xl font-bold text-slate-800">{t('teacherClasses.title')}</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-800">{t('teacherClasses.title')}</h1>
           <p className="text-sm text-slate-500 mt-1">{classes.length} class{classes.length !== 1 ? 'es' : ''} assigned</p>
         </div>
 
@@ -129,7 +129,7 @@ export default function MyClasses() {
           {showStudentModal && selectedClass && (
             <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-end sm:items-start justify-center sm:p-4 sm:pt-16 overflow-y-auto">
               <div className="card w-full sm:max-w-4xl sm:rounded-2xl rounded-t-3xl shadow-xl max-h-[90vh] sm:max-h-none overflow-y-auto">
-                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+                <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200">
                   <div>
                     <h3 className="text-lg font-semibold text-slate-800">Manage Students</h3>
                     <p className="text-sm text-slate-500">{selectedClass.name} &middot; {classStudents.length} student{classStudents.length !== 1 ? 's' : ''}</p>

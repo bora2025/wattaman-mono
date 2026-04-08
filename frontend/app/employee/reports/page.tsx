@@ -351,7 +351,7 @@ export default function EmployeeReports() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => { setShowExportForm(false); setExportMessage('') }}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-gradient-to-r from-emerald-50 to-white rounded-t-2xl">
+            <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200 bg-gradient-to-r from-emerald-50 to-white rounded-t-2xl">
               <div>
                 <h2 className="text-lg font-bold text-slate-800">📊 {t('reports.exportMyReportTitle')}</h2>
                 <p className="text-xs text-slate-500 mt-0.5">{t('reports.choosePeriod')}</p>

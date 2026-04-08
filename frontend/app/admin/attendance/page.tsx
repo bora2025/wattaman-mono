@@ -867,7 +867,7 @@ function AdminTakeAttendance() {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Gradient header with pulse ring countdown */}
-            <div className={`relative px-6 py-6 text-white text-center overflow-hidden ${
+            <div className={`relative px-4 sm:px-6 py-4 sm:py-6 text-white text-center overflow-hidden ${
               isLateByConfig()
                 ? 'bg-gradient-to-br from-amber-500 via-orange-500 to-red-500'
                 : 'bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500'
@@ -898,7 +898,7 @@ function AdminTakeAttendance() {
             </div>
 
             {/* Student photo + details */}
-            <div className="px-6 py-5 flex flex-col items-center -mt-0">
+            <div className="px-4 sm:px-6 py-3 sm:py-5 flex flex-col items-center -mt-0">
               {/* Large photo with ring */}
               <div className="relative -mt-12 mb-4">
                 <div className={`w-24 h-24 rounded-full border-4 shadow-xl flex items-center justify-center overflow-hidden text-3xl font-bold ${
@@ -996,7 +996,7 @@ function AdminTakeAttendance() {
       {/* ===== STAFF INFO OVERLAY ===== */}
       {showStaffInfo && currentStaffScanned && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full mx-4 animate-[slideUp_0.35s_ease-out]">
+          <div className="bg-white rounded-2xl shadow-2xl p-4 sm:p-6 max-w-sm w-full mx-4 animate-[slideUp_0.35s_ease-out]">
             <div className="text-center">
               <div className="w-24 h-24 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-3xl font-bold mx-auto mb-4 overflow-hidden ring-4 ring-purple-200">
                 {currentStaffScanned.photo ? (

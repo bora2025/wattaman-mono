@@ -114,7 +114,7 @@ export default function EmployeeDashboard() {
               {/* Header */}
               <div className="page-header">
                 <div>
-                <h1 className="text-2xl font-bold text-slate-900">📊 {t('employee.title')}</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900">📊 {t('employee.title')}</h1>
                 <p className="text-sm text-slate-500 mt-1">{t('employee.welcome')}, {userName || '...'}</p>
                 </div>
                 <Link href="/employee/scan" className="btn-primary">
