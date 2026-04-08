@@ -7,76 +7,77 @@ import Sidebar from '../../components/Sidebar'
 import { adminNav } from '../../lib/admin-nav'
 import { apiFetch } from '../../lib/api'
 import { useLanguage } from '../../lib/i18n'
+import { iconMap } from '../../components/Icons'
 
 const quickActions = [
   {
     titleKey: 'admin.search',
     descKey: 'admin.searchDesc',
     href: '/admin/search',
-    icon: '🔍',
+    icon: 'search',
     color: 'from-indigo-500 to-indigo-600',
   },
   {
     titleKey: 'admin.manageUsers',
     descKey: 'admin.manageUsersDesc',
     href: '/admin/users',
-    icon: '👥',
+    icon: 'users',
     color: 'from-blue-500 to-blue-600',
   },
   {
     titleKey: 'admin.manageClasses',
     descKey: 'admin.manageClassesDesc',
     href: '/admin/classes',
-    icon: '📖',
+    icon: 'book',
     color: 'from-emerald-500 to-emerald-600',
   },
   {
     titleKey: 'admin.viewReports',
     descKey: 'admin.viewReportsDesc',
     href: '/admin/reports',
-    icon: '📈',
+    icon: 'chart',
     color: 'from-violet-500 to-violet-600',
   },
   {
     titleKey: 'admin.idCard',
     descKey: 'admin.idCardDesc',
     href: '/admin/qr-codes',
-    icon: '🪪',
+    icon: 'id-card',
     color: 'from-amber-500 to-amber-600',
   },
   {
     titleKey: 'admin.editAttendance',
     descKey: 'admin.editAttendanceDesc',
     href: '/admin/attendance/edit',
-    icon: '✏️',
+    icon: 'edit',
     color: 'from-teal-500 to-teal-600',
   },
   {
     titleKey: 'admin.editStaffAttendance',
     descKey: 'admin.editStaffAttendanceDesc',
     href: '/admin/staff-attendance/edit',
-    icon: '✏️',
+    icon: 'edit',
     color: 'from-pink-500 to-pink-600',
   },
   {
     titleKey: 'admin.auditLogs',
     descKey: 'admin.auditLogsDesc',
     href: '/admin/audit',
-    icon: '🔍',
+    icon: 'clipboard',
     color: 'from-slate-500 to-slate-600',
   },
   {
     titleKey: 'admin.notifications',
     descKey: 'admin.notificationsDesc',
     href: '/admin/notifications',
-    icon: '🔔',
+    icon: 'bell',
     color: 'from-rose-500 to-rose-600',
   },
   {
     titleKey: 'admin.cardDesigner',
     descKey: 'admin.cardDesignerDesc',
     href: '/admin/card-designer',
-    icon: '🪪',
+    icon: 'design',
     color: 'from-cyan-500 to-cyan-600',
   },
 ]
@@ -171,7 +172,9 @@ export default function AdminDashboard() {
                 {quickActions.map((action) => (
                   <Link key={action.href} href={action.href}>
                     <div className="action-card-mobile">
-                      <span className="action-icon">{action.icon}</span>
+                      <span className="action-icon" style={{ color: 'var(--color-icon)' }}>
+                        {(() => { const I = iconMap[action.icon]; return I ? <I size={26} /> : action.icon; })()}
+                      </span>
                       <span className="action-label">{t(action.titleKey)}</span>
                     </div>
                   </Link>
@@ -186,8 +189,8 @@ export default function AdminDashboard() {
                 {quickActions.map((action) => (
                   <Link key={action.href} href={action.href}>
                     <div className="card-hover p-5 h-full cursor-pointer">
-                      <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center text-xl shadow-sm mb-3`}>
-                        {action.icon}
+                      <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center text-white shadow-sm mb-3`}>
+                        {(() => { const I = iconMap[action.icon]; return I ? <I size={22} /> : action.icon; })()}
                       </div>
                       <h3 className="font-semibold text-slate-800 mb-1">{t(action.titleKey)}</h3>
                       <p className="text-sm text-slate-500 leading-relaxed">{t(action.descKey)}</p>

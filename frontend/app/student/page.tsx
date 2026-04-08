@@ -6,6 +6,7 @@ import AuthGuard from '../../components/AuthGuard';
 import Sidebar from '../../components/Sidebar';
 import { apiFetch, getCurrentUser } from '../../lib/api';
 import { useLanguage } from '../../lib/i18n';
+import { IconClipboard, IconDownload } from '../../components/Icons';
 
 interface AttendanceRecord {
   id: string;
@@ -18,7 +19,7 @@ interface AttendanceRecord {
 }
 
 const studentNav = [
-  { label: 'nav.dashboard', href: '/student', icon: '🏠' },
+  { label: 'nav.dashboard', href: '/student', icon: 'dashboard' },
 ];
 
 export default function StudentPortal() {
@@ -73,11 +74,11 @@ export default function StudentPortal() {
               {/* Mobile Action Grid */}
               <div className="grid grid-cols-4 gap-3">
                 <Link href="/student" className="action-card-mobile">
-                  <span className="action-icon">📋</span>
+                  <span className="action-icon" style={{ color: 'var(--color-icon)' }}><IconClipboard size={26} /></span>
                   <span className="action-label">{t('student.title')}</span>
                 </Link>
                 <button onClick={downloadReport} className="action-card-mobile">
-                  <span className="action-icon">📥</span>
+                  <span className="action-icon" style={{ color: 'var(--color-icon)' }}><IconDownload size={26} /></span>
                   <span className="action-label">{t('student.downloadReport')}</span>
                 </button>
               </div>

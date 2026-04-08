@@ -4,6 +4,14 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useLanguage } from '../lib/i18n';
+import { iconMap, IconDashboard, IconGlobe, IconLogout } from './Icons';
+
+/** Renders an icon: if `key` maps to an SVG component, uses it; otherwise falls back to text/emoji. */
+function NavIcon({ icon, size = 20, className }: { icon: string; size?: number; className?: string }) {
+  const Comp = iconMap[icon];
+  if (Comp) return <Comp size={size} className={className} />;
+  return <span className={`leading-none ${className || ''}`} style={{ fontSize: size }}>{icon}</span>;
+}
 
 interface NavItem {
   label: string;
@@ -67,7 +75,7 @@ function pickBottomTabs(navItems: NavItem[], bottomTabs?: string[]): NavItem[] {
     if (!picked.includes(n)) picked.push(n);
   }
   // Add a "More" entry
-  picked.push({ label: 'common.more', href: '__more__', icon: '☰' });
+  picked.push({ label: 'common.more', href: '__more__', icon: 'settings' });
   return picked;
 }
 
@@ -101,17 +109,19 @@ export default function Sidebar({ title, subtitle, navItems, accentColor = 'indi
         <div className="flex items-center gap-2">
           <button
             onClick={() => setLang(lang === 'en' ? 'kh' : 'en')}
-            className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm text-sm"
+            className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm"
+            style={{ color: 'var(--color-icon)' }}
             aria-label="Language"
           >
-            🌐
+            <IconGlobe size={20} />
           </button>
           <button
             onClick={handleLogout}
-            className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm text-sm"
+            className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm"
+            style={{ color: 'var(--color-icon)' }}
             aria-label="Logout"
           >
-            🚪
+            <IconLogout size={20} />
           </button>
         </div>
       </div>
@@ -128,7 +138,7 @@ export default function Sidebar({ title, subtitle, navItems, accentColor = 'indi
                   className="flex flex-col items-center justify-center flex-1 gap-0.5 transition-colors"
                   style={{ color: 'var(--color-text-secondary)' }}
                 >
-                  <span className="text-xl leading-none">{tab.icon}</span>
+                  <NavIcon icon={tab.icon} size={22} />
                   <span className="text-[10px] font-medium">{t(tab.label)}</span>
                 </button>
               );
@@ -141,7 +151,7 @@ export default function Sidebar({ title, subtitle, navItems, accentColor = 'indi
                 className="flex flex-col items-center justify-center flex-1 gap-0.5 transition-colors"
                 style={{ color: isActive ? 'var(--color-primary)' : 'var(--color-text-secondary)' }}
               >
-                <span className="text-xl leading-none">{tab.icon}</span>
+                <NavIcon icon={tab.icon} size={22} />
                 <span className="text-[10px] font-medium" style={isActive ? { fontWeight: 700 } : {}}>{t(tab.label)}</span>
                 {isActive && <span className="absolute bottom-1 w-5 h-0.5 rounded-full" style={{ background: 'var(--color-primary)' }} />}
               </Link>
@@ -178,7 +188,7 @@ export default function Sidebar({ title, subtitle, navItems, accentColor = 'indi
                       fontWeight: isActive ? 600 : 400,
                     }}
                   >
-                    <span className="text-xl leading-none">{item.icon}</span>
+                    <NavIcon icon={item.icon} size={22} />
                     <span>{t(item.label)}</span>
                   </Link>
                 );
@@ -191,7 +201,7 @@ export default function Sidebar({ title, subtitle, navItems, accentColor = 'indi
                 className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm"
                 style={{ color: 'var(--color-text-secondary)' }}
               >
-                <span className="text-xl leading-none">🏠</span>
+                <NavIcon icon="dashboard" size={22} />
                 <span>{t('common.backToHome')}</span>
               </Link>
             </div>
@@ -237,7 +247,7 @@ export default function Sidebar({ title, subtitle, navItems, accentColor = 'indi
                     : `${colors.text} ${colors.hover}`
                 }`}
               >
-                <span className="text-lg leading-none">{item.icon}</span>
+                <NavIcon icon={item.icon} size={18} />
                 <span>{t(item.label)}</span>
               </Link>
             );
@@ -250,21 +260,21 @@ export default function Sidebar({ title, subtitle, navItems, accentColor = 'indi
             onClick={() => setLang(lang === 'en' ? 'kh' : 'en')}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm w-full text-left ${colors.text} ${colors.hover} transition-colors`}
           >
-            <span className="text-lg leading-none">🌐</span>
+            <IconGlobe size={18} />
             <span>{lang === 'en' ? 'ភាសាខ្មែរ' : 'English'}</span>
           </button>
           <Link
             href="/"
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm ${colors.text} ${colors.hover} transition-colors`}
           >
-            <span className="text-lg leading-none">🏠</span>
+            <IconDashboard size={18} />
             <span>{t('common.backToHome')}</span>
           </Link>
           <button
             onClick={handleLogout}
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm w-full text-left ${colors.text} ${colors.hover} transition-colors`}
           >
-            <span className="text-lg leading-none">🚪</span>
+            <IconLogout size={18} />
             <span>{t('common.logout')}</span>
           </button>
         </div>

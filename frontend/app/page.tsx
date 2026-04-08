@@ -1,14 +1,16 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useLanguage } from '../lib/i18n'
+import { IconShield, IconBook, IconGraduation, IconBriefcase } from '../components/Icons'
 
 const portalKeys = [
   {
     titleKey: 'home.adminPortal',
     descKey: 'home.adminDesc',
     href: '/admin',
-    icon: '🛡️',
+    IconComp: IconShield,
     color: 'from-indigo-500 to-indigo-700',
     hoverBorder: 'hover:border-indigo-300',
   },
@@ -16,7 +18,7 @@ const portalKeys = [
     titleKey: 'home.teacherPortal',
     descKey: 'home.teacherDesc',
     href: '/teacher',
-    icon: '📚',
+    IconComp: IconBook,
     color: 'from-emerald-500 to-emerald-700',
     hoverBorder: 'hover:border-emerald-300',
   },
@@ -24,7 +26,7 @@ const portalKeys = [
     titleKey: 'home.studentPortal',
     descKey: 'home.studentDesc',
     href: '/student',
-    icon: '🎓',
+    IconComp: IconGraduation,
     color: 'from-sky-500 to-sky-700',
     hoverBorder: 'hover:border-sky-300',
   },
@@ -32,7 +34,7 @@ const portalKeys = [
     titleKey: 'home.employeePortal',
     descKey: 'home.employeeDesc',
     href: '/employee',
-    icon: '👔',
+    IconComp: IconBriefcase,
     color: 'from-amber-500 to-amber-700',
     hoverBorder: 'hover:border-amber-300',
   },
@@ -47,8 +49,8 @@ export default function Home() {
       <div className="lg:hidden min-h-screen flex flex-col">
         {/* Top spacer + centered logo */}
         <div className="flex-1 flex flex-col items-center justify-center px-8">
-          <div className="w-24 h-24 rounded-3xl flex items-center justify-center text-5xl mb-6 shadow-lg" style={{ background: 'var(--color-primary)' }}>
-            <span className="text-white font-bold text-3xl">W</span>
+          <div className="w-28 h-28 mb-6">
+            <Image src="/logo.png" alt="Wattaman" width={112} height={112} priority className="drop-shadow-lg" />
           </div>
           <h1 className="text-4xl font-bold mb-2" style={{ color: 'var(--color-primary)' }}>Wattaman</h1>
           <p className="text-sm text-center leading-relaxed max-w-xs" style={{ color: 'var(--color-text-secondary)' }}>
@@ -78,9 +80,7 @@ export default function Home() {
       <header className="border-b border-slate-200 bg-white/80 backdrop-blur-sm sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white font-bold text-sm shadow-sm">
-              S
-            </div>
+            <Image src="/logo.png" alt="Wattaman" width={36} height={36} className="drop-shadow-sm" />
             <span className="font-bold text-slate-800 text-lg">Wattaman</span>
           </div>
           <div className="flex items-center gap-3">
@@ -120,8 +120,8 @@ export default function Home() {
           {portalKeys.map((portal) => (
             <Link key={portal.href} href={portal.href}>
               <div className={`card-hover p-4 sm:p-6 h-full cursor-pointer ${portal.hoverBorder}`}>
-                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br ${portal.color} flex items-center justify-center text-xl sm:text-2xl shadow-sm mb-3 sm:mb-4`}>
-                  {portal.icon}
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br ${portal.color} flex items-center justify-center text-white shadow-sm mb-3 sm:mb-4`}>
+                  <portal.IconComp size={24} />
                 </div>
                 <h2 className="text-base sm:text-lg font-semibold text-slate-800 mb-1">{t(portal.titleKey)}</h2>
                 <p className="text-xs sm:text-sm text-slate-500 leading-relaxed hidden xs:block">{t(portal.descKey)}</p>

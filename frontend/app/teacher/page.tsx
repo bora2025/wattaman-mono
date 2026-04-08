@@ -8,6 +8,7 @@ import Sidebar from '../../components/Sidebar'
 import { teacherNav } from '../../lib/teacher-nav'
 import { apiFetch, getCurrentUser } from '../../lib/api'
 import { useLanguage } from '../../lib/i18n'
+import { IconBook, IconCamera, IconClipboard, IconChart, IconBarChart, IconClock, IconSettings } from '../../components/Icons'
 
 interface Class {
   id: string
@@ -59,31 +60,31 @@ export default function TeacherDashboard() {
             {/* Mobile Quick Actions (matches mobile app teacher grid) */}
             <div className="grid grid-cols-4 gap-3 lg:hidden">
               <Link href="/teacher/classes" className="action-card-mobile">
-                <span className="action-icon">📖</span>
+                <span className="action-icon" style={{ color: 'var(--color-icon)' }}><IconBook size={26} /></span>
                 <span className="action-label">{t('nav.myClasses')}</span>
               </Link>
               <Link href="/teacher/attendance" className="action-card-mobile">
-                <span className="action-icon">📷</span>
+                <span className="action-icon" style={{ color: 'var(--color-icon)' }}><IconCamera size={26} /></span>
                 <span className="action-label">{t('nav.takeAttendance')}</span>
               </Link>
               <Link href="/teacher/staff-attendance" className="action-card-mobile">
-                <span className="action-icon">👔</span>
+                <span className="action-icon" style={{ color: 'var(--color-icon)' }}><IconClipboard size={26} /></span>
                 <span className="action-label">{t('nav.staffAttendance')}</span>
               </Link>
               <Link href="/teacher/reports" className="action-card-mobile">
-                <span className="action-icon">📈</span>
+                <span className="action-icon" style={{ color: 'var(--color-icon)' }}><IconChart size={26} /></span>
                 <span className="action-label">{t('nav.reports')}</span>
               </Link>
               <Link href="/teacher/staff-reports" className="action-card-mobile">
-                <span className="action-icon">📊</span>
+                <span className="action-icon" style={{ color: 'var(--color-icon)' }}><IconBarChart size={26} /></span>
                 <span className="action-label">{t('nav.staffReports')}</span>
               </Link>
               <Link href="/teacher/session-settings" className="action-card-mobile">
-                <span className="action-icon">⏰</span>
+                <span className="action-icon" style={{ color: 'var(--color-icon)' }}><IconClock size={26} /></span>
                 <span className="action-label">{t('nav.sessionSettings')}</span>
               </Link>
               <Link href="/teacher" className="action-card-mobile">
-                <span className="action-icon">⚙️</span>
+                <span className="action-icon" style={{ color: 'var(--color-icon)' }}><IconSettings size={26} /></span>
                 <span className="action-label">{t('nav.settings')}</span>
               </Link>
             </div>

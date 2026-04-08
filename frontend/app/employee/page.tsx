@@ -7,6 +7,7 @@ import AuthGuard from '../../components/AuthGuard'
 import { employeeNav } from '../../lib/employee-nav'
 import { apiFetch } from '../../lib/api'
 import { useLanguage } from '../../lib/i18n'
+import { IconCamera, IconChart, IconIdCard, IconSettings } from '../../components/Icons'
 
 interface AttendanceRecord {
   id: string
@@ -127,19 +128,19 @@ export default function EmployeeDashboard() {
                 {/* Mobile Quick Actions (matches mobile app 4-col grid) */}
                 <div className="grid grid-cols-4 gap-3 lg:hidden">
                   <Link href="/employee/scan" className="action-card-mobile">
-                    <span className="action-icon">📷</span>
+                    <span className="action-icon" style={{ color: 'var(--color-icon)' }}><IconCamera size={26} /></span>
                     <span className="action-label">{t('employee.scanNow')}</span>
                   </Link>
                   <Link href="/employee/reports" className="action-card-mobile">
-                    <span className="action-icon">📈</span>
+                    <span className="action-icon" style={{ color: 'var(--color-icon)' }}><IconChart size={26} /></span>
                     <span className="action-label">{t('nav.myReports')}</span>
                   </Link>
                   <Link href="/employee/my-card" className="action-card-mobile">
-                    <span className="action-icon">🪪</span>
+                    <span className="action-icon" style={{ color: 'var(--color-icon)' }}><IconIdCard size={26} /></span>
                     <span className="action-label">{t('employee.myIdCard')}</span>
                   </Link>
                   <Link href="/employee" className="action-card-mobile">
-                    <span className="action-icon">⚙️</span>
+                    <span className="action-icon" style={{ color: 'var(--color-icon)' }}><IconSettings size={26} /></span>
                     <span className="action-label">{t('nav.settings')}</span>
                   </Link>
                 </div>

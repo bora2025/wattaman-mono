@@ -1,29 +1,29 @@
 export const adminNav = [
   // Overview
-  { label: 'nav.dashboard', href: '/admin', icon: '📊' },
-  { label: 'nav.search', href: '/admin/search', icon: '🔍' },
+  { label: 'nav.dashboard', href: '/admin', icon: 'dashboard' },
+  { label: 'nav.search', href: '/admin/search', icon: 'search' },
 
   // People Management
-  { label: 'nav.manageUsers', href: '/admin/users', icon: '👥' },
-  { label: 'nav.manageOfficer', href: '/admin/employees', icon: '👔' },
-  { label: 'nav.manageClasses', href: '/admin/classes', icon: '📖' },
+  { label: 'nav.manageUsers', href: '/admin/users', icon: 'users' },
+  { label: 'nav.manageOfficer', href: '/admin/employees', icon: 'briefcase' },
+  { label: 'nav.manageClasses', href: '/admin/classes', icon: 'book' },
 
   // Attendance
-  { label: 'nav.takeAttendance', href: '/admin/attendance', icon: '📷' },
-  { label: 'nav.officerAttendance', href: '/admin/staff-attendance', icon: '👔' },
-  { label: 'nav.editAttendance', href: '/admin/attendance/edit', icon: '✏️' },
-  { label: 'nav.editOfficerAttendance', href: '/admin/staff-attendance/edit', icon: '✏️' },
+  { label: 'nav.takeAttendance', href: '/admin/attendance', icon: 'camera' },
+  { label: 'nav.officerAttendance', href: '/admin/staff-attendance', icon: 'clipboard' },
+  { label: 'nav.editAttendance', href: '/admin/attendance/edit', icon: 'edit' },
+  { label: 'nav.editOfficerAttendance', href: '/admin/staff-attendance/edit', icon: 'edit' },
 
   // Reports
-  { label: 'nav.studentReport', href: '/admin/reports', icon: '📈' },
-  { label: 'nav.officerReport', href: '/admin/staff-reports', icon: '📊' },
+  { label: 'nav.studentReport', href: '/admin/reports', icon: 'chart' },
+  { label: 'nav.officerReport', href: '/admin/staff-reports', icon: 'bar-chart' },
 
   // ID Cards
-  { label: 'nav.cardDesigner', href: '/admin/card-designer', icon: '🪪' },
-  { label: 'nav.idCard', href: '/admin/qr-codes', icon: '🎫' },
+  { label: 'nav.cardDesigner', href: '/admin/card-designer', icon: 'design' },
+  { label: 'nav.idCard', href: '/admin/qr-codes', icon: 'id-card' },
 
   // Settings
-  { label: 'nav.sessionSettings', href: '/admin/session-settings', icon: '⏰' },
-  { label: 'nav.holidays', href: '/admin/holidays', icon: '📅' },
-  { label: 'nav.settings', href: '/admin/settings', icon: '⚙️' },
+  { label: 'nav.sessionSettings', href: '/admin/session-settings', icon: 'clock' },
+  { label: 'nav.holidays', href: '/admin/holidays', icon: 'holiday' },
+  { label: 'nav.settings', href: '/admin/settings', icon: 'settings' },
 ]

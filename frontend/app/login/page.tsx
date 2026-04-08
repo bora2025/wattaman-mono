@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useLanguage } from '../../lib/i18n';
 
 export default function Login() {
@@ -55,10 +56,13 @@ export default function Login() {
       {/* ── Mobile: teal header + white card (matches LoginScreen.tsx) ── */}
       <div className="lg:hidden min-h-screen flex flex-col">
         {/* Teal header */}
-        <div className="relative px-5 pt-12 pb-16 flex items-center justify-center" style={{ background: 'var(--color-primary)' }}>
+        <div className="relative px-5 pt-12 pb-20 flex flex-col items-center justify-center" style={{ background: 'var(--color-primary)' }}>
           <Link href="/" className="absolute left-4 top-12 text-white text-sm font-semibold flex items-center gap-1">
             ← {t('login.backToHome')}
           </Link>
+          <div className="w-16 h-16 mb-3">
+            <Image src="/logo.png" alt="Wattaman" width={64} height={64} priority className="drop-shadow-md brightness-0 invert" />
+          </div>
           <h1 className="text-[28px] font-bold text-white">{t('login.welcome')}</h1>
         </div>
 
@@ -132,9 +136,7 @@ export default function Login() {
         <header className="border-b border-slate-200 bg-white/80 backdrop-blur-sm">
           <div className="max-w-6xl mx-auto px-6 py-4 flex items-center">
             <Link href="/" className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white font-bold text-sm shadow-sm">
-                S
-              </div>
+              <Image src="/logo.png" alt="Wattaman" width={36} height={36} className="drop-shadow-sm" />
               <span className="font-bold text-slate-800 text-lg">Wattaman</span>
             </Link>
           </div>
@@ -144,9 +146,7 @@ export default function Login() {
         <div className="flex-1 flex items-center justify-center px-6 py-12">
           <div className="w-full max-w-sm">
             <div className="text-center mb-8">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-white text-2xl shadow-lg mx-auto mb-4">
-                🔐
-              </div>
+              <Image src="/logo.png" alt="Wattaman" width={56} height={56} className="drop-shadow-lg mx-auto mb-4" />
               <h1 className="text-2xl font-bold text-slate-900">{t('login.welcome')}</h1>
               <p className="text-sm text-slate-500 mt-1">{t('login.subtitle')}</p>
             </div>

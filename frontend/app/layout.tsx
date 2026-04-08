@@ -16,8 +16,10 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: 'Wattaman',
   description: 'Modern school attendance management system',
+  manifest: '/manifest.json',
   icons: {
     icon: '/favicon.svg',
+    apple: '/logo.png',
   },
 }
 
@@ -29,6 +31,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <meta name="theme-color" content="#00C9A7" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href={khmerFontsUrl} rel="stylesheet" />
