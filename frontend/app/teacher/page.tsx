@@ -56,8 +56,40 @@ export default function TeacherDashboard() {
           </div>
 
           <div className="page-body space-y-4 sm:space-y-6">
-            {/* Quick Action — Staff Attendance (prominent on mobile) */}
-            <Link href="/teacher/staff-attendance" className="block">
+            {/* Mobile Quick Actions (matches mobile app teacher grid) */}
+            <div className="grid grid-cols-4 gap-3 lg:hidden">
+              <Link href="/teacher/classes" className="action-card-mobile">
+                <span className="action-icon">📖</span>
+                <span className="action-label">{t('nav.myClasses')}</span>
+              </Link>
+              <Link href="/teacher/attendance" className="action-card-mobile">
+                <span className="action-icon">📷</span>
+                <span className="action-label">{t('nav.takeAttendance')}</span>
+              </Link>
+              <Link href="/teacher/staff-attendance" className="action-card-mobile">
+                <span className="action-icon">👔</span>
+                <span className="action-label">{t('nav.staffAttendance')}</span>
+              </Link>
+              <Link href="/teacher/reports" className="action-card-mobile">
+                <span className="action-icon">📈</span>
+                <span className="action-label">{t('nav.reports')}</span>
+              </Link>
+              <Link href="/teacher/staff-reports" className="action-card-mobile">
+                <span className="action-icon">📊</span>
+                <span className="action-label">{t('nav.staffReports')}</span>
+              </Link>
+              <Link href="/teacher/session-settings" className="action-card-mobile">
+                <span className="action-icon">⏰</span>
+                <span className="action-label">{t('nav.sessionSettings')}</span>
+              </Link>
+              <Link href="/teacher" className="action-card-mobile">
+                <span className="action-icon">⚙️</span>
+                <span className="action-label">{t('nav.settings')}</span>
+              </Link>
+            </div>
+
+            {/* Quick Action — Staff Attendance (desktop only, mobile has action grid) */}
+            <Link href="/teacher/staff-attendance" className="hidden lg:block">
               <div className="bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl p-4 sm:p-5 shadow-lg shadow-emerald-200/50 active:scale-[0.98] transition-transform">
                 <div className="flex items-center gap-4">
                   <div className="w-14 h-14 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-3xl shrink-0">
@@ -71,8 +103,6 @@ export default function TeacherDashboard() {
                 </div>
               </div>
             </Link>
-
-            {/* Stats */}
             <div className="grid grid-cols-2 gap-3 sm:gap-4">
               <div className="stat-card">
                 <p className="stat-label">{t('teacher.myClasses')}</p>

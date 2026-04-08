@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import AuthGuard from '../../components/AuthGuard';
+import Sidebar from '../../components/Sidebar';
 import { apiFetch, getCurrentUser } from '../../lib/api';
 import { useLanguage } from '../../lib/i18n';
 
@@ -15,6 +16,10 @@ interface AttendanceRecord {
     subject: string;
   };
 }
+
+const studentNav = [
+  { label: 'nav.dashboard', href: '/student', icon: '🏠' },
+];
 
 export default function StudentPortal() {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
@@ -58,13 +63,86 @@ export default function StudentPortal() {
 
   return (
     <AuthGuard requiredRole="STUDENT">
-      <div className="min-h-screen bg-slate-50">
+      {/* ── Mobile layout (matches mobile app) ── */}
+      <div className="lg:hidden">
+        <div className="page-shell">
+          <Sidebar title="Student" subtitle="Portal" navItems={studentNav} accentColor="emerald" />
+          <div className="page-content">
+            <div className="h-14" />
+            <div className="page-body space-y-4">
+              {/* Mobile Action Grid */}
+              <div className="grid grid-cols-4 gap-3">
+                <Link href="/student" className="action-card-mobile">
+                  <span className="action-icon">📋</span>
+                  <span className="action-label">{t('student.title')}</span>
+                </Link>
+                <button onClick={downloadReport} className="action-card-mobile">
+                  <span className="action-icon">📥</span>
+                  <span className="action-label">{t('student.downloadReport')}</span>
+                </button>
+              </div>
+
+              {/* Summary Stats */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="stat-card text-center">
+                  <p className="stat-value">{attendance.length}</p>
+                  <p className="stat-label">{t('student.totalRecords')}</p>
+                </div>
+                <div className="stat-card text-center">
+                  <p className="stat-value" style={{ color: 'var(--color-primary)' }}>{presentCount}</p>
+                  <p className="stat-label">{t('common.present')}</p>
+                </div>
+                <div className="stat-card text-center">
+                  <p className="stat-value">{rate}%</p>
+                  <p className="stat-label">{t('student.rate')}</p>
+                </div>
+              </div>
+
+              {/* Attendance list */}
+              <div className="card divide-y divide-slate-100">
+                {attendance.map((record) => (
+                  <div key={record.id} className="flex items-center gap-3 px-4 py-3">
+                    <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+                      record.status === 'PRESENT' ? 'bg-emerald-500' :
+                      record.status === 'ABSENT' ? 'bg-red-500' : 'bg-amber-500'
+                    }`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-800 truncate">
+                        {record.class.name} — {record.class.subject}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {new Date(record.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                      </p>
+                    </div>
+                    <span className={
+                      record.status === 'PRESENT' ? 'badge-green' :
+                      record.status === 'ABSENT' ? 'badge-red' : 'badge-yellow'
+                    }>
+                      {record.status.toLowerCase()}
+                    </span>
+                  </div>
+                ))}
+                {attendance.length === 0 && (
+                  <div className="empty-state py-12">
+                    <p className="text-4xl mb-3">📋</p>
+                    <p className="font-semibold text-slate-600">{t('student.noRecords')}</p>
+                    <p className="text-sm text-slate-400 mt-1">Your records will appear here once attendance is taken.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Desktop layout (original sky theme) ── */}
+      <div className="hidden lg:block min-h-screen bg-slate-50">
         {/* Header */}
         <div className="bg-gradient-to-r from-sky-600 to-sky-800 text-white">
-          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+          <div className="max-w-5xl mx-auto px-6 py-8">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-xl sm:text-2xl font-bold">{t('student.title')}</h1>
+                <h1 className="text-2xl font-bold">{t('student.title')}</h1>
                 <p className="text-sky-200 text-sm mt-1">{t('student.subtitle')}</p>
               </div>
               <Link href="/" className="px-3 py-1.5 rounded-lg text-sm bg-white/10 hover:bg-white/20 transition-colors">
@@ -72,7 +150,7 @@ export default function StudentPortal() {
               </Link>
             </div>
             {/* Stats */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
+            <div className="grid grid-cols-3 gap-4 mt-6">
               <div className="bg-white/10 rounded-xl px-4 py-3 backdrop-blur-sm">
                 <p className="text-xs text-sky-200 uppercase tracking-wider">{t('student.totalRecords')}</p>
                 <p className="text-2xl font-bold mt-1">{attendance.length}</p>
@@ -89,7 +167,7 @@ export default function StudentPortal() {
           </div>
         </div>
 
-        <main className="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-6 space-y-4">
+        <main className="max-w-5xl mx-auto px-6 py-6 space-y-4">
           {/* Actions */}
           <div className="flex justify-end">
             <button onClick={downloadReport} className="btn-primary btn-sm">

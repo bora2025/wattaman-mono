@@ -42,7 +42,38 @@ export default function Home() {
   const { lang, setLang, t } = useLanguage()
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50">
+    <div className="min-h-screen" style={{ background: 'var(--color-bg-mobile)' }}>
+      {/* ── Mobile view: matches WelcomeScreen ── */}
+      <div className="lg:hidden min-h-screen flex flex-col">
+        {/* Top spacer + centered logo */}
+        <div className="flex-1 flex flex-col items-center justify-center px-8">
+          <div className="w-24 h-24 rounded-3xl flex items-center justify-center text-5xl mb-6 shadow-lg" style={{ background: 'var(--color-primary)' }}>
+            <span className="text-white font-bold text-3xl">W</span>
+          </div>
+          <h1 className="text-4xl font-bold mb-2" style={{ color: 'var(--color-primary)' }}>Wattaman</h1>
+          <p className="text-sm text-center leading-relaxed max-w-xs" style={{ color: 'var(--color-text-secondary)' }}>
+            {t('home.heroDesc')}
+          </p>
+        </div>
+
+        {/* Bottom action section */}
+        <div className="px-8 pb-10 space-y-4">
+          <Link href="/login" className="block w-full text-center text-white font-bold text-lg py-3.5 shadow-lg" style={{ background: 'var(--color-primary)', borderRadius: '26px', boxShadow: '0 4px 12px rgba(0,201,167,0.3)' }}>
+            {t('common.signIn')}
+          </Link>
+          <div className="flex justify-center gap-6">
+            <button
+              onClick={() => setLang(lang === 'en' ? 'kh' : 'en')}
+              className="text-sm font-semibold" style={{ color: 'var(--color-text)' }}
+            >
+              🌐 {lang === 'en' ? 'ភាសាខ្មែរ' : 'English'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Desktop view: original layout ── */}
+      <div className="hidden lg:block min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50">
       {/* Header */}
       <header className="border-b border-slate-200 bg-white/80 backdrop-blur-sm sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
@@ -129,6 +160,7 @@ export default function Home() {
           {t('home.footer')}
         </div>
       </footer>
+      </div>
     </div>
   )
 }

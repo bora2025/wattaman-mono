@@ -128,54 +128,73 @@ export default function AdminDashboard() {
           accentColor="indigo"
         />
         <div className="page-content lg:ml-0">
-          {/* Mobile spacer */}
+          {/* Mobile spacer for top bar */}
           <div className="h-14 lg:hidden" />
+
+          {/* ── Mobile: page header matches mobile app ── */}
           <div className="page-header">
-            <h1 className="text-2xl font-bold text-slate-800">{t('admin.title')}</h1>
-            <p className="text-sm text-slate-500 mt-1">{t('admin.subtitle')}</p>
+            <h1 className="text-xl lg:text-2xl font-bold" style={{ color: 'var(--color-text)' }}>{t('admin.title')}</h1>
+            <p className="text-xs lg:text-sm mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>{t('admin.subtitle')}</p>
           </div>
-          <div className="page-body space-y-6">
+
+          <div className="page-body space-y-5">
 
             {/* System Status Bar */}
             {status && (
               <div className="card p-3 sm:p-4">
-                <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-3 sm:gap-6">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-2 sm:gap-6">
                   <div className="flex items-center gap-2">
                     <span className="relative flex h-2.5 w-2.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: 'var(--color-primary)' }}></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5" style={{ background: 'var(--color-primary)' }}></span>
                     </span>
-                    <span className="text-sm font-medium text-slate-700">{t('admin.systemOnline')}</span>
+                    <span className="text-sm font-medium" style={{ color: 'var(--color-text)' }}>{t('admin.systemOnline')}</span>
                   </div>
                   {status.lastUpdated && (
-                    <div className="text-xs sm:text-sm text-slate-500">
-                      {t('admin.lastUpdated')}: <span className="font-medium text-slate-700">{timeAgo(status.lastUpdated)}</span>
-                      <span className="text-slate-400 ml-1 hidden sm:inline">({formatCambodiaTime(status.lastUpdated)})</span>
+                    <div className="text-xs sm:text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+                      {t('admin.lastUpdated')}: <span className="font-medium" style={{ color: 'var(--color-text)' }}>{timeAgo(status.lastUpdated)}</span>
+                      <span className="ml-1 hidden sm:inline" style={{ color: 'var(--color-text-light)' }}>({formatCambodiaTime(status.lastUpdated)})</span>
                     </div>
                   )}
-                  <div className="flex flex-wrap gap-3 sm:gap-4 sm:ml-auto text-xs sm:text-sm">
-                    <span className="text-slate-500">👥 <span className="font-semibold text-slate-700">{status.totalUsers}</span> {t('common.users')}</span>
-                    <span className="text-slate-500">🎓 <span className="font-semibold text-slate-700">{status.totalStudents}</span> {t('common.students')}</span>
-                    <span className="text-slate-500">📖 <span className="font-semibold text-slate-700">{status.totalClasses}</span> {t('common.classes')}</span>
+                  <div className="flex flex-wrap gap-3 sm:gap-4 sm:ml-auto text-xs sm:text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+                    <span>👥 <span className="font-semibold" style={{ color: 'var(--color-text)' }}>{status.totalUsers}</span> {t('common.users')}</span>
+                    <span>🎓 <span className="font-semibold" style={{ color: 'var(--color-text)' }}>{status.totalStudents}</span> {t('common.students')}</span>
+                    <span>📖 <span className="font-semibold" style={{ color: 'var(--color-text)' }}>{status.totalClasses}</span> {t('common.classes')}</span>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Quick Actions Grid */}
-            <h2 className="text-base sm:text-lg font-semibold text-slate-700 mb-3 sm:mb-4">{t('admin.quickActions')}</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-              {quickActions.map((action) => (
-                <Link key={action.href} href={action.href}>
-                  <div className="card-hover p-3 sm:p-5 h-full cursor-pointer">
-                    <div className={`w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center text-lg sm:text-xl shadow-sm mb-2 sm:mb-3`}>
-                      {action.icon}
+            {/* ── Mobile: 4-col dashed action grid (matches DashboardScreen) ── */}
+            <div className="lg:hidden">
+              <div className="grid grid-cols-4 gap-2">
+                {quickActions.map((action) => (
+                  <Link key={action.href} href={action.href}>
+                    <div className="action-card-mobile">
+                      <span className="action-icon">{action.icon}</span>
+                      <span className="action-label">{t(action.titleKey)}</span>
                     </div>
-                    <h3 className="font-semibold text-slate-800 mb-0.5 sm:mb-1 text-sm sm:text-base">{t(action.titleKey)}</h3>
-                    <p className="text-xs sm:text-sm text-slate-500 leading-relaxed hidden xs:block">{t(action.descKey)}</p>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* ── Desktop: original card grid ── */}
+            <div className="hidden lg:block">
+              <h2 className="text-lg font-semibold text-slate-700 mb-4">{t('admin.quickActions')}</h2>
+              <div className="grid grid-cols-3 gap-4">
+                {quickActions.map((action) => (
+                  <Link key={action.href} href={action.href}>
+                    <div className="card-hover p-5 h-full cursor-pointer">
+                      <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${action.color} flex items-center justify-center text-xl shadow-sm mb-3`}>
+                        {action.icon}
+                      </div>
+                      <h3 className="font-semibold text-slate-800 mb-1">{t(action.titleKey)}</h3>
+                      <p className="text-sm text-slate-500 leading-relaxed">{t(action.descKey)}</p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
             </div>
           </div>
         </div>

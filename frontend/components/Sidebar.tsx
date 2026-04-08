@@ -16,6 +16,8 @@ interface SidebarProps {
   subtitle?: string;
   navItems: NavItem[];
   accentColor?: string;
+  /** Which nav hrefs to show in the mobile bottom tab bar (max 5). Defaults to first 4 + settings/more. */
+  bottomTabs?: string[];
 }
 
 const colorMap: Record<string, { bg: string; text: string; hover: string; active: string; ring: string; gradient: string }> = {
@@ -45,12 +47,40 @@ const colorMap: Record<string, { bg: string; text: string; hover: string; active
   },
 };
 
-export default function Sidebar({ title, subtitle, navItems, accentColor = 'indigo' }: SidebarProps) {
+function pickBottomTabs(navItems: NavItem[], bottomTabs?: string[]): NavItem[] {
+  if (bottomTabs) {
+    return bottomTabs.map(href => navItems.find(n => n.href === href)).filter(Boolean) as NavItem[];
+  }
+  // Auto-pick: first item (dashboard) + up to 3 most important + last (settings)
+  if (navItems.length <= 5) return navItems;
+  const picked = [navItems[0]];
+  // Find scan/attendance, reports, classes/users
+  const priorities = ['attendance', 'scan', 'reports', 'classes', 'users', 'search'];
+  for (const p of priorities) {
+    if (picked.length >= 4) break;
+    const match = navItems.find(n => n.href.includes(p) && !picked.includes(n));
+    if (match) picked.push(match);
+  }
+  // Fill remaining slots
+  for (const n of navItems.slice(1)) {
+    if (picked.length >= 4) break;
+    if (!picked.includes(n)) picked.push(n);
+  }
+  // Add a "More" entry
+  picked.push({ label: 'common.more', href: '__more__', icon: '☰' });
+  return picked;
+}
+
+export default function Sidebar({ title, subtitle, navItems, accentColor = 'indigo', bottomTabs }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+  const [showMore, setShowMore] = useState(false);
   const colors = colorMap[accentColor] || colorMap.indigo;
   const { lang, setLang, t } = useLanguage();
+
+  const tabs = pickBottomTabs(navItems, bottomTabs);
+  const hasMore = tabs.some(t => t.href === '__more__');
 
   const handleLogout = async () => {
     try {
@@ -62,42 +92,123 @@ export default function Sidebar({ title, subtitle, navItems, accentColor = 'indi
 
   return (
     <>
-      {/* Mobile top bar */}
-      <div className={`lg:hidden fixed top-0 left-0 right-0 z-40 bg-gradient-to-r ${colors.gradient} text-white px-4 py-3 flex items-center justify-between shadow-lg`} style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center text-sm font-bold">
-            {title.charAt(0)}
-          </div>
-          <span className="font-semibold text-sm truncate">{title}</span>
+      {/* ── Mobile: Top greeting bar ── */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 px-4 py-3 flex items-center justify-between" style={{ paddingTop: 'env(safe-area-inset-top)', background: 'var(--color-bg-mobile)' }}>
+        <div>
+          <h1 className="font-bold text-lg" style={{ color: 'var(--color-text)' }}>{title}</h1>
+          {subtitle && <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{subtitle}</p>}
         </div>
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="p-2 -mr-2 rounded-lg hover:bg-white/10 transition-colors"
-          style={{ minWidth: '44px', minHeight: '44px' }}
-          aria-label="Toggle menu"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            {collapsed ? (
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            ) : (
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            )}
-          </svg>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setLang(lang === 'en' ? 'kh' : 'en')}
+            className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm text-sm"
+            aria-label="Language"
+          >
+            🌐
+          </button>
+          <button
+            onClick={handleLogout}
+            className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm text-sm"
+            aria-label="Logout"
+          >
+            🚪
+          </button>
+        </div>
       </div>
 
-      {/* Mobile overlay */}
-      {collapsed && (
+      {/* ── Mobile: Bottom tab bar (matches mobile app) ── */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t" style={{ borderColor: 'var(--color-input-border)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <nav className="flex items-stretch justify-around" style={{ height: '60px' }}>
+          {tabs.map((tab) => {
+            if (tab.href === '__more__') {
+              return (
+                <button
+                  key="more"
+                  onClick={() => { setShowMore(true); setCollapsed(true); }}
+                  className="flex flex-col items-center justify-center flex-1 gap-0.5 transition-colors"
+                  style={{ color: 'var(--color-text-secondary)' }}
+                >
+                  <span className="text-xl leading-none">{tab.icon}</span>
+                  <span className="text-[10px] font-medium">{t(tab.label)}</span>
+                </button>
+              );
+            }
+            const isActive = pathname === tab.href;
+            return (
+              <Link
+                key={tab.href}
+                href={tab.href}
+                className="flex flex-col items-center justify-center flex-1 gap-0.5 transition-colors"
+                style={{ color: isActive ? 'var(--color-primary)' : 'var(--color-text-secondary)' }}
+              >
+                <span className="text-xl leading-none">{tab.icon}</span>
+                <span className="text-[10px] font-medium" style={isActive ? { fontWeight: 700 } : {}}>{t(tab.label)}</span>
+                {isActive && <span className="absolute bottom-1 w-5 h-0.5 rounded-full" style={{ background: 'var(--color-primary)' }} />}
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
+
+      {/* ── Mobile: Full-screen "More" drawer ── */}
+      {collapsed && showMore && (
+        <>
+          <div className="lg:hidden fixed inset-0 bg-black/40 z-50" onClick={() => { setCollapsed(false); setShowMore(false); }} />
+          <div className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl max-h-[80vh] overflow-y-auto" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+            <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'var(--color-input-border)' }}>
+              <h2 className="font-bold text-lg" style={{ color: 'var(--color-text)' }}>{t('common.more') || 'More'}</h2>
+              <button
+                onClick={() => { setCollapsed(false); setShowMore(false); }}
+                className="w-8 h-8 rounded-full flex items-center justify-center"
+                style={{ background: 'var(--color-input-bg)' }}
+              >✕</button>
+            </div>
+            <nav className="px-3 py-3 space-y-0.5">
+              {navItems.map((item) => {
+                const isActive = pathname === item.href;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => { setCollapsed(false); setShowMore(false); }}
+                    className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm transition-all"
+                    style={{
+                      background: isActive ? 'var(--color-primary-light)' : 'transparent',
+                      color: isActive ? 'var(--color-primary-dark)' : 'var(--color-text)',
+                      fontWeight: isActive ? 600 : 400,
+                    }}
+                  >
+                    <span className="text-xl leading-none">{item.icon}</span>
+                    <span>{t(item.label)}</span>
+                  </Link>
+                );
+              })}
+            </nav>
+            <div className="px-3 pb-4 space-y-0.5">
+              <Link
+                href="/"
+                onClick={() => { setCollapsed(false); setShowMore(false); }}
+                className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm"
+                style={{ color: 'var(--color-text-secondary)' }}
+              >
+                <span className="text-xl leading-none">🏠</span>
+                <span>{t('common.backToHome')}</span>
+              </Link>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── Mobile: Slide-in sidebar for hamburger (legacy, hidden if bottom nav is used) ── */}
+      {collapsed && !showMore && (
         <div className="lg:hidden fixed inset-0 bg-black/40 z-40" onClick={() => setCollapsed(false)} />
       )}
 
-      {/* Sidebar */}
+      {/* ── Desktop: Full sidebar ── */}
       <aside className={`
-        fixed lg:sticky top-0 left-0 z-50 lg:z-auto
+        hidden lg:flex lg:sticky top-0 left-0 z-50 lg:z-auto
         h-screen w-64 bg-gradient-to-b ${colors.gradient} text-white
-        flex flex-col shadow-xl
-        transition-transform duration-300 ease-in-out
-        ${collapsed ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0
+        flex-col shadow-xl
       `}>
         {/* Logo area */}
         <div className="px-5 py-6 border-b border-white/10">
@@ -120,8 +231,7 @@ export default function Sidebar({ title, subtitle, navItems, accentColor = 'indi
               <Link
                 key={item.href}
                 href={item.href}
-                onClick={() => setCollapsed(false)}
-                className={`flex items-center gap-3 px-3 py-3 lg:py-2.5 rounded-lg text-sm transition-all duration-150 ${
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all duration-150 ${
                   isActive
                     ? colors.active
                     : `${colors.text} ${colors.hover}`
@@ -136,25 +246,23 @@ export default function Sidebar({ title, subtitle, navItems, accentColor = 'indi
 
         {/* Bottom */}
         <div className="px-3 py-4 border-t border-white/10 space-y-0.5">
-          {/* Language Toggle */}
           <button
             onClick={() => setLang(lang === 'en' ? 'kh' : 'en')}
-            className={`flex items-center gap-3 px-3 py-3 lg:py-2.5 rounded-lg text-sm w-full text-left ${colors.text} ${colors.hover} transition-colors`}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm w-full text-left ${colors.text} ${colors.hover} transition-colors`}
           >
             <span className="text-lg leading-none">🌐</span>
             <span>{lang === 'en' ? 'ភាសាខ្មែរ' : 'English'}</span>
           </button>
           <Link
             href="/"
-            onClick={() => setCollapsed(false)}
-            className={`flex items-center gap-3 px-3 py-3 lg:py-2.5 rounded-lg text-sm ${colors.text} ${colors.hover} transition-colors`}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm ${colors.text} ${colors.hover} transition-colors`}
           >
             <span className="text-lg leading-none">🏠</span>
             <span>{t('common.backToHome')}</span>
           </Link>
           <button
             onClick={handleLogout}
-            className={`flex items-center gap-3 px-3 py-3 lg:py-2.5 rounded-lg text-sm w-full text-left ${colors.text} ${colors.hover} transition-colors`}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm w-full text-left ${colors.text} ${colors.hover} transition-colors`}
           >
             <span className="text-lg leading-none">🚪</span>
             <span>{t('common.logout')}</span>

@@ -112,17 +112,37 @@ export default function EmployeeDashboard() {
           <div className="page-shell">
             <div className="page-content">
               {/* Header */}
-              <div className="page-header">
+              <div className="page-header flex items-center justify-between">
                 <div>
                 <h1 className="text-xl sm:text-2xl font-bold text-slate-900">📊 {t('employee.title')}</h1>
                 <p className="text-sm text-slate-500 mt-1">{t('employee.welcome')}, {userName || '...'}</p>
                 </div>
-                <Link href="/employee/scan" className="btn-primary">
+                <Link href="/employee/scan" className="btn-primary hidden lg:inline-flex">
                   📷 {t('employee.scanNow')}
                 </Link>
               </div>
 
               <div className="page-body space-y-6">
+
+                {/* Mobile Quick Actions (matches mobile app 4-col grid) */}
+                <div className="grid grid-cols-4 gap-3 lg:hidden">
+                  <Link href="/employee/scan" className="action-card-mobile">
+                    <span className="action-icon">📷</span>
+                    <span className="action-label">{t('employee.scanNow')}</span>
+                  </Link>
+                  <Link href="/employee/reports" className="action-card-mobile">
+                    <span className="action-icon">📈</span>
+                    <span className="action-label">{t('nav.myReports')}</span>
+                  </Link>
+                  <Link href="/employee/my-card" className="action-card-mobile">
+                    <span className="action-icon">🪪</span>
+                    <span className="action-label">{t('employee.myIdCard')}</span>
+                  </Link>
+                  <Link href="/employee" className="action-card-mobile">
+                    <span className="action-icon">⚙️</span>
+                    <span className="action-label">{t('nav.settings')}</span>
+                  </Link>
+                </div>
 
                 {/* Today's Status */}
                 <div className="card p-5">
@@ -180,8 +200,8 @@ export default function EmployeeDashboard() {
                   </div>
                 </div>
 
-                {/* Quick Access - ID Card */}
-                <Link href="/employee/my-card" className="card p-5 flex items-center gap-4 hover:shadow-md transition-shadow group">
+                {/* Quick Access - ID Card (desktop only, mobile has action grid) */}
+                <Link href="/employee/my-card" className="card p-5 hidden lg:flex items-center gap-4 hover:shadow-md transition-shadow group">
                   <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform">🪪</div>
                   <div>
                     <h3 className="font-semibold text-slate-800">{t('employee.myIdCard')}</h3>
