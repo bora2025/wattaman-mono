@@ -4,17 +4,15 @@ RUN apk add --no-cache openssl
 
 WORKDIR /app
 
-# Copy package files
+# Copy package files and prisma schema (needed for postinstall prisma generate)
 COPY backend/package.json backend/package-lock.json ./
+COPY backend/prisma/schema.prisma prisma/schema.prisma
 
-# Install all dependencies (--ignore-scripts to skip postinstall prisma generate before schema is copied)
-RUN npm install --ignore-scripts --legacy-peer-deps
+# Install all dependencies (postinstall runs prisma generate; @swc/core downloads native binary)
+RUN npm install --legacy-peer-deps
 
-# Copy source code and prisma schema
+# Copy rest of source code
 COPY backend/ ./
-
-# Generate Prisma client
-RUN ./node_modules/.bin/prisma generate --schema=prisma/schema.prisma
 
 # Build NestJS
 RUN npm run build
