@@ -135,11 +135,10 @@ export default function Sidebar({ title, subtitle, navItems, accentColor = 'indi
                 <button
                   key="more"
                   onClick={() => { setShowMore(true); setCollapsed(true); }}
-                  className="flex flex-col items-center justify-center flex-1 gap-0.5 transition-colors"
+                  className="flex items-center justify-center flex-1 transition-colors"
                   style={{ color: 'var(--color-text-secondary)' }}
                 >
-                  <NavIcon icon={tab.icon} size={22} />
-                  <span className="text-[10px] font-medium">{t(tab.label)}</span>
+                  <NavIcon icon={tab.icon} size={24} />
                 </button>
               );
             }
@@ -148,12 +147,11 @@ export default function Sidebar({ title, subtitle, navItems, accentColor = 'indi
               <Link
                 key={tab.href}
                 href={tab.href}
-                className="flex flex-col items-center justify-center flex-1 gap-0.5 transition-colors"
+                className="flex items-center justify-center flex-1 relative transition-colors"
                 style={{ color: isActive ? 'var(--color-primary)' : 'var(--color-text-secondary)' }}
               >
-                <NavIcon icon={tab.icon} size={22} />
-                <span className="text-[10px] font-medium" style={isActive ? { fontWeight: 700 } : {}}>{t(tab.label)}</span>
-                {isActive && <span className="absolute bottom-1 w-5 h-0.5 rounded-full" style={{ background: 'var(--color-primary)' }} />}
+                <NavIcon icon={tab.icon} size={24} />
+                {isActive && <span className="absolute bottom-1.5 w-5 h-0.5 rounded-full" style={{ background: 'var(--color-primary)' }} />}
               </Link>
             );
           })}
