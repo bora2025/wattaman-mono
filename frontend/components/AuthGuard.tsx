@@ -13,11 +13,13 @@ const EMPLOYEE_EXCLUDED_ROLES = ['ADMIN', 'TEACHER', 'STUDENT'];
 
 function isRoleAllowed(userRole: string, requiredRole?: string, allowedRoles?: string[]): boolean {
   if (allowedRoles && allowedRoles.length > 0) {
+    // Check explicit role match first
+    if (allowedRoles.includes(userRole)) return true;
     // Special meta-role: EMPLOYEE means any role not in excluded list
     if (allowedRoles.includes('EMPLOYEE')) {
       return !EMPLOYEE_EXCLUDED_ROLES.includes(userRole);
     }
-    return allowedRoles.includes(userRole);
+    return false;
   }
   if (requiredRole) {
     return userRole === requiredRole;

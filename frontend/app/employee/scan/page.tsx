@@ -271,7 +271,7 @@ export default function EmployeeScanPage() {
   }
 
   return (
-    <AuthGuard allowedRoles={['EMPLOYEE']}>
+    <AuthGuard allowedRoles={['EMPLOYEE', 'ADMIN', 'TEACHER']}>
       <div className="flex min-h-screen bg-slate-50">
         <Sidebar title="Employee" subtitle={userName || 'Portal'} navItems={employeeNav} accentColor="emerald" />
 
