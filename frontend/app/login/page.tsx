@@ -1,18 +1,19 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useLanguage } from '../../lib/i18n';
 
-export default function Login() {
+function LoginContent() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { t } = useLanguage();
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -33,14 +34,21 @@ export default function Login() {
         const role = data.user?.role;
         if (role) localStorage.setItem('role', role);
 
-        const adminRoles = ['ADMIN'];
-        const teacherRoles = ['TEACHER'];
-        const studentRoles = ['STUDENT'];
-        let dest = '/employee';
-        if (adminRoles.includes(role)) dest = '/admin';
-        else if (teacherRoles.includes(role)) dest = '/teacher';
-        else if (studentRoles.includes(role)) dest = '/student';
-        router.push(dest);
+        // Check for returnTo query param (e.g. from AuthGuard redirect)
+        const returnTo = searchParams.get('returnTo');
+        // Only allow safe relative paths
+        if (returnTo && returnTo.startsWith('/') && !returnTo.startsWith('//')) {
+          router.push(returnTo);
+        } else {
+          const adminRoles = ['ADMIN'];
+          const teacherRoles = ['TEACHER'];
+          const studentRoles = ['STUDENT'];
+          let dest = '/employee';
+          if (adminRoles.includes(role)) dest = '/admin';
+          else if (teacherRoles.includes(role)) dest = '/teacher';
+          else if (studentRoles.includes(role)) dest = '/student';
+          router.push(dest);
+        }
       } else {
         setError(t('login.invalidCredentials'));
         setLoading(false);
@@ -206,5 +214,13 @@ export default function Login() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function Login() {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><div className="w-8 h-8 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin" /></div>}>
+      <LoginContent />
+    </Suspense>
   );
 }

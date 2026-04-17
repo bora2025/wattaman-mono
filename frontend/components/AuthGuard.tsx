@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -31,6 +31,8 @@ export default function AuthGuard({ children, requiredRole, allowedRoles }: Auth
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
+  const loginUrl = `/login?returnTo=${encodeURIComponent(pathname)}`;
 
   useEffect(() => {
     // Verify auth by calling the API (cookie is sent automatically)
@@ -40,7 +42,7 @@ export default function AuthGuard({ children, requiredRole, allowedRoles }: Auth
         const user = await res.json();
         // Check role if required
         if (!isRoleAllowed(user.role, requiredRole, allowedRoles)) {
-          router.push('/login');
+          router.push(loginUrl);
           return;
         }
         localStorage.setItem('role', user.role);
@@ -57,7 +59,7 @@ export default function AuthGuard({ children, requiredRole, allowedRoles }: Auth
             if (!retryRes.ok) throw new Error('Still not authenticated');
             const user = await retryRes.json();
             if (!isRoleAllowed(user.role, requiredRole, allowedRoles)) {
-              router.push('/login');
+              router.push(loginUrl);
               return;
             }
             localStorage.setItem('role', user.role);
@@ -66,10 +68,10 @@ export default function AuthGuard({ children, requiredRole, allowedRoles }: Auth
           })
           .catch(() => {
             localStorage.removeItem('role');
-            router.push('/login');
+            router.push(loginUrl);
           });
       });
-  }, [router, requiredRole, allowedRoles]);
+  }, [router, requiredRole, allowedRoles, loginUrl]);
 
   if (isLoading) {
     return (

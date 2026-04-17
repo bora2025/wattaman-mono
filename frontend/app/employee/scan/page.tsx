@@ -5,6 +5,8 @@ import { BrowserMultiFormatReader } from '@zxing/library'
 import Sidebar from '../../../components/Sidebar'
 import AuthGuard from '../../../components/AuthGuard'
 import { employeeNav } from '../../../lib/employee-nav'
+import { adminNav } from '../../../lib/admin-nav'
+import { teacherNav } from '../../../lib/teacher-nav'
 import { apiFetch } from '../../../lib/api'
 import { useLanguage } from '../../../lib/i18n'
 
@@ -273,7 +275,12 @@ export default function EmployeeScanPage() {
   return (
     <AuthGuard allowedRoles={['EMPLOYEE', 'ADMIN', 'TEACHER']}>
       <div className="flex min-h-screen bg-slate-50">
-        <Sidebar title="Employee" subtitle={userName || 'Portal'} navItems={employeeNav} accentColor="emerald" />
+        <Sidebar
+          title={userRole === 'ADMIN' ? 'Admin' : userRole === 'TEACHER' ? 'Teacher' : 'Employee'}
+          subtitle={userName || 'Portal'}
+          navItems={userRole === 'ADMIN' ? adminNav : userRole === 'TEACHER' ? teacherNav : employeeNav}
+          accentColor={userRole === 'ADMIN' ? 'indigo' : userRole === 'TEACHER' ? 'sky' : 'emerald'}
+        />
 
         <main className="flex-1 lg:ml-0">
           <div className="lg:hidden h-14" />
