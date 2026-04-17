@@ -782,12 +782,12 @@ function AdminTakeAttendance() {
                 {/* Clear scanning area */}
                 <div className="absolute inset-0 bg-black/0 rounded-2xl" style={{ boxShadow: '0 0 0 9999px rgba(0,0,0,0.4)' }} />
                 {/* Animated corner brackets */}
-                <div className="absolute top-0 left-0 w-10 h-10 border-t-4 border-l-4 border-white rounded-tl-xl" />
-                <div className="absolute top-0 right-0 w-10 h-10 border-t-4 border-r-4 border-white rounded-tr-xl" />
-                <div className="absolute bottom-0 left-0 w-10 h-10 border-b-4 border-l-4 border-white rounded-bl-xl" />
-                <div className="absolute bottom-0 right-0 w-10 h-10 border-b-4 border-r-4 border-white rounded-br-xl" />
+                <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-teal-400 rounded-tl-2xl drop-shadow-[0_0_8px_rgba(0,201,167,0.5)]" />
+                <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-teal-400 rounded-tr-2xl drop-shadow-[0_0_8px_rgba(0,201,167,0.5)]" />
+                <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-teal-400 rounded-bl-2xl drop-shadow-[0_0_8px_rgba(0,201,167,0.5)]" />
+                <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-teal-400 rounded-br-2xl drop-shadow-[0_0_8px_rgba(0,201,167,0.5)]" />
                 {/* Scanning line animation */}
-                <div className="absolute left-2 right-2 h-0.5 bg-gradient-to-r from-transparent via-indigo-400 to-transparent animate-pulse" style={{ top: '50%' }} />
+                <div className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-teal-400 to-transparent drop-shadow-[0_0_8px_rgba(0,201,167,0.6)]" style={{ animation: 'scanLine 2.5s ease-in-out infinite' }} />
               </div>
             </div>
           </div>
@@ -796,7 +796,7 @@ function AdminTakeAttendance() {
           <div className="relative z-10 flex items-center justify-between px-4 pt-4 pb-2 bg-gradient-to-b from-black/70 to-transparent">
             <div className="flex items-center gap-3">
               <div className={`px-3 py-1.5 rounded-full text-xs font-bold ${
-                scanMode === 'check-in' ? 'bg-indigo-500 text-white' : 'bg-blue-500 text-white'
+                scanMode === 'check-in' ? 'bg-teal-500 text-white' : 'bg-sky-500 text-white'
               }`}>
                 {scanMode === 'check-in' ? '📥 Check-In' : '📤 Check-Out'}
               </div>
@@ -836,7 +836,7 @@ function AdminTakeAttendance() {
             )}
             <div className="flex items-center justify-between text-white/90">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <div className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
                 <span className="text-xs font-medium">Scanning for student & staff QR codes...</span>
               </div>
               <div className="flex items-center gap-3 text-xs font-medium">
@@ -847,7 +847,7 @@ function AdminTakeAttendance() {
             </div>
             {/* Progress bar */}
             <div className="mt-3 h-1 bg-white/20 rounded-full overflow-hidden">
-              <div className="h-1 bg-emerald-400 rounded-full transition-all duration-500 ease-out" style={{ width: `${progressPct}%` }} />
+              <div className="h-1 bg-teal-400 rounded-full transition-all duration-500 ease-out" style={{ width: `${progressPct}%` }} />
             </div>
           </div>
         </div>
@@ -1199,7 +1199,7 @@ function AdminTakeAttendance() {
         <div className="flex gap-3">
           <button
             onClick={startScanning}
-            className="flex-1 sm:flex-none bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white font-bold py-3.5 sm:py-3 px-6 rounded-xl shadow-lg shadow-indigo-200 active:scale-[0.98] transition-all text-sm sm:text-base"
+            className="flex-1 sm:flex-none bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white font-bold py-3.5 sm:py-3 px-6 rounded-xl shadow-lg shadow-teal-200 active:scale-[0.98] transition-all text-sm sm:text-base"
           >
             📷 Open Camera
           </button>
@@ -1300,6 +1300,10 @@ function AdminTakeAttendance() {
         @keyframes slideUp {
           from { transform: translateY(100%); opacity: 0; }
           to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes scanLine {
+          0%, 100% { top: 0%; }
+          50% { top: 100%; }
         }
       `}</style>
     </div>

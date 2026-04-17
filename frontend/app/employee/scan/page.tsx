@@ -293,7 +293,7 @@ export default function EmployeeScanPage() {
                   {/* User Info Card */}
                   <div className="card p-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-xl overflow-hidden ring-2 ring-emerald-200">
+                      <div className="w-14 h-14 rounded-full bg-teal-100 flex items-center justify-center text-teal-600 font-bold text-xl overflow-hidden ring-2 ring-teal-200">
                         {userPhoto ? (
                           <img src={userPhoto} alt={userName} className="w-full h-full object-cover" />
                         ) : (
@@ -306,7 +306,7 @@ export default function EmployeeScanPage() {
                         {userDepartment && <p className="text-xs text-slate-400">🏢 {userDepartment}</p>}
                       </div>
                       <div className="ml-auto flex items-center gap-1.5 shrink-0">
-                        <span className={`w-2 h-2 rounded-full ${gpsLocation ? 'bg-emerald-500' : 'bg-slate-300'}`} />
+                        <span className={`w-2 h-2 rounded-full ${gpsLocation ? 'bg-teal-500' : 'bg-slate-300'}`} />
                         <span className="text-xs text-slate-400">{gpsLocation ? 'GPS Active' : 'No GPS'}</span>
                       </div>
                     </div>
@@ -370,18 +370,19 @@ export default function EmployeeScanPage() {
                           />
                           {/* Scan crosshair overlay */}
                           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                            <div className="w-52 h-52 border-2 border-white/60 rounded-2xl relative">
-                              <div className="absolute -top-0.5 -left-0.5 w-8 h-8 border-t-4 border-l-4 border-emerald-400 rounded-tl-xl" />
-                              <div className="absolute -top-0.5 -right-0.5 w-8 h-8 border-t-4 border-r-4 border-emerald-400 rounded-tr-xl" />
-                              <div className="absolute -bottom-0.5 -left-0.5 w-8 h-8 border-b-4 border-l-4 border-emerald-400 rounded-bl-xl" />
-                              <div className="absolute -bottom-0.5 -right-0.5 w-8 h-8 border-b-4 border-r-4 border-emerald-400 rounded-br-xl" />
+                            <div className="w-52 h-52 rounded-2xl relative">
+                              <div className="absolute -top-0.5 -left-0.5 w-10 h-10 border-t-4 border-l-4 border-teal-400 rounded-tl-2xl drop-shadow-[0_0_8px_rgba(0,201,167,0.5)]" />
+                              <div className="absolute -top-0.5 -right-0.5 w-10 h-10 border-t-4 border-r-4 border-teal-400 rounded-tr-2xl drop-shadow-[0_0_8px_rgba(0,201,167,0.5)]" />
+                              <div className="absolute -bottom-0.5 -left-0.5 w-10 h-10 border-b-4 border-l-4 border-teal-400 rounded-bl-2xl drop-shadow-[0_0_8px_rgba(0,201,167,0.5)]" />
+                              <div className="absolute -bottom-0.5 -right-0.5 w-10 h-10 border-b-4 border-r-4 border-teal-400 rounded-br-2xl drop-shadow-[0_0_8px_rgba(0,201,167,0.5)]" />
+                              <div className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-teal-400 to-transparent drop-shadow-[0_0_8px_rgba(0,201,167,0.6)]" style={{ animation: 'scanLine 2.5s ease-in-out infinite' }} />
                             </div>
                           </div>
                           {/* Scanning indicator */}
                           {scanStatus === 'scanning' && (
                             <div className="absolute inset-0 flex items-center justify-center bg-black/30">
                               <div className="bg-white rounded-xl p-4 shadow-lg text-center">
-                                <div className="w-8 h-8 border-3 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto" />
+                                <div className="w-8 h-8 border-3 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto" />
                                 <p className="text-sm font-medium text-slate-700 mt-2">Recording...</p>
                               </div>
                             </div>
@@ -403,7 +404,7 @@ export default function EmployeeScanPage() {
                         </div>
                       ) : (
                         <div className="p-8 text-center">
-                          <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center text-4xl mx-auto mb-4">
+                          <div className="w-20 h-20 rounded-full bg-teal-100 flex items-center justify-center text-4xl mx-auto mb-4">
                             📷
                           </div>
                           <h3 className="text-lg font-semibold text-slate-800 mb-2">Ready to Scan</h3>
@@ -452,6 +453,12 @@ export default function EmployeeScanPage() {
             </div>
           </div>
         </main>
+        <style jsx>{`
+          @keyframes scanLine {
+            0%, 100% { top: 0%; }
+            50% { top: 100%; }
+          }
+        `}</style>
       </div>
     </AuthGuard>
   )

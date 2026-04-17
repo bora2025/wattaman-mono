@@ -475,11 +475,11 @@ function TeacherStaffAttendance() {
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="w-64 h-64 sm:w-72 sm:h-72 relative">
                 <div className="absolute inset-0 bg-black/0 rounded-2xl" style={{ boxShadow: '0 0 0 9999px rgba(0,0,0,0.4)' }} />
-                <div className="absolute top-0 left-0 w-10 h-10 border-t-4 border-l-4 border-white rounded-tl-xl" />
-                <div className="absolute top-0 right-0 w-10 h-10 border-t-4 border-r-4 border-white rounded-tr-xl" />
-                <div className="absolute bottom-0 left-0 w-10 h-10 border-b-4 border-l-4 border-white rounded-bl-xl" />
-                <div className="absolute bottom-0 right-0 w-10 h-10 border-b-4 border-r-4 border-white rounded-br-xl" />
-                <div className="absolute left-2 right-2 h-0.5 bg-gradient-to-r from-transparent via-emerald-400 to-transparent animate-pulse" style={{ top: '50%' }} />
+                <div className="absolute top-0 left-0 w-12 h-12 border-t-4 border-l-4 border-teal-400 rounded-tl-2xl drop-shadow-[0_0_8px_rgba(0,201,167,0.5)]" />
+                <div className="absolute top-0 right-0 w-12 h-12 border-t-4 border-r-4 border-teal-400 rounded-tr-2xl drop-shadow-[0_0_8px_rgba(0,201,167,0.5)]" />
+                <div className="absolute bottom-0 left-0 w-12 h-12 border-b-4 border-l-4 border-teal-400 rounded-bl-2xl drop-shadow-[0_0_8px_rgba(0,201,167,0.5)]" />
+                <div className="absolute bottom-0 right-0 w-12 h-12 border-b-4 border-r-4 border-teal-400 rounded-br-2xl drop-shadow-[0_0_8px_rgba(0,201,167,0.5)]" />
+                <div className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-teal-400 to-transparent drop-shadow-[0_0_8px_rgba(0,201,167,0.6)]" style={{ animation: 'scanLine 2.5s ease-in-out infinite' }} />
               </div>
             </div>
           </div>
@@ -487,7 +487,7 @@ function TeacherStaffAttendance() {
           <div className="relative z-10 flex items-center justify-between px-4 pt-4 pb-2 bg-gradient-to-b from-black/70 to-transparent">
             <div className="flex items-center gap-3">
               <div className={`px-3 py-1.5 rounded-full text-xs font-bold ${
-                scanMode === 'check-in' ? 'bg-emerald-500 text-white' : 'bg-blue-500 text-white'
+                scanMode === 'check-in' ? 'bg-teal-500 text-white' : 'bg-sky-500 text-white'
               }`}>
                 {scanMode === 'check-in' ? '📥 Check-In' : '📤 Check-Out'}
               </div>
@@ -524,9 +524,9 @@ function TeacherStaffAttendance() {
                   return (
                     <div
                       key={cfg.session}
-                      className={`relative flex-shrink-0 px-3 py-2 rounded-xl text-left border backdrop-blur-sm ${
+                      className={`relative flex-shrink-0 px-3 py-2 rounded-xl text-left border backdrop-blur-md ${
                         isActive
-                          ? 'border-emerald-400 bg-emerald-500/30 ring-1 ring-emerald-400'
+                          ? 'border-teal-400 bg-teal-500/30 ring-1 ring-teal-400'
                           : 'border-white/20 bg-white/10'
                       }`}
                     >
@@ -557,7 +557,7 @@ function TeacherStaffAttendance() {
             )}
             <div className="flex items-center justify-between text-white/90">
               <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <div className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
                 <span className="text-xs font-medium">Scanning for staff QR codes...</span>
               </div>
               <div className="flex items-center gap-3 text-xs font-medium">
@@ -566,32 +566,40 @@ function TeacherStaffAttendance() {
               </div>
             </div>
             <div className="mt-3 h-1 bg-white/20 rounded-full overflow-hidden">
-              <div className="h-1 bg-emerald-400 rounded-full transition-all duration-500 ease-out" style={{ width: `${progressPct}%` }} />
+              <div className="h-1 bg-teal-400 rounded-full transition-all duration-500 ease-out" style={{ width: `${progressPct}%` }} />
             </div>
           </div>
 
           {showStaffInfo && currentStaff && (
-            <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
-              <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full mx-4 animate-[slideUp_0.35s_ease-out]">
-                <div className="text-center">
-                  <div className="w-24 h-24 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-3xl font-bold mx-auto mb-4 overflow-hidden ring-4 ring-emerald-200">
-                    {currentStaff.photo ? (
-                      <img src={currentStaff.photo} alt={currentStaff.name} className="w-full h-full object-cover" />
-                    ) : (
-                      currentStaff.name.charAt(0).toUpperCase()
-                    )}
+            <div className="absolute inset-0 z-20 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
+              <div className="w-full sm:max-w-sm bg-white sm:rounded-2xl rounded-t-3xl shadow-2xl overflow-hidden sm:mx-4 animate-[slideUp_0.35s_ease-out]">
+                <div className="relative bg-gradient-to-br from-teal-500 via-emerald-500 to-cyan-500 px-6 py-6 text-center">
+                  <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-white/10" />
+                  <div className="absolute -bottom-8 -left-8 w-24 h-24 rounded-full bg-white/10" />
+                  <p className="text-sm font-medium text-white/80 mb-1">✓ Staff Scanned</p>
+                  <h2 className="text-2xl font-extrabold text-white tracking-tight">{currentStaff.name}</h2>
+                </div>
+                <div className="px-6 py-5 flex flex-col items-center">
+                  <div className="relative -mt-12 mb-4">
+                    <div className="w-20 h-20 rounded-full border-4 border-white shadow-xl bg-teal-50 text-teal-600 flex items-center justify-center text-3xl font-bold overflow-hidden">
+                      {currentStaff.photo ? (
+                        <img src={currentStaff.photo} alt={currentStaff.name} className="w-full h-full object-cover" />
+                      ) : (
+                        currentStaff.name.charAt(0).toUpperCase()
+                      )}
+                    </div>
+                    <div className="absolute -bottom-1 right-0 w-7 h-7 rounded-full border-2 border-white bg-emerald-500 text-white flex items-center justify-center text-xs">✓</div>
                   </div>
-                  <h3 className="text-xl font-bold text-slate-800">{currentStaff.name}</h3>
-                  <div className="mt-2 space-y-1">
+                  <div className="text-center space-y-1">
                     {currentStaff.department && (
                       <p className="text-sm text-slate-600">🏢 {currentStaff.department.name}</p>
                     )}
                     <p className="text-sm text-slate-500">💼 {positionLabels[currentStaff.role] || currentStaff.role}</p>
                   </div>
-                  <div className="mt-3 px-4 py-2 rounded-xl text-sm font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <div className="mt-4 w-full px-4 py-3 rounded-xl text-sm font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 text-center">
                     ✅ Attendance Marked
                   </div>
-                  <p className="text-xs text-slate-400 mt-2">Redirecting to dashboard...</p>
+                  <p className="text-xs text-slate-400 mt-3 pb-2">Redirecting to dashboard...</p>
                 </div>
               </div>
             </div>
@@ -796,6 +804,10 @@ function TeacherStaffAttendance() {
         @keyframes slideUp {
           from { transform: translateY(100%); opacity: 0; }
           to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes scanLine {
+          0%, 100% { top: 0%; }
+          50% { top: 100%; }
         }
       `}</style>
     </div>
