@@ -108,29 +108,29 @@ export default function TeacherStaffReports() {
         </div>
         <div className="page-body space-y-6">
           {/* Controls */}
-          <div className="card p-4">
-            <div className="flex flex-wrap gap-4 items-end">
-              <div>
+          <div className="card p-3 sm:p-4">
+            <div className="space-y-3 lg:space-y-0 lg:flex lg:flex-wrap lg:gap-4 lg:items-end">
+              <div className="w-full lg:w-auto">
                 <label className="block text-xs font-medium text-slate-500 mb-1">Date</label>
-                <div className="flex items-center gap-1">
-                  <button onClick={() => goDay(-1)} className="px-2 py-2 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 text-sm">◀</button>
+                <div className="flex items-center gap-1.5">
+                  <button onClick={() => goDay(-1)} className="flex-shrink-0 px-2 py-2.5 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 text-sm">◀</button>
                   <input
                     type="date"
                     value={selectedDate}
                     onChange={(e) => setSelectedDate(e.target.value)}
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                    className="flex-1 min-w-0 rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
                   />
-                  <button onClick={() => goDay(1)} className="px-2 py-2 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 text-sm">▶</button>
+                  <button onClick={() => goDay(1)} className="flex-shrink-0 px-2 py-2.5 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 text-sm">▶</button>
+                  <button onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])} className="flex-shrink-0 btn-ghost btn-sm py-2.5">
+                    📅 Today
+                  </button>
                 </div>
               </div>
-              <button onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])} className="btn-ghost btn-sm">
-                📅 Today
-              </button>
-              <button onClick={handleExportGrid} className="btn-primary btn-sm ml-auto">
+              <button onClick={handleExportGrid} className="w-full lg:w-auto btn-primary btn-sm lg:ml-auto">
                 📥 Export CSV
               </button>
             </div>
-            <p className="mt-2 text-sm font-medium text-slate-700">{dayLabel}</p>
+            <p className="mt-2 text-xs sm:text-sm font-medium text-slate-700">{dayLabel}</p>
           </div>
 
           {isHolidayDate && (
@@ -145,10 +145,10 @@ export default function TeacherStaffReports() {
           )}
 
           {/* Tabs */}
-          <div className="flex border-b border-slate-200">
+          <div className="flex overflow-x-auto border-b border-slate-200 -mx-1 px-1 scrollbar-hide">
             <button
               onClick={() => setActiveTab('daily')}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex-1 min-w-0 px-2 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === 'daily' ? 'border-emerald-500 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-700'
               }`}
             >
@@ -156,7 +156,7 @@ export default function TeacherStaffReports() {
             </button>
             <button
               onClick={() => setActiveTab('totals')}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              className={`flex-1 min-w-0 px-2 sm:px-4 py-3 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 activeTab === 'totals' ? 'border-emerald-500 text-emerald-700' : 'border-transparent text-slate-500 hover:text-slate-700'
               }`}
             >
@@ -173,7 +173,7 @@ export default function TeacherStaffReports() {
             </div>
           ) : activeTab === 'daily' ? (
             <>
-              <div className="grid grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
                 <div className="stat-card"><p className="stat-label">Total Staff</p><p className="stat-value">{totalStaff}</p></div>
                 <div className="stat-card"><p className="stat-label">Present</p><p className="stat-value text-emerald-600">{dailyPresent}</p></div>
                 <div className="stat-card"><p className="stat-label">Late</p><p className="stat-value text-amber-600">{dailyLate}</p></div>
@@ -191,26 +191,26 @@ export default function TeacherStaffReports() {
               ) : (
                 <div className="card overflow-hidden">
                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <table className="w-full text-xs sm:text-sm">
                       <thead className="bg-slate-50">
-                        <tr className="text-left text-xs text-slate-500 uppercase tracking-wide">
-                          <th className="px-3 py-3 font-semibold">Day</th>
-                          <th className="px-3 py-3 font-semibold">ID</th>
-                          <th className="px-3 py-3 font-semibold">Staff Name</th>
-                          <th className="px-3 py-3 font-semibold">Role</th>
-                          <th className="px-3 py-3 font-semibold text-center">
-                            <div>CheckIn</div><div className="text-[10px] normal-case font-normal text-slate-400">Morning</div>
+                        <tr className="text-left text-[10px] sm:text-xs text-slate-500 uppercase tracking-wide">
+                          <th className="px-2 sm:px-3 py-2.5 sm:py-3 font-semibold hidden sm:table-cell">Day</th>
+                          <th className="px-2 sm:px-3 py-2.5 sm:py-3 font-semibold">ID</th>
+                          <th className="px-2 sm:px-3 py-2.5 sm:py-3 font-semibold">Staff Name</th>
+                          <th className="px-2 sm:px-3 py-2.5 sm:py-3 font-semibold hidden sm:table-cell">Role</th>
+                          <th className="px-2 sm:px-3 py-2.5 sm:py-3 font-semibold text-center">
+                            <div className="text-[10px] sm:text-xs">CheckIn</div><div className="text-[9px] sm:text-[10px] normal-case font-normal text-slate-400 hidden sm:block">Morning</div>
                           </th>
-                          <th className="px-3 py-3 font-semibold text-center">
-                            <div>CheckOut</div><div className="text-[10px] normal-case font-normal text-slate-400">Morning</div>
+                          <th className="px-2 sm:px-3 py-2.5 sm:py-3 font-semibold text-center">
+                            <div className="text-[10px] sm:text-xs">CheckOut</div><div className="text-[9px] sm:text-[10px] normal-case font-normal text-slate-400 hidden sm:block">Morning</div>
                           </th>
-                          <th className="px-3 py-3 font-semibold text-center">
-                            <div>CheckIn</div><div className="text-[10px] normal-case font-normal text-slate-400">Afternoon</div>
+                          <th className="px-2 sm:px-3 py-2.5 sm:py-3 font-semibold text-center">
+                            <div className="text-[10px] sm:text-xs">CheckIn</div><div className="text-[9px] sm:text-[10px] normal-case font-normal text-slate-400 hidden sm:block">Afternoon</div>
                           </th>
-                          <th className="px-3 py-3 font-semibold text-center">
-                            <div>CheckOut</div><div className="text-[10px] normal-case font-normal text-slate-400">Afternoon</div>
+                          <th className="px-2 sm:px-3 py-2.5 sm:py-3 font-semibold text-center">
+                            <div className="text-[10px] sm:text-xs">CheckOut</div><div className="text-[9px] sm:text-[10px] normal-case font-normal text-slate-400 hidden sm:block">Afternoon</div>
                           </th>
-                          <th className="px-3 py-3 font-semibold text-center">
+                          <th className="px-2 sm:px-3 py-2.5 sm:py-3 font-semibold text-center hidden sm:table-cell">
                             <div>📍 Location</div>
                           </th>
                         </tr>
@@ -218,12 +218,12 @@ export default function TeacherStaffReports() {
                       <tbody>
                         {grid.map((row) => (
                           <tr key={row.userId} className="border-t border-slate-100 hover:bg-slate-50">
-                            <td className="px-3 py-2.5 text-slate-500 text-xs">
+                            <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-slate-500 text-[10px] sm:text-xs hidden sm:table-cell">
                               {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' })}
                             </td>
-                            <td className="px-3 py-2.5 text-slate-600 font-mono text-xs">{row.staffNumber}</td>
-                            <td className="px-3 py-2.5 text-slate-800 font-medium">{row.staffName}</td>
-                            <td className="px-3 py-2.5">
+                            <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-slate-600 font-mono text-[10px] sm:text-xs">{row.staffNumber}</td>
+                            <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-slate-800 font-medium text-xs sm:text-sm">{row.staffName}</td>
+                            <td className="px-2 sm:px-3 py-2 sm:py-2.5 hidden sm:table-cell">
                               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${
                                 row.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' : 'bg-sky-100 text-sky-700'
                               }`}>
@@ -234,7 +234,7 @@ export default function TeacherStaffReports() {
                             <SessionCell time={row.checkOutMorning} status={row.session2Status} />
                             <SessionCell time={row.checkInAfternoon} status={row.session3Status} />
                             <SessionCell time={row.checkOutAfternoon} status={row.session4Status} />
-                            <td className="px-3 py-2.5 text-center">
+                            <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-center hidden sm:table-cell">
                               {row.scanLocation ? (
                                 <a
                                   href={`https://www.google.com/maps?q=${row.scanLatitude},${row.scanLongitude}`}
@@ -279,65 +279,66 @@ export default function TeacherStaffReports() {
               ) : (
                 <div className="card overflow-hidden">
                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <table className="w-full text-xs sm:text-sm">
                       <thead className="bg-slate-50">
-                        <tr className="text-left text-xs text-slate-500 uppercase tracking-wide">
-                          <th className="px-3 py-3 font-semibold">ID</th>
-                          <th className="px-3 py-3 font-semibold">Staff Name</th>
-                          <th className="px-3 py-3 font-semibold">Role</th>
-                          <th className="px-3 py-3 font-semibold text-center" colSpan={3}><div>Week</div></th>
-                          <th className="px-3 py-3 font-semibold text-center" colSpan={3}><div>Month</div></th>
-                          <th className="px-3 py-3 font-semibold text-center" colSpan={3}><div>Year</div></th>
+                        <tr className="text-left text-[10px] sm:text-xs text-slate-500 uppercase tracking-wide">
+                          <th className="px-2 sm:px-3 py-2.5 sm:py-3 font-semibold">ID</th>
+                          <th className="px-2 sm:px-3 py-2.5 sm:py-3 font-semibold">Staff Name</th>
+                          <th className="px-2 sm:px-3 py-2.5 sm:py-3 font-semibold hidden sm:table-cell">Role</th>
+                          <th className="px-2 sm:px-3 py-2.5 sm:py-3 font-semibold text-center" colSpan={3}><div>Week</div></th>
+                          <th className="px-2 sm:px-3 py-2.5 sm:py-3 font-semibold text-center" colSpan={3}><div>Month</div></th>
+                          <th className="px-2 sm:px-3 py-2.5 sm:py-3 font-semibold text-center" colSpan={3}><div>Year</div></th>
                         </tr>
-                        <tr className="text-[10px] text-slate-400 border-b border-slate-200">
-                          <th className="px-3 pb-2"></th>
-                          <th className="px-3 pb-2"></th>
-                          <th className="px-3 pb-2"></th>
-                          <th className="px-3 pb-2 text-center text-emerald-600 font-medium">Present</th>
-                          <th className="px-3 pb-2 text-center text-amber-500 font-medium">Late</th>
-                          <th className="px-3 pb-2 text-center text-red-500 font-medium">Absent</th>
-                          <th className="px-3 pb-2 text-center text-emerald-600 font-medium">Present</th>
-                          <th className="px-3 pb-2 text-center text-amber-500 font-medium">Late</th>
-                          <th className="px-3 pb-2 text-center text-red-500 font-medium">Absent</th>
-                          <th className="px-3 pb-2 text-center text-emerald-600 font-medium">Present</th>
-                          <th className="px-3 pb-2 text-center text-amber-500 font-medium">Late</th>
-                          <th className="px-3 pb-2 text-center text-red-500 font-medium">Absent</th>
+                        <tr className="text-[9px] sm:text-[10px] text-slate-400 border-b border-slate-200">
+                          <th className="px-2 sm:px-3 pb-2"></th>
+                          <th className="px-2 sm:px-3 pb-2"></th>
+                          <th className="px-2 sm:px-3 pb-2 hidden sm:table-cell"></th>
+                          <th className="px-2 sm:px-3 pb-2 text-center text-emerald-600 font-medium">Present</th>
+                          <th className="px-2 sm:px-3 pb-2 text-center text-amber-500 font-medium">Late</th>
+                          <th className="px-2 sm:px-3 pb-2 text-center text-red-500 font-medium">Absent</th>
+                          <th className="px-2 sm:px-3 pb-2 text-center text-emerald-600 font-medium">Present</th>
+                          <th className="px-2 sm:px-3 pb-2 text-center text-amber-500 font-medium">Late</th>
+                          <th className="px-2 sm:px-3 pb-2 text-center text-red-500 font-medium">Absent</th>
+                          <th className="px-2 sm:px-3 pb-2 text-center text-emerald-600 font-medium">Present</th>
+                          <th className="px-2 sm:px-3 pb-2 text-center text-amber-500 font-medium">Late</th>
+                          <th className="px-2 sm:px-3 pb-2 text-center text-red-500 font-medium">Absent</th>
                         </tr>
                       </thead>
                       <tbody>
                         {totals.map(row => (
                           <tr key={row.userId} className="border-t border-slate-100 hover:bg-slate-50">
-                            <td className="px-3 py-2.5 text-slate-600 font-mono text-xs">{row.staffNumber}</td>
-                            <td className="px-3 py-2.5 text-slate-800 font-medium">{row.staffName}</td>
-                            <td className="px-3 py-2.5">
+                            <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-slate-600 font-mono text-[10px] sm:text-xs">{row.staffNumber}</td>
+                            <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-slate-800 font-medium text-xs sm:text-sm">{row.staffName}</td>
+                            <td className="px-2 sm:px-3 py-2 sm:py-2.5 hidden sm:table-cell">
                               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${
                                 row.role === 'ADMIN' ? 'bg-purple-100 text-purple-700' : 'bg-sky-100 text-sky-700'
                               }`}>
                                 {row.role === 'ADMIN' ? '🛡️' : '👨‍🏫'} {row.role}
                               </span>
                             </td>
-                            <td className="px-3 py-2.5 text-center text-emerald-700 font-semibold">{row.week.present}</td>
-                            <td className="px-3 py-2.5 text-center text-amber-600 font-semibold">{row.week.late}</td>
-                            <td className="px-3 py-2.5 text-center text-red-600 font-semibold">{row.week.absent}</td>
-                            <td className="px-3 py-2.5 text-center text-emerald-700 font-semibold">{row.month.present}</td>
-                            <td className="px-3 py-2.5 text-center text-amber-600 font-semibold">{row.month.late}</td>
-                            <td className="px-3 py-2.5 text-center text-red-600 font-semibold">{row.month.absent}</td>
-                            <td className="px-3 py-2.5 text-center text-emerald-700 font-semibold">{row.year.present}</td>
-                            <td className="px-3 py-2.5 text-center text-amber-600 font-semibold">{row.year.late}</td>
-                            <td className="px-3 py-2.5 text-center text-red-600 font-semibold">{row.year.absent}</td>
+                            <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-emerald-700 font-semibold">{row.week.present}</td>
+                            <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-amber-600 font-semibold">{row.week.late}</td>
+                            <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-red-600 font-semibold">{row.week.absent}</td>
+                            <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-emerald-700 font-semibold">{row.month.present}</td>
+                            <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-amber-600 font-semibold">{row.month.late}</td>
+                            <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-red-600 font-semibold">{row.month.absent}</td>
+                            <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-emerald-700 font-semibold">{row.year.present}</td>
+                            <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-amber-600 font-semibold">{row.year.late}</td>
+                            <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-red-600 font-semibold">{row.year.absent}</td>
                           </tr>
                         ))}
                         <tr className="border-t-2 border-slate-300 bg-slate-50 font-bold text-slate-700">
-                          <td className="px-3 py-2.5" colSpan={3}>Total</td>
-                          <td className="px-3 py-2.5 text-center text-emerald-700">{totals.reduce((s, r) => s + r.week.present, 0)}</td>
-                          <td className="px-3 py-2.5 text-center text-amber-600">{totals.reduce((s, r) => s + r.week.late, 0)}</td>
-                          <td className="px-3 py-2.5 text-center text-red-600">{totals.reduce((s, r) => s + r.week.absent, 0)}</td>
-                          <td className="px-3 py-2.5 text-center text-emerald-700">{totals.reduce((s, r) => s + r.month.present, 0)}</td>
-                          <td className="px-3 py-2.5 text-center text-amber-600">{totals.reduce((s, r) => s + r.month.late, 0)}</td>
-                          <td className="px-3 py-2.5 text-center text-red-600">{totals.reduce((s, r) => s + r.month.absent, 0)}</td>
-                          <td className="px-3 py-2.5 text-center text-emerald-700">{totals.reduce((s, r) => s + r.year.present, 0)}</td>
-                          <td className="px-3 py-2.5 text-center text-amber-600">{totals.reduce((s, r) => s + r.year.late, 0)}</td>
-                          <td className="px-3 py-2.5 text-center text-red-600">{totals.reduce((s, r) => s + r.year.absent, 0)}</td>
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5" colSpan={2}>Total</td>
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 hidden sm:table-cell"></td>
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-emerald-700">{totals.reduce((s, r) => s + r.week.present, 0)}</td>
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-amber-600">{totals.reduce((s, r) => s + r.week.late, 0)}</td>
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-red-600">{totals.reduce((s, r) => s + r.week.absent, 0)}</td>
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-emerald-700">{totals.reduce((s, r) => s + r.month.present, 0)}</td>
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-amber-600">{totals.reduce((s, r) => s + r.month.late, 0)}</td>
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-red-600">{totals.reduce((s, r) => s + r.month.absent, 0)}</td>
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-emerald-700">{totals.reduce((s, r) => s + r.year.present, 0)}</td>
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-amber-600">{totals.reduce((s, r) => s + r.year.late, 0)}</td>
+                          <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-center text-red-600">{totals.reduce((s, r) => s + r.year.absent, 0)}</td>
                         </tr>
                       </tbody>
                     </table>
@@ -354,17 +355,17 @@ export default function TeacherStaffReports() {
 
 function SessionCell({ time, status }: { time: string | null; status: string | null }) {
   if (!status || status === 'ABSENT') {
-    return <td className="px-3 py-2.5 text-center"><span className="text-xs text-red-400">✗</span></td>
+    return <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-center"><span className="text-[10px] sm:text-xs text-red-400">✗</span></td>
   }
   return (
-    <td className="px-3 py-2.5 text-center">
-      <span className={`text-xs font-mono font-medium ${
+    <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-center">
+      <span className={`text-[10px] sm:text-xs font-mono font-medium ${
         status === 'LATE' ? 'text-amber-600' : 'text-emerald-700'
       }`}>
         {time || '✓'}
       </span>
       {status === 'LATE' && (
-        <div className="text-[10px] text-amber-500 font-medium">Late</div>
+        <div className="text-[9px] sm:text-[10px] text-amber-500 font-medium">Late</div>
       )}
     </td>
   )

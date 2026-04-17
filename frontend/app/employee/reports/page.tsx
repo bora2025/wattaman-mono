@@ -139,23 +139,22 @@ export default function EmployeeReports() {
               <div className="page-body space-y-6">
 
                 {/* Controls Card */}
-                <div className="card p-4">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => goDay(-1)} className="btn-outline px-2 py-1.5 text-sm">◀</button>
+                <div className="card p-3 sm:p-4">
+                  <div className="space-y-3 lg:space-y-0 lg:flex lg:flex-wrap lg:items-center lg:gap-3">
+                    <div className="flex items-center gap-1.5 w-full lg:w-auto">
+                      <button onClick={() => goDay(-1)} className="flex-shrink-0 btn-outline px-2 py-2.5 text-sm">◀</button>
                       <input
                         type="date"
                         value={selectedDate}
                         onChange={e => setSelectedDate(e.target.value)}
-                        className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                        className="flex-1 min-w-0 rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
                       />
-                      <button onClick={() => goDay(1)} className="btn-outline px-2 py-1.5 text-sm">▶</button>
+                      <button onClick={() => goDay(1)} className="flex-shrink-0 btn-outline px-2 py-2.5 text-sm">▶</button>
+                      <button onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])} className="flex-shrink-0 btn-outline px-3 py-2.5 text-sm">
+                        {t('common.today')}
+                      </button>
                     </div>
-                    <button onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])} className="btn-outline px-3 py-1.5 text-sm">
-                      {t('common.today')}
-                    </button>
-                    <div className="flex-1" />
-                    <button onClick={() => { setShowExportForm(true); setExportDate(selectedDate); setExportMessage('') }} className="btn-primary px-4 py-1.5 text-sm flex items-center gap-1.5">
+                    <button onClick={() => { setShowExportForm(true); setExportDate(selectedDate); setExportMessage('') }} className="w-full lg:w-auto lg:ml-auto btn-primary px-4 py-2.5 text-sm flex items-center justify-center gap-1.5">
                       📥 {t('common.exportReport')}
                     </button>
                   </div>
@@ -180,7 +179,7 @@ export default function EmployeeReports() {
                         <button
                           key={t.key}
                           onClick={() => setActiveTab(t.key)}
-                          className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                          className={`flex-1 min-w-0 px-3 sm:px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium transition-all ${
                             activeTab === t.key
                               ? 'bg-emerald-600 text-white shadow-sm'
                               : 'bg-white text-slate-600 border border-slate-200 hover:border-emerald-300 hover:text-emerald-700'
@@ -229,26 +228,26 @@ export default function EmployeeReports() {
                             </div>
                           ) : (
                             <div className="overflow-x-auto">
-                              <table className="w-full text-sm">
+                              <table className="w-full text-xs sm:text-sm">
                                 <thead className="bg-slate-50">
-                                  <tr className="text-left text-xs text-slate-500 uppercase tracking-wide">
-                                    <th className="px-3 py-3 font-semibold">{t('common.day')}</th>
-                                    <th className="px-3 py-3 font-semibold text-center">{t('common.morningIn')}</th>
-                                    <th className="px-3 py-3 font-semibold text-center">{t('common.morningOut')}</th>
-                                    <th className="px-3 py-3 font-semibold text-center">{t('common.afternoonIn')}</th>
-                                    <th className="px-3 py-3 font-semibold text-center">{t('common.afternoonOut')}</th>
-                                    <th className="px-3 py-3 font-semibold">{t('common.location')}</th>
+                                  <tr className="text-left text-[10px] sm:text-xs text-slate-500 uppercase tracking-wide">
+                                    <th className="px-2 sm:px-3 py-2.5 sm:py-3 font-semibold">{t('common.day')}</th>
+                                    <th className="px-2 sm:px-3 py-2.5 sm:py-3 font-semibold text-center">{t('common.morningIn')}</th>
+                                    <th className="px-2 sm:px-3 py-2.5 sm:py-3 font-semibold text-center">{t('common.morningOut')}</th>
+                                    <th className="px-2 sm:px-3 py-2.5 sm:py-3 font-semibold text-center">{t('common.afternoonIn')}</th>
+                                    <th className="px-2 sm:px-3 py-2.5 sm:py-3 font-semibold text-center">{t('common.afternoonOut')}</th>
+                                    <th className="px-2 sm:px-3 py-2.5 sm:py-3 font-semibold hidden sm:table-cell">{t('common.location')}</th>
                                   </tr>
                                 </thead>
                                 <tbody>
                                   {grid.map(r => (
                                     <tr key={r.userId} className={`border-t border-slate-100 ${r.isHoliday ? 'bg-amber-50/50' : 'hover:bg-slate-50'}`}>
-                                      <td className="px-3 py-2.5 text-slate-800 font-medium">{dayLabel.split(',')[0]}</td>
+                                      <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-slate-800 font-medium text-xs sm:text-sm">{dayLabel.split(',')[0]}</td>
                                       <SessionCell time={r.checkInMorning} status={r.session1Status} />
                                       <SessionCell time={r.checkOutMorning} status={r.session2Status} />
                                       <SessionCell time={r.checkInAfternoon} status={r.session3Status} />
                                       <SessionCell time={r.checkOutAfternoon} status={r.session4Status} />
-                                      <td className="px-3 py-2.5">
+                                      <td className="px-2 sm:px-3 py-2 sm:py-2.5 hidden sm:table-cell">
                                         {r.scanLatitude && r.scanLongitude ? (
                                           <a
                                             href={`https://www.google.com/maps?q=${r.scanLatitude},${r.scanLongitude}`}
@@ -440,20 +439,20 @@ export default function EmployeeReports() {
 
 function SessionCell({ time, status }: { time: string | null; status: string | null }) {
   if (!status) {
-    return <td className="px-3 py-2.5 text-center"></td>
+    return <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-center"></td>
   }
   if (status === 'ABSENT') {
-    return <td className="px-3 py-2.5 text-center"><span className="text-xs text-red-400">✗</span></td>
+    return <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-center"><span className="text-[10px] sm:text-xs text-red-400">✗</span></td>
   }
   return (
-    <td className="px-3 py-2.5 text-center">
-      <span className={`text-xs font-mono font-medium ${
+    <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-center">
+      <span className={`text-[10px] sm:text-xs font-mono font-medium ${
         status === 'LATE' ? 'text-amber-600' : 'text-emerald-700'
       }`}>
         {time || '✓'}
       </span>
       {status === 'LATE' && (
-        <div className="text-[10px] text-amber-500 font-medium">Late</div>
+        <div className="text-[9px] sm:text-[10px] text-amber-500 font-medium">Late</div>
       )}
     </td>
   )
