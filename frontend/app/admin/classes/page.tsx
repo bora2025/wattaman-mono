@@ -305,6 +305,9 @@ export default function ManageClasses() {
         setCustomConfigs([]);
         setWeeklySchedule({ ...DEFAULT_SCHEDULE });
         setShowWeekly(false);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.message || 'Failed to save class');
       }
     } catch (err) { console.error('Failed to save class'); }
   };

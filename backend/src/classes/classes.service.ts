@@ -7,6 +7,11 @@ export class ClassesService {
   constructor(private prisma: PrismaService) {}
 
   async createClass(data: { name: string; subject?: string; teacherId: string; schedule?: string }) {
+    // Validate that teacherId belongs to a user with TEACHER role
+    const teacher = await this.prisma.user.findUnique({ where: { id: data.teacherId } });
+    if (!teacher || teacher.role !== 'TEACHER') {
+      throw new BadRequestException('Only users with TEACHER role can be assigned to a class');
+    }
     return this.prisma.class.create({
       data,
       include: { teacher: { select: { name: true } } },
@@ -14,6 +19,13 @@ export class ClassesService {
   }
 
   async updateClass(id: string, data: { name?: string; subject?: string; teacherId?: string; schedule?: string }) {
+    // Validate that teacherId belongs to a user with TEACHER role
+    if (data.teacherId) {
+      const teacher = await this.prisma.user.findUnique({ where: { id: data.teacherId } });
+      if (!teacher || teacher.role !== 'TEACHER') {
+        throw new BadRequestException('Only users with TEACHER role can be assigned to a class');
+      }
+    }
     return this.prisma.class.update({
       where: { id },
       data,

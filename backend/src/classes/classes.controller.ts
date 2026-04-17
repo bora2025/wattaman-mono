@@ -21,6 +21,7 @@ export class ClassesController {
     return this.classesService.getClasses(teacherId);
   }
 
+  @Roles('ADMIN')
   @Put(':id')
   async updateClass(@Param('id') id: string, @Body() data: { name?: string; subject?: string; teacherId?: string; schedule?: string }) {
     return this.classesService.updateClass(id, data);
