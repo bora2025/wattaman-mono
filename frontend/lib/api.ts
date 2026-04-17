@@ -68,7 +68,10 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
 export async function getCurrentUser(): Promise<{ userId: string; email: string; role: string } | null> {
   try {
     const res = await apiFetch('/api/auth/me');
-    if (res.ok) return res.json();
+    if (res.ok) {
+      const data = await res.json();
+      return { userId: data.id, email: data.email, role: data.role };
+    }
     return null;
   } catch {
     return null;
