@@ -473,6 +473,57 @@ function AdminTakeAttendance() {
       }
     } catch { /* Not JSON */ }
 
+    // Detect Officer Attendance QR (URL-based) → self-scan
+    if (qrData.includes('/employee/scan')) {
+      if (staffScanLockRef.current) return
+      staffScanLockRef.current = true
+      const loc = locationRef.current
+      apiFetch('/api/attendance/employee/self-scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          qrData,
+          ...(loc ? { latitude: loc.latitude, longitude: loc.longitude, location: `${loc.latitude.toFixed(6)}, ${loc.longitude.toFixed(6)}` } : {}),
+        }),
+      })
+        .then(async res => {
+          if (res.ok) {
+            playSound('success')
+            const result = await res.json()
+            setCurrentStaffScanned({
+              id: 'self',
+              name: result.userName || 'You',
+              email: '',
+              role: result.userRole || '',
+              photo: result.userPhoto || null,
+              department: result.userDepartment || null,
+            })
+            setStaffScanResult(result)
+            setShowStaffInfo(true)
+            const action = result.action === 'CHECK_OUT' ? 'Check-out' : 'Check-in'
+            setMessage(`${action} marked ✓`)
+            if ('vibrate' in navigator) navigator.vibrate(200)
+            setTimeout(() => {
+              setShowStaffInfo(false)
+              setCurrentStaffScanned(null)
+              setStaffScanResult(null)
+              setMessage('')
+              staffScanLockRef.current = false
+            }, 3000)
+          } else {
+            playSound('error')
+            const err = await res.json().catch(() => ({}))
+            setMessage(err.message || 'Self-scan failed')
+            setTimeout(() => { setMessage(''); staffScanLockRef.current = false }, 3000)
+          }
+        })
+        .catch(() => {
+          setMessage('Self-scan error')
+          setTimeout(() => { setMessage(''); staffScanLockRef.current = false }, 3000)
+        })
+      return
+    }
+
     const currentStudents = studentsRef.current
     const currentAttendance = attendanceRef.current
     const student = currentStudents.find(s => s.id === studentId || s.userId === studentId || s.qrCode === studentId || s.qrCode === qrData)

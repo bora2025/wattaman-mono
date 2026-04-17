@@ -323,6 +323,56 @@ function AdminStaffAttendance() {
       if (parsed.staffId) staffId = parsed.staffId
     } catch { /* Not JSON — ignore non-staff QRs */ }
 
+    // Detect Officer Attendance QR (URL-based) → self-scan
+    if (!staffId && qrData.includes('/employee/scan')) {
+      if (staffScanLockRef.current) return
+      staffScanLockRef.current = true
+      const loc = locationRef.current
+      apiFetch('/api/attendance/employee/self-scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          qrData,
+          ...(loc ? { latitude: loc.latitude, longitude: loc.longitude, location: loc.locationName || undefined } : {}),
+        }),
+      })
+        .then(async res => {
+          if (res.ok) {
+            playSound('success')
+            const result = await res.json()
+            setCurrentStaff({
+              id: 'self',
+              name: result.userName || 'You',
+              email: '',
+              role: result.userRole || '',
+              photo: result.userPhoto || null,
+            })
+            setScanResult(result)
+            setShowStaffInfo(true)
+            const action = result.action === 'CHECK_OUT' ? 'Check-out' : 'Check-in'
+            setMessage(`${action} marked ✓`)
+            if ('vibrate' in navigator) navigator.vibrate(200)
+            setTimeout(() => {
+              setShowStaffInfo(false)
+              setCurrentStaff(null)
+              setScanResult(null)
+              stopScanning()
+              router.push('/admin')
+            }, 2000)
+          } else {
+            playSound('error')
+            const err = await res.json().catch(() => ({}))
+            setMessage(err.message || 'Self-scan failed')
+            setTimeout(() => { setMessage(''); staffScanLockRef.current = false }, 3000)
+          }
+        })
+        .catch(() => {
+          setMessage('Self-scan error')
+          setTimeout(() => { setMessage(''); staffScanLockRef.current = false }, 3000)
+        })
+      return
+    }
+
     if (!staffId) {
       playSound('error')
       setMessage('Not a staff QR code')
