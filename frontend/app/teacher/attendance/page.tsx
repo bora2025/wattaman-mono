@@ -32,6 +32,38 @@ interface StaffMember {
   photo: string | null
 }
 
+const positionLabels: Record<string, string> = {
+  ADMIN: '🛡️ Admin',
+  TEACHER: '👨‍🏫 Teacher',
+  PRIMARY_SCHOOL_PRINCIPAL: 'នាយកសាលាបឋម',
+  SECONDARY_SCHOOL_PRINCIPAL: 'នាយកសាលាអនុវិទ្យាល័យ',
+  HIGH_SCHOOL_PRINCIPAL: 'នាយកសាលាវិទ្យាល័យ',
+  UNIVERSITY_RECTOR: 'នាយកសាលាសាកលវិទ្យាល័យ',
+  OFFICER: 'មន្ត្រី',
+  STAFF: 'បុគ្គិល',
+  OFFICE_HEAD: 'ប្រធានការិយាល័យ',
+  DEPUTY_OFFICE_HEAD: 'អនុប្រធានការិយាល័យ',
+  DEPARTMENT_HEAD: 'ប្រធាននាយកដ្ឋាន',
+  DEPUTY_DEPARTMENT_HEAD: 'អនុប្រធាននាយកដ្ឋាន',
+  GENERAL_DEPARTMENT_DIRECTOR: 'អគ្គនាយកដ្ឋាន',
+  DEPUTY_GENERAL_DEPARTMENT_DIRECTOR: 'អគ្គរងនាយកដ្ឋាន',
+  COMPANY_CEO: 'អគ្គនាយកក្រុមហ៊ុន',
+  CREDIT_OFFICER: 'មន្ត្រីឥណទាន',
+  SECURITY_GUARD: 'សន្តិសុខ',
+  JANITOR: 'បុគ្គិលអនាម័យ',
+  PROJECT_MANAGER: 'ប្រធានគម្រោង',
+  BRANCH_MANAGER: 'ប្រធានសាខា',
+  EXECUTIVE_DIRECTOR: 'នាយកប្រតិបត្តិ',
+  HR_MANAGER: 'ប្រធានធនធានមនុស្ស',
+  ATHLETE_MALE: 'កីឡាករ',
+  ATHLETE_FEMALE: 'កីឡាការិនី',
+  TRAINER: 'គ្រូបង្វិក',
+  BARISTA: 'Barista',
+  CASHIER: 'អ្នកគិតលុយ',
+  RECEPTIONIST: 'អ្នកទទួលភ្ញៀវ',
+  GENERAL_MANAGER: 'អ្នកគ្រប់គ្រងទូទៅ',
+}
+
 const ATTENDANCE_PRESETS = [
   {
     id: 'full-day', name: 'Full Day', icon: '☀️', description: '7:00 AM – 5:00 PM (Morning + Afternoon)',
@@ -132,6 +164,7 @@ function TakeAttendance() {
   const [staffList, setStaffList] = useState<StaffMember[]>([])
   const [showStaffInfo, setShowStaffInfo] = useState(false)
   const [currentStaffScanned, setCurrentStaffScanned] = useState<StaffMember | null>(null)
+  const [staffScanResult, setStaffScanResult] = useState<{ action: string; sessionName: string; status: string; date: string; checkInTime: string | null; checkOutTime: string | null; userDepartment: { id: string; name: string; nameKh?: string } | null } | null>(null)
   const [todayHoliday, setTodayHoliday] = useState<string | null>(null)
   const [scheduledDayOff, setScheduledDayOff] = useState(false)
 
@@ -408,17 +441,22 @@ function TakeAttendance() {
             if (res.ok) {
               playSound('success')
               const result = await res.json()
-              const staff = staffList.find(s => s.id === parsedData.staffId)
-              if (staff) {
-                setCurrentStaffScanned(staff)
-                setShowStaffInfo(true)
-              }
+              setCurrentStaffScanned({
+                id: parsedData.staffId,
+                name: result.userName || 'Unknown',
+                email: '',
+                role: result.userRole || '',
+                photo: result.userPhoto || null,
+              })
+              setStaffScanResult(result)
+              setShowStaffInfo(true)
               const action = result.action === 'CHECK_OUT' ? 'Check-out' : 'Check-in'
               setMessage(`Staff ${action} marked ✓`)
               if ('vibrate' in navigator) navigator.vibrate(200)
               setTimeout(() => {
                 setShowStaffInfo(false)
                 setCurrentStaffScanned(null)
+                setStaffScanResult(null)
                 setMessage('')
                 staffScanLockRef.current = false
               }, 3000)
@@ -952,20 +990,72 @@ function TakeAttendance() {
       )}
 
       {/* ===== STAFF INFO OVERLAY ===== */}
-      {showStaffInfo && currentStaffScanned && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
-          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full mx-4 animate-[slideUp_0.35s_ease-out]">
-            <div className="text-center">
-              <div className="w-20 h-20 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-3xl font-bold mx-auto mb-3 overflow-hidden">
-                {currentStaffScanned.photo ? (
-                  <img src={currentStaffScanned.photo} alt={currentStaffScanned.name} className="w-full h-full object-cover" />
-                ) : (
-                  currentStaffScanned.name.charAt(0).toUpperCase()
-                )}
+      {showStaffInfo && currentStaffScanned && staffScanResult && (
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
+          <div className="w-full sm:max-w-sm bg-white sm:rounded-2xl rounded-t-3xl shadow-2xl overflow-hidden sm:mx-4 animate-[slideUp_0.35s_ease-out]">
+            <div className={`relative px-6 py-6 text-center overflow-hidden ${
+              staffScanResult.action === 'CHECK_OUT'
+                ? 'bg-gradient-to-br from-sky-500 via-blue-500 to-indigo-500'
+                : 'bg-gradient-to-br from-teal-500 via-emerald-500 to-cyan-500'
+            }`}>
+              <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-white/10" />
+              <div className="absolute -bottom-8 -left-8 w-24 h-24 rounded-full bg-white/10" />
+              <p className="text-sm font-medium text-white/80 mb-1">
+                {staffScanResult.action === 'CHECK_OUT' ? '📤 Check-Out' : '📥 Check-In'} · {staffScanResult.sessionName}
+              </p>
+              <h2 className="text-2xl font-extrabold text-white tracking-tight">{currentStaffScanned.name}</h2>
+            </div>
+            <div className="px-6 py-5 flex flex-col items-center">
+              <div className="relative -mt-12 mb-3">
+                <div className="w-20 h-20 rounded-full border-4 border-white shadow-xl bg-teal-50 text-teal-600 flex items-center justify-center text-3xl font-bold overflow-hidden">
+                  {currentStaffScanned.photo ? (
+                    <img src={currentStaffScanned.photo} alt={currentStaffScanned.name} className="w-full h-full object-cover" />
+                  ) : (
+                    currentStaffScanned.name.charAt(0).toUpperCase()
+                  )}
+                </div>
+                <div className={`absolute -bottom-1 right-0 w-7 h-7 rounded-full border-2 border-white text-white flex items-center justify-center text-xs ${
+                  staffScanResult.action === 'CHECK_OUT' ? 'bg-sky-500' : 'bg-emerald-500'
+                }`}>{staffScanResult.action === 'CHECK_OUT' ? '↑' : '✓'}</div>
               </div>
-              <h3 className="text-xl font-bold text-slate-800">{currentStaffScanned.name}</h3>
-              <p className="text-sm text-slate-500">{currentStaffScanned.role} · {currentStaffScanned.email}</p>
-              <div className="mt-3 px-4 py-2 rounded-xl text-sm font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+              <p className="text-sm font-medium text-slate-700">💼 {positionLabels[currentStaffScanned.role] || currentStaffScanned.role}</p>
+              {staffScanResult.userDepartment && (
+                <p className="text-xs text-slate-500 mt-0.5">🏢 {staffScanResult.userDepartment.name}</p>
+              )}
+              <div className="mt-3 w-full space-y-2">
+                <div className="flex items-center gap-3 py-2.5 px-4 bg-slate-50 rounded-xl">
+                  <div className="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center text-teal-600 text-sm">📅</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Date</p>
+                    <p className="font-bold text-slate-800 text-sm">{new Date(staffScanResult.date).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 py-2.5 px-4 bg-slate-50 rounded-xl">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm ${
+                    staffScanResult.action === 'CHECK_OUT' ? 'bg-sky-100 text-sky-600' : 'bg-emerald-100 text-emerald-600'
+                  }`}>{staffScanResult.action === 'CHECK_OUT' ? '📤' : '📥'}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Time</p>
+                    <p className="font-bold text-slate-800 text-sm">
+                      {staffScanResult.action === 'CHECK_OUT' && staffScanResult.checkOutTime
+                        ? new Date(staffScanResult.checkOutTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                        : staffScanResult.checkInTime
+                          ? new Date(staffScanResult.checkInTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                          : 'Just now'}
+                    </p>
+                  </div>
+                  {staffScanResult.status && (
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                      staffScanResult.status === 'LATE' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                    }`}>{staffScanResult.status}</span>
+                  )}
+                </div>
+              </div>
+              <div className={`mt-4 w-full px-4 py-3 rounded-xl text-sm font-bold text-center border ${
+                staffScanResult.action === 'CHECK_OUT'
+                  ? 'bg-sky-50 text-sky-700 border-sky-200'
+                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+              }`}>
                 ✅ Staff Attendance Marked
               </div>
             </div>

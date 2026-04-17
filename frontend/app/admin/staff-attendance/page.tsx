@@ -15,6 +15,51 @@ interface StaffMember {
   photo: string | null
 }
 
+interface ScanResultInfo {
+  action: string
+  sessionName: string
+  status: string
+  date: string
+  checkInTime: string | null
+  checkOutTime: string | null
+  userName: string
+  userPhoto: string | null
+  userRole: string
+  userDepartment: { id: string; name: string; nameKh?: string } | null
+}
+
+const positionLabels: Record<string, string> = {
+  ADMIN: '🛡️ Admin',
+  TEACHER: '👨‍🏫 Teacher',
+  PRIMARY_SCHOOL_PRINCIPAL: 'នាយកសាលាបឋម',
+  SECONDARY_SCHOOL_PRINCIPAL: 'នាយកសាលាអនុវិទ្យាល័យ',
+  HIGH_SCHOOL_PRINCIPAL: 'នាយកសាលាវិទ្យាល័យ',
+  UNIVERSITY_RECTOR: 'នាយកសាលាសាកលវិទ្យាល័យ',
+  OFFICER: 'មន្ត្រី',
+  STAFF: 'បុគ្គិល',
+  OFFICE_HEAD: 'ប្រធានការិយាល័យ',
+  DEPUTY_OFFICE_HEAD: 'អនុប្រធានការិយាល័យ',
+  DEPARTMENT_HEAD: 'ប្រធាននាយកដ្ឋាន',
+  DEPUTY_DEPARTMENT_HEAD: 'អនុប្រធាននាយកដ្ឋាន',
+  GENERAL_DEPARTMENT_DIRECTOR: 'អគ្គនាយកដ្ឋាន',
+  DEPUTY_GENERAL_DEPARTMENT_DIRECTOR: 'អគ្គរងនាយកដ្ឋាន',
+  COMPANY_CEO: 'អគ្គនាយកក្រុមហ៊ុន',
+  CREDIT_OFFICER: 'មន្ត្រីឥណទាន',
+  SECURITY_GUARD: 'សន្តិសុខ',
+  JANITOR: 'បុគ្គិលអនាម័យ',
+  PROJECT_MANAGER: 'ប្រធានគម្រោង',
+  BRANCH_MANAGER: 'ប្រធានសាខា',
+  EXECUTIVE_DIRECTOR: 'នាយកប្រតិបត្តិ',
+  HR_MANAGER: 'ប្រធានធនធានមនុស្ស',
+  ATHLETE_MALE: 'កីឡាករ',
+  ATHLETE_FEMALE: 'កីឡាការិនី',
+  TRAINER: 'គ្រូបង្វិក',
+  BARISTA: 'Barista',
+  CASHIER: 'អ្នកគិតលុយ',
+  RECEPTIONIST: 'អ្នកទទួលភ្ញៀវ',
+  GENERAL_MANAGER: 'អ្នកគ្រប់គ្រងទូទៅ',
+}
+
 interface StaffAttendanceRecord {
   id: string
   userId: string
@@ -67,6 +112,7 @@ function AdminStaffAttendance() {
   const [scanMode, setScanMode] = useState<'check-in' | 'check-out'>('check-in')
   const [showStaffInfo, setShowStaffInfo] = useState(false)
   const [currentStaff, setCurrentStaff] = useState<StaffMember | null>(null)
+  const [scanResult, setScanResult] = useState<ScanResultInfo | null>(null)
   const [staffSessionConfigs, setStaffSessionConfigs] = useState<SessionConfigItem[]>([])
   const [dataReady, setDataReady] = useState(false)
   const autoStartedRef = useRef(false)
@@ -297,11 +343,16 @@ function AdminStaffAttendance() {
         if (res.ok) {
           playSound('success')
           const result = await res.json()
-          const staff = staffList.find(s => s.id === staffId)
-          if (staff) {
-            setCurrentStaff(staff)
-            setShowStaffInfo(true)
-          }
+          // Use API-returned profile data (always up-to-date)
+          setCurrentStaff({
+            id: staffId!,
+            name: result.userName || 'Unknown',
+            email: '',
+            role: result.userRole || '',
+            photo: result.userPhoto || null,
+          })
+          setScanResult(result)
+          setShowStaffInfo(true)
           const action = result.action === 'CHECK_OUT' ? 'Check-out' : 'Check-in'
           setMessage(`${action} marked ✓`)
           if ('vibrate' in navigator) navigator.vibrate(200)
@@ -309,6 +360,7 @@ function AdminStaffAttendance() {
           setTimeout(() => {
             setShowStaffInfo(false)
             setCurrentStaff(null)
+            setScanResult(null)
             stopScanning()
             router.push('/admin')
           }, 2000)
@@ -539,17 +591,23 @@ function AdminStaffAttendance() {
           </div>
 
           {/* Staff info overlay */}
-          {showStaffInfo && currentStaff && (
+          {showStaffInfo && currentStaff && scanResult && (
             <div className="absolute inset-0 z-20 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
               <div className="w-full sm:max-w-sm bg-white sm:rounded-2xl rounded-t-3xl shadow-2xl overflow-hidden sm:mx-4 animate-[slideUp_0.35s_ease-out]">
-                <div className="relative bg-gradient-to-br from-teal-500 via-emerald-500 to-cyan-500 px-6 py-6 text-center">
+                <div className={`relative px-6 py-6 text-center overflow-hidden ${
+                  scanResult.action === 'CHECK_OUT'
+                    ? 'bg-gradient-to-br from-sky-500 via-blue-500 to-indigo-500'
+                    : 'bg-gradient-to-br from-teal-500 via-emerald-500 to-cyan-500'
+                }`}>
                   <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-white/10" />
                   <div className="absolute -bottom-8 -left-8 w-24 h-24 rounded-full bg-white/10" />
-                  <p className="text-sm font-medium text-white/80 mb-1">✓ Staff Scanned</p>
+                  <p className="text-sm font-medium text-white/80 mb-1">
+                    {scanResult.action === 'CHECK_OUT' ? '📤 Check-Out' : '📥 Check-In'} · {scanResult.sessionName}
+                  </p>
                   <h2 className="text-2xl font-extrabold text-white tracking-tight">{currentStaff.name}</h2>
                 </div>
                 <div className="px-6 py-5 flex flex-col items-center">
-                  <div className="relative -mt-12 mb-4">
+                  <div className="relative -mt-12 mb-3">
                     <div className="w-20 h-20 rounded-full border-4 border-white shadow-xl bg-teal-50 text-teal-600 flex items-center justify-center text-3xl font-bold overflow-hidden">
                       {currentStaff.photo ? (
                         <img src={currentStaff.photo} alt={currentStaff.name} className="w-full h-full object-cover" />
@@ -557,10 +615,50 @@ function AdminStaffAttendance() {
                         currentStaff.name.charAt(0).toUpperCase()
                       )}
                     </div>
-                    <div className="absolute -bottom-1 right-0 w-7 h-7 rounded-full border-2 border-white bg-emerald-500 text-white flex items-center justify-center text-xs">✓</div>
+                    <div className={`absolute -bottom-1 right-0 w-7 h-7 rounded-full border-2 border-white text-white flex items-center justify-center text-xs ${
+                      scanResult.action === 'CHECK_OUT' ? 'bg-sky-500' : 'bg-emerald-500'
+                    }`}>{scanResult.action === 'CHECK_OUT' ? '↑' : '✓'}</div>
                   </div>
-                  <p className="text-sm text-slate-500">{currentStaff.role} · {currentStaff.email}</p>
-                  <div className="mt-4 w-full px-4 py-3 rounded-xl text-sm font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 text-center">
+                  {/* Position & Department */}
+                  <p className="text-sm font-medium text-slate-700">💼 {positionLabels[currentStaff.role] || currentStaff.role}</p>
+                  {scanResult.userDepartment && (
+                    <p className="text-xs text-slate-500 mt-0.5">🏢 {scanResult.userDepartment.name}</p>
+                  )}
+                  {/* Date & Time details */}
+                  <div className="mt-3 w-full space-y-2">
+                    <div className="flex items-center gap-3 py-2.5 px-4 bg-slate-50 rounded-xl">
+                      <div className="w-8 h-8 rounded-lg bg-teal-100 flex items-center justify-center text-teal-600 text-sm">📅</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Date</p>
+                        <p className="font-bold text-slate-800 text-sm">{new Date(scanResult.date).toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 py-2.5 px-4 bg-slate-50 rounded-xl">
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm ${
+                        scanResult.action === 'CHECK_OUT' ? 'bg-sky-100 text-sky-600' : 'bg-emerald-100 text-emerald-600'
+                      }`}>{scanResult.action === 'CHECK_OUT' ? '📤' : '📥'}</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">Time</p>
+                        <p className="font-bold text-slate-800 text-sm">
+                          {scanResult.action === 'CHECK_OUT' && scanResult.checkOutTime
+                            ? new Date(scanResult.checkOutTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                            : scanResult.checkInTime
+                              ? new Date(scanResult.checkInTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                              : 'Just now'}
+                        </p>
+                      </div>
+                      {scanResult.status && (
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          scanResult.status === 'LATE' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'
+                        }`}>{scanResult.status}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className={`mt-4 w-full px-4 py-3 rounded-xl text-sm font-bold text-center border ${
+                    scanResult.action === 'CHECK_OUT'
+                      ? 'bg-sky-50 text-sky-700 border-sky-200'
+                      : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  }`}>
                     ✅ Attendance Marked
                   </div>
                   <p className="text-xs text-slate-400 mt-3 pb-2">Redirecting to dashboard...</p>
