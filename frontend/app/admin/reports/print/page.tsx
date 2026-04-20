@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { apiFetch } from '../../../../lib/api'
 import { useLanguage } from '../../../../lib/i18n'
@@ -31,6 +31,14 @@ const PAPER_SIZES: Record<string, { width: string; minHeight: string }> = {
 }
 
 export default function PrintReportPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="w-10 h-10 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin"></div></div>}>
+      <PrintReportContent />
+    </Suspense>
+  )
+}
+
+function PrintReportContent() {
   const { t } = useLanguage()
   const searchParams = useSearchParams()
   const classId = searchParams.get('classId') || ''
