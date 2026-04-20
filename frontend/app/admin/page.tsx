@@ -108,7 +108,7 @@ function timeAgo(iso: string): string {
   return `${days}d ago`
 }
 
-export default function AdminDashboard() {
+function AdminContent() {
   const [status, setStatus] = useState<SystemStatus | null>(null)
   const { t } = useLanguage()
 
@@ -120,28 +120,27 @@ export default function AdminDashboard() {
   }, [])
 
   return (
-    <AuthGuard requiredRole="ADMIN">
-      <div className="page-shell">
-        <Sidebar
-          title="Admin Panel"
-          subtitle="Wattaman"
-          navItems={adminNav}
-          accentColor="indigo"
-        />
-        <div className="page-content lg:ml-0">
-          {/* Mobile spacer for top bar */}
-          <div className="h-14 lg:hidden" />
+    <div className="page-shell">
+      <Sidebar
+        title="Admin Panel"
+        subtitle="Wattaman"
+        navItems={adminNav}
+        accentColor="indigo"
+      />
+      <div className="page-content lg:ml-0">
+        {/* Mobile spacer for top bar */}
+        <div className="h-14 lg:hidden" />
 
-          {/* ── Mobile: page header matches mobile app ── */}
-          <div className="page-header">
-            <h1 className="text-xl lg:text-2xl font-bold" style={{ color: 'var(--color-text)' }}>{t('admin.title')}</h1>
-            <p className="text-xs lg:text-sm mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>{t('admin.subtitle')}</p>
-          </div>
+        {/* ── Mobile: page header matches mobile app ── */}
+        <div className="page-header">
+          <h1 className="text-xl lg:text-2xl font-bold" style={{ color: 'var(--color-text)' }}>{t('admin.title')}</h1>
+          <p className="text-xs lg:text-sm mt-0.5" style={{ color: 'var(--color-text-secondary)' }}>{t('admin.subtitle')}</p>
+        </div>
 
-          <div className="page-body space-y-5">
+        <div className="page-body space-y-5">
 
-            {/* System Status Bar */}
-            {status && (
+          {/* System Status Bar */}
+          {status && (
               <div className="card p-3 sm:p-4">
                 <div className="flex flex-col sm:flex-row sm:flex-wrap items-start sm:items-center gap-2 sm:gap-6">
                   <div className="flex items-center gap-2">
@@ -202,6 +201,13 @@ export default function AdminDashboard() {
           </div>
         </div>
       </div>
+  )
+}
+
+export default function AdminPage() {
+  return (
+    <AuthGuard requiredRole="ADMIN">
+      <AdminContent />
     </AuthGuard>
   )
 }

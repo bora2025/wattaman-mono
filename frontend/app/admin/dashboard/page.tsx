@@ -39,7 +39,7 @@ interface DashboardData {
 
 type StatusFilter = 'all' | 'present' | 'absent' | 'late' | 'permission'
 
-export default function AdminDashboard() {
+function DashboardContent() {
   const { t } = useLanguage()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -200,22 +200,19 @@ export default function AdminDashboard() {
   }
 
   if (!mounted || loading) return (
-    <AuthGuard requiredRole="ADMIN">
-      <div className="page-shell">
-        <Sidebar title="Admin Panel" subtitle="Wattanman" navItems={adminNav} accentColor="indigo" />
-        <div className="page-content">
-          <div className="h-14 lg:hidden" />
-          <div className="flex items-center justify-center h-64">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
-          </div>
+    <div className="page-shell">
+      <Sidebar title="Admin Panel" subtitle="Wattanman" navItems={adminNav} accentColor="indigo" />
+      <div className="page-content">
+        <div className="h-14 lg:hidden" />
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
         </div>
       </div>
-    </AuthGuard>
+    </div>
   )
 
   return (
-    <AuthGuard requiredRole="ADMIN">
-      <div className="page-shell">
+    <div className="page-shell">
         <Sidebar title="Admin Panel" subtitle="Wattanman" navItems={adminNav} accentColor="indigo" />
         <div className="page-content">
           <div className="h-14 lg:hidden" />
@@ -498,6 +495,13 @@ export default function AdminDashboard() {
           </div>
         </div>
       </div>
+  )
+}
+
+export default function AdminDashboard() {
+  return (
+    <AuthGuard requiredRole="ADMIN">
+      <DashboardContent />
     </AuthGuard>
   )
 }
