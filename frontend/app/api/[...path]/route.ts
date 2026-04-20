@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Ensure this route is always dynamic (never cached by Next.js)
+export const dynamic = 'force-dynamic';
+
 /** Runtime API proxy — forwards /api/* requests to the backend */
 function getBackendUrl(): string {
   let url = process.env.API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -38,7 +41,7 @@ async function proxyRequest(req: NextRequest, { params }: { params: Promise<{ pa
   }
 
   try {
-    const response = await fetch(`${target}${qs}`, fetchOptions);
+    const response = await fetch(`${target}${qs}`, { ...fetchOptions, cache: 'no-store' });
 
     // Forward all response headers including Set-Cookie
     // Strip content-encoding & content-length because fetch() auto-decompresses

@@ -503,13 +503,16 @@ export class ReportsService {
       const hasDayOff = recs.some(a => isDayOffStatus(a.status));
 
       // Compute session statuses
+      // For CHECK_OUT paired sessions, PERMISSION/DAY_OFF status on the record must override checkout logic
       let session1Status = s1?.status || null;
       let session2Status = s2IsCheckOut
-        ? (s1?.checkOutTime ? (s1.status || 'PRESENT') : null)
+        ? (s2 && isDayOffStatus(s2.status)) ? s2.status
+          : (s1?.checkOutTime ? (s1.status || 'PRESENT') : null)
         : (s2?.status || null);
       let session3Status = s3?.status || null;
       let session4Status = s4IsCheckOut
-        ? (s3?.checkOutTime ? (s3.status || 'PRESENT') : null)
+        ? (s4 && isDayOffStatus(s4.status)) ? s4.status
+          : (s3?.checkOutTime ? (s3.status || 'PRESENT') : null)
         : (s4?.status || null);
 
       // Mark overtime sessions as ABSENT (past sessions with no record)
@@ -828,10 +831,15 @@ export class ReportsService {
       const locRecord = s1?.scanLocation ? s1 : s3?.scanLocation ? s3 : s1 || s3;
 
       // Compute session statuses
+      // For CHECK_OUT paired sessions, PERMISSION/DAY_OFF status on the actual record must override checkout logic
+      const s2rec = recs.find(r => r.session === 2);
+      const s4rec = recs.find(r => r.session === 4);
       let session1Status = s1?.status || null;
-      let session2Status = s1?.checkOutTime ? (s1.status || 'PRESENT') : null;
+      let session2Status = (s2rec && isDayOffStatus(s2rec.status)) ? s2rec.status
+        : s1?.checkOutTime ? (s1.status || 'PRESENT') : null;
       let session3Status = s3?.status || null;
-      let session4Status = s3?.checkOutTime ? (s3.status || 'PRESENT') : null;
+      let session4Status = (s4rec && isDayOffStatus(s4rec.status)) ? s4rec.status
+        : s3?.checkOutTime ? (s3.status || 'PRESENT') : null;
 
       // Mark overtime sessions as ABSENT (past sessions with no record)
       if (!isHoliday) {
