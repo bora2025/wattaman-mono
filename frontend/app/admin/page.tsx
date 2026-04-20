@@ -75,6 +75,7 @@ function DashboardContent() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [drillRole, setDrillRole] = useState<'Student'|'Staff'|null>(null)
+  const [tableExpanded, setTableExpanded] = useState(false)
 
   // Monthly trend
   const [trendData, setTrendData] = useState<{ day: number; studentPresent: number; studentAbsent: number; staffPresent: number; staffAbsent: number }[]>([])
@@ -104,7 +105,7 @@ function DashboardContent() {
 
   const handleCardClick = (role: 'Student'|'Staff', status: StatusFilter) => {
     setDrillRole(role); setRoleFilter(role === 'Student' ? 'Student' : 'Staff')
-    setStatusFilter(status); setGroupFilter(''); setSearchQuery('')
+    setStatusFilter(status); setGroupFilter(''); setSearchQuery(''); setTableExpanded(true)
     document.getElementById('detail-table')?.scrollIntoView({ behavior: 'smooth' })
   }
   const clearDrill = () => { setDrillRole(null); setRoleFilter('all'); setStatusFilter('all'); setGroupFilter(''); setSearchQuery('') }
@@ -369,10 +370,19 @@ function DashboardContent() {
           </div>
 
           <div id="detail-table" className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-            <div className="p-4 sm:p-5 border-b border-gray-100">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <button onClick={() => setTableExpanded(prev => !prev)}
+              className="w-full p-4 sm:p-5 flex items-center justify-between cursor-pointer hover:bg-gray-50/50 transition-colors">
+              <div className="flex items-center gap-3">
+                <h3 className="text-sm font-bold text-gray-700">{t('dashboard.detailedTable')}</h3>
+                <span className="text-[11px] bg-gray-100 text-gray-500 font-semibold px-2 py-0.5 rounded-full">{filteredDetails.length}</span>
+              </div>
+              <svg className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${tableExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7"/></svg>
+            </button>
+
+            {tableExpanded && (<>
+            <div className="px-4 sm:px-5 pb-4 sm:pb-5 border-t border-gray-100">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-3">
                 <div className="flex items-center gap-3">
-                  <h3 className="text-sm font-bold text-gray-700">{t('dashboard.detailedTable')}</h3>
                   {drillRole && (
                     <button onClick={clearDrill} className="inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full hover:bg-indigo-100 transition-colors">
                       <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
@@ -458,6 +468,7 @@ function DashboardContent() {
                 <span className="text-[11px] text-gray-400 font-medium">{t('common.showing')} {filteredDetails.length} {filteredDetails.length===1?t('common.result'):t('common.results')}</span>
               </div>
             )}
+            </>)}
           </div>
         </div>
       </div>
