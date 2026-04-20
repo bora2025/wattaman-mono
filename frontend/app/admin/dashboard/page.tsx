@@ -43,7 +43,8 @@ export default function AdminDashboard() {
   const { t } = useLanguage()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [selectedDate, setSelectedDate] = useState('')
+  const [mounted, setMounted] = useState(false)
 
   // Table filters
   const [roleFilter, setRoleFilter] = useState<'all' | 'Student' | 'Staff'>('all')
@@ -55,8 +56,14 @@ export default function AdminDashboard() {
   const [drillRole, setDrillRole] = useState<'Student' | 'Staff' | null>(null)
   const [drillStatus, setDrillStatus] = useState<StatusFilter | null>(null)
 
+  // Set date on client only to avoid hydration mismatch
   useEffect(() => {
-    fetchDashboard()
+    setSelectedDate(new Date().toISOString().split('T')[0])
+    setMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (selectedDate) fetchDashboard()
   }, [selectedDate])
 
   const fetchDashboard = async () => {
@@ -192,7 +199,7 @@ export default function AdminDashboard() {
     )
   }
 
-  if (loading) return (
+  if (!mounted || loading) return (
     <AuthGuard requiredRole="ADMIN">
       <div className="page-shell">
         <Sidebar title="Admin Panel" subtitle="Wattanman" navItems={adminNav} accentColor="indigo" />
