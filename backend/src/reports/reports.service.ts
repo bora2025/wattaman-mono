@@ -255,6 +255,43 @@ export class ReportsService {
     };
   }
 
+  async getMonthlyTrend(year: number, month: number) {
+    const start = new Date(Date.UTC(year, month - 1, 1));
+    const end = new Date(Date.UTC(year, month, 0)); // last day of month
+    const endPlusOne = new Date(Date.UTC(year, month, 1));
+    const daysInMonth = end.getUTCDate();
+
+    const studentAttendances = await this.prisma.attendance.findMany({
+      where: { date: { gte: start, lt: endPlusOne } },
+      select: { date: true, status: true },
+    });
+
+    const staffAttendances = await this.prisma.staffAttendance.findMany({
+      where: { date: { gte: start, lt: endPlusOne } },
+      select: { date: true, status: true },
+    });
+
+    const result: { day: number; studentPresent: number; studentAbsent: number; staffPresent: number; staffAbsent: number }[] = [];
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dayStart = new Date(Date.UTC(year, month - 1, d));
+      const dayEnd = new Date(Date.UTC(year, month - 1, d + 1));
+
+      const stuDay = studentAttendances.filter(a => a.date >= dayStart && a.date < dayEnd);
+      const stfDay = staffAttendances.filter(a => a.date >= dayStart && a.date < dayEnd);
+
+      result.push({
+        day: d,
+        studentPresent: stuDay.filter(a => a.status === 'PRESENT').length,
+        studentAbsent: stuDay.filter(a => a.status === 'ABSENT').length,
+        staffPresent: stfDay.filter(a => a.status === 'PRESENT').length,
+        staffAbsent: stfDay.filter(a => a.status === 'ABSENT').length,
+      });
+    }
+
+    return { year, month, data: result };
+  }
+
   async getStudentAttendance(studentId: string) {
     const attendances = await this.prisma.attendance.findMany({
       where: { studentId },

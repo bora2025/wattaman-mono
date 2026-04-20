@@ -45,6 +45,15 @@ export class ReportsController {
     return this.reportsService.getDashboardSummary(date ? new Date(date) : undefined);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Get('monthly-trend')
+  async getMonthlyTrend(@Query('year') year?: string, @Query('month') month?: string) {
+    const y = year ? parseInt(year, 10) : new Date().getUTCFullYear();
+    const m = month ? parseInt(month, 10) : new Date().getUTCMonth() + 1;
+    return this.reportsService.getMonthlyTrend(y, m);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get('attendance-summary')
   async getAttendanceSummary(@Query('classId') classId?: string, @Query('date') date?: string) {

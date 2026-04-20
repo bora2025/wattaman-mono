@@ -1,7 +1,7 @@
 ﻿"use client"
 
 import { useState, useEffect, useMemo } from 'react'
-import { Tooltip, Legend, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
+import { Tooltip, Legend, PieChart, Pie, Cell, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts'
 import Sidebar from '../../components/Sidebar'
 import AuthGuard from '../../components/AuthGuard'
 import { adminNav } from '../../lib/admin-nav'
@@ -76,8 +76,14 @@ function DashboardContent() {
   const [searchQuery, setSearchQuery] = useState('')
   const [drillRole, setDrillRole] = useState<'Student'|'Staff'|null>(null)
 
+  // Monthly trend
+  const [trendData, setTrendData] = useState<{ day: number; studentPresent: number; studentAbsent: number; staffPresent: number; staffAbsent: number }[]>([])
+  const [trendYear, setTrendYear] = useState(new Date().getFullYear())
+  const [trendMonth, setTrendMonth] = useState(new Date().getMonth() + 1)
+
   useEffect(() => { setSelectedDate(new Date().toISOString().split('T')[0]); setMounted(true) }, [])
   useEffect(() => { if (selectedDate) fetchDashboard() }, [selectedDate])
+  useEffect(() => { fetchTrend() }, [trendYear, trendMonth])
 
   const fetchDashboard = async () => {
     setLoading(true)
@@ -87,6 +93,13 @@ function DashboardContent() {
       else console.error('Dashboard API error:', res.status)
     } catch (err) { console.error('Failed to fetch dashboard data', err) }
     finally { setLoading(false) }
+  }
+
+  const fetchTrend = async () => {
+    try {
+      const res = await apiFetch(`/api/reports/monthly-trend?year=${trendYear}&month=${trendMonth}`)
+      if (res.ok) { const json = await res.json(); setTrendData(json.data || []) }
+    } catch (err) { console.error('Failed to fetch trend', err) }
   }
 
   const handleCardClick = (role: 'Student'|'Staff', status: StatusFilter) => {
@@ -306,6 +319,52 @@ function DashboardContent() {
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* ── Monthly Line Chart ── */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-5 pt-5 gap-3">
+              <div className="flex items-center gap-2">
+                <div className="w-1 h-5 rounded-full bg-indigo-500"/>
+                <h3 className="text-sm font-bold text-gray-700">{t('dashboard.monthlyTrend') || 'Monthly Attendance Trend'}</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <select value={trendMonth} onChange={e => setTrendMonth(Number(e.target.value))}
+                  className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-sm text-gray-600 cursor-pointer focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all">
+                  {Array.from({length:12},(_,i)=>i+1).map(m => (
+                    <option key={m} value={m}>{new Date(2000,m-1).toLocaleString('default',{month:'long'})}</option>
+                  ))}
+                </select>
+                <select value={trendYear} onChange={e => setTrendYear(Number(e.target.value))}
+                  className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-sm text-gray-600 cursor-pointer focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-400 transition-all">
+                  {Array.from({length:5},(_,i)=>new Date().getFullYear()-i).map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="px-5 pb-5 pt-2" style={{ height: '320px' }}>
+              {trendData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={trendData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false}/>
+                    <XAxis dataKey="day" tick={{ fontSize:11, fill:'#9CA3AF' }} axisLine={false} tickLine={false}/>
+                    <YAxis tick={{ fontSize:11, fill:'#9CA3AF' }} axisLine={false} tickLine={false}/>
+                    <Tooltip contentStyle={{ borderRadius:'12px', border:'1px solid #E5E7EB', boxShadow:'0 4px 12px rgba(0,0,0,0.08)', fontSize:'13px' }}/>
+                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize:'12px', paddingTop:'8px' }}/>
+                    <Line type="monotone" dataKey="studentPresent" name={`${t('common.students')} - ${t('common.present')}`} stroke="#8B5CF6" strokeWidth={2} dot={false} activeDot={{ r:4 }}/>
+                    <Line type="monotone" dataKey="studentAbsent" name={`${t('common.students')} - ${t('common.absent')}`} stroke="#A78BFA" strokeWidth={2} strokeDasharray="5 5" dot={false} activeDot={{ r:4 }}/>
+                    <Line type="monotone" dataKey="staffPresent" name={`${t('dashboard.staff')} - ${t('common.present')}`} stroke="#06B6D4" strokeWidth={2} dot={false} activeDot={{ r:4 }}/>
+                    <Line type="monotone" dataKey="staffAbsent" name={`${t('dashboard.staff')} - ${t('common.absent')}`} stroke="#67E8F9" strokeWidth={2} strokeDasharray="5 5" dot={false} activeDot={{ r:4 }}/>
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-gray-300 gap-2">
+                  <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+                  <span className="text-sm">{t('common.noData')}</span>
+                </div>
+              )}
             </div>
           </div>
 
