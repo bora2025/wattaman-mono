@@ -21,7 +21,8 @@ export const adminNav = [
 
   // ID Cards
   { label: 'nav.cardDesigner', href: '/admin/card-designer', icon: 'design' },
-  { label: 'nav.idCard', href: '/admin/qr-codes', icon: 'id-card' },
+  { label: 'nav.studentCards', href: '/admin/student-cards', icon: 'id-card' },
+  { label: 'nav.staffCards', href: '/admin/staff-cards', icon: 'id-card' },
 
   // Settings
   { label: 'nav.sessionSettings', href: '/admin/session-settings', icon: 'clock' },

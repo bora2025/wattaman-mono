@@ -334,7 +334,7 @@ export default function ManageEmployees() {
                 <p className="text-sm text-slate-500 mt-1">{filtered.length} {t('employees.employees')} · {departments.length} {t('employees.departments')}</p>
               </div>
               <div className="flex gap-2">
-                <Link href="/admin/qr-codes" className="btn-outline flex items-center gap-1">
+                <Link href="/admin/staff-cards" className="btn-outline flex items-center gap-1">
                   {t('employees.idCards')}
                 </Link>
               </div>
