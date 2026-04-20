@@ -860,7 +860,7 @@ function ManageClasses() {
                       <button
                         type="button"
                         onClick={() => {
-                          const csv = 'ID,Name,Sex,Email,Phone,Photo\n0001,John Doe,Male,john@example.com,012345678,\n0002,Jane Smith,Female,,098765432,\n0003,សុខ សាន,ប្រុស,,,\n';
+                          const csv = 'ID,Name,Sex,Email,Phone,Photo\n1,John Doe,Male,,,\n2,Jane Smith,Female,,012345678,\n3,សុខ សាន,ប្រុស,,098765432,https://drive.google.com/file/d/FILE_ID/view\n';
                           const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv;charset=utf-8;' });
                           const link = document.createElement('a');
                           link.href = URL.createObjectURL(blob);
@@ -895,7 +895,7 @@ function ManageClasses() {
                             ))}
                           </div>
                         )}
-                        <p className="text-xs text-slate-500">CSV format: ID, Name, Sex, Class, Mail Or Phone, Photo</p>
+                        <p className="text-xs text-slate-500">CSV format: ID, Name, Sex, Email (optional), Phone, Photo (Google Drive links supported)</p>
                       </div>
                     )}
                     {showAddStudentForm && (

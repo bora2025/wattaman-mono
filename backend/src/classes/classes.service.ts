@@ -252,6 +252,7 @@ export class ClassesService {
     }
 
     const results: { row: number; id: string; name: string; email: string; status: string; error?: string }[] = [];
+    const usedEmails = new Set<string>();
 
     for (let i = 1; i < lines.length; i++) {
       const cols = this.parseCsvLine(lines[i]);
@@ -259,13 +260,16 @@ export class ClassesService {
       const name = cols[nameIdx]?.trim();
       const rawSex = sexIdx !== -1 ? cols[sexIdx]?.trim() : '';
       const contact = contactIdx !== -1 ? cols[contactIdx]?.trim() : '';
-      const photo = photoIdx !== -1 ? cols[photoIdx]?.trim() : '';
+      const rawPhoto = photoIdx !== -1 ? cols[photoIdx]?.trim() : '';
       const password = passwordIdx !== -1 ? cols[passwordIdx]?.trim() : '';
 
       if (!name) {
         results.push({ row: i + 1, id: studentId, name: '', email: '', status: 'skipped', error: 'Missing name' });
         continue;
       }
+
+      // Convert Google Drive sharing links to direct image URLs
+      const photo = this.convertGoogleDriveUrl(rawPhoto);
 
       // Map sex: support Khmer (ប្រុស=MALE, ស្រី=FEMALE) and English
       let sex: string | undefined;
@@ -275,13 +279,17 @@ export class ClassesService {
         sex = 'FEMALE';
       }
 
-      // Generate email: if contact looks like email use it, otherwise auto-generate
-      let email: string;
-      if (contact && contact.includes('@')) {
-        email = contact;
-      } else {
-        email = `student${studentId}@school.local`;
+      // Always generate a unique email per student for CSV bulk upload
+      // This prevents duplicate email collisions when many rows share the same contact
+      const email = `student${studentId}@school.local`;
+      const phone = contact && !contact.includes('@') ? contact : '';
+
+      // Track used emails to detect duplicates within the batch
+      if (usedEmails.has(email)) {
+        results.push({ row: i + 1, id: studentId, name, email, status: 'error', error: 'Duplicate student ID in CSV' });
+        continue;
       }
+      usedEmails.add(email);
 
       // Use provided password or default
       const finalPassword = password || `student${studentId}`;
@@ -293,13 +301,13 @@ export class ClassesService {
         if (!user) {
           const hashedPassword = await bcrypt.hash(finalPassword, 10);
           user = await this.prisma.user.create({
-            data: { email, password: hashedPassword, name, role: 'STUDENT', ...(contact ? { phone: contact } : {}) },
+            data: { email, password: hashedPassword, name, role: 'STUDENT', ...(phone ? { phone } : {}) },
           });
         } else {
           // Update name and phone if user exists
           user = await this.prisma.user.update({
             where: { id: user.id },
-            data: { name, ...(contact ? { phone: contact } : {}) },
+            data: { name, ...(phone ? { phone } : {}) },
           });
         }
 
@@ -366,6 +374,15 @@ export class ClassesService {
     }
     result.push(current);
     return result;
+  }
+
+  private convertGoogleDriveUrl(url: string): string {
+    if (!url) return url;
+    const match = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (match) {
+      return `https://lh3.googleusercontent.com/d/${match[1]}`;
+    }
+    return url;
   }
 
   async updateStudent(studentId: string, data: { name?: string; sex?: string; phone?: string; photo?: string; dateOfBirth?: string; address?: string }) {
