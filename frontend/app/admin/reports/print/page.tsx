@@ -213,7 +213,7 @@ function PrintReportContent() {
                 {logoTextLines.length > 0 && (
                   <div style={{ marginBottom: `${logoTextGap}px` }}>
                     {logoTextLines.map((line, idx) => (
-                      <p key={idx} className="text-[9px] text-slate-600 leading-tight max-w-[100px]">{line}</p>
+                      <p key={idx} className="text-[9px] text-slate-600 leading-tight whitespace-nowrap">{line}</p>
                     ))}
                   </div>
                 )}

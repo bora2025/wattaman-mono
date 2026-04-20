@@ -220,8 +220,8 @@ function StaffPrintReportContent() {
                 {(logoTextLines.length > 0 || logoText) && (
                   <div style={{ marginBottom: `${logoTextGap}px` }}>
                     {logoTextLines.length > 0 ? logoTextLines.map((line, idx) => (
-                      <p key={idx} className="text-[9px] text-slate-600 leading-tight max-w-[100px]">{line}</p>
-                    )) : logoText && <p className="text-[9px] text-slate-600 leading-tight max-w-[100px]">{logoText}</p>}
+                      <p key={idx} className="text-[9px] text-slate-600 leading-tight whitespace-nowrap">{line}</p>
+                    )) : logoText && <p className="text-[9px] text-slate-600 leading-tight whitespace-nowrap">{logoText}</p>}
                   </div>
                 )}
               </div>
