@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 
@@ -499,6 +499,15 @@ const en: Record<string, string> = {
   'dashboard.attendanceRate': 'Attendance Rate',
   'dashboard.todayAttendance': "Today's Attendance",
   'dashboard.classAttendance': 'Class-wise Attendance',
+  'dashboard.studentSummary': 'Students Attendance Summary',
+  'dashboard.staffSummary': 'Staff Attendance Summary',
+  'dashboard.staff': 'Staff',
+  'dashboard.attendanceDistribution': 'Attendance Distribution',
+  'dashboard.staffVsStudents': 'Staff vs Students Comparison',
+  'dashboard.detailedTable': 'Detailed Attendance Table',
+  'dashboard.classOrDept': 'Class / Department',
+  'dashboard.allClassesDepts': 'All Classes & Departments',
+  'dashboard.clearFilter': '← Clear filter',
 
   // My ID Card (employee)
   'myCard.title': 'My ID Card',
@@ -1016,6 +1025,15 @@ const kh: Record<string, string> = {
   'dashboard.attendanceRate': 'អត្រាវត្តមាន',
   'dashboard.todayAttendance': 'វត្តមានថ្ងៃនេះ',
   'dashboard.classAttendance': 'វត្តមានតាមថ្នាក់',
+  'dashboard.studentSummary': 'សង្ខេបវត្តមានសិស្ស',
+  'dashboard.staffSummary': 'សង្ខេបវត្តមានបុគ្គលិក',
+  'dashboard.staff': 'បុគ្គលិក',
+  'dashboard.attendanceDistribution': 'ការបំភែកវត្តមាន',
+  'dashboard.staffVsStudents': 'បុគ្គលិក ធៀបនឹងសិស្ស',
+  'dashboard.detailedTable': 'តារាងវត្តមានលម្អិត',
+  'dashboard.classOrDept': 'ថ្នាក់ / នាយកដ្ឋាន',
+  'dashboard.allClassesDepts': 'ថ្នាក់ និងនាយកដ្ឋានទាំងអស់',
+  'dashboard.clearFilter': '← លុបតម្រង',
 
   // My ID Card (employee)
   'myCard.title': 'កាតសម្គាល់ខ្លួនរបស់ខ្ញុំ',

@@ -131,6 +131,111 @@ export class ReportsService {
     };
   }
 
+  async getDashboardSummary(date?: Date) {
+    const targetDate = date || new Date();
+    const dayStart = toUTCMidnight(targetDate);
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+
+    // Student attendance for today
+    const studentAttendances = await this.prisma.attendance.findMany({
+      where: { date: { gte: dayStart, lt: dayEnd } },
+      include: {
+        student: { include: { user: { select: { name: true } }, class: { select: { name: true } } } },
+        class: { select: { name: true } },
+      },
+    });
+
+    // Staff attendance for today
+    const staffAttendances = await this.prisma.staffAttendance.findMany({
+      where: { date: { gte: dayStart, lt: dayEnd } },
+      include: {
+        user: { select: { id: true, name: true, role: true, department: { select: { name: true } } } },
+      },
+    });
+
+    // Totals
+    const totalStudents = await this.prisma.student.count();
+    const totalStaff = await this.prisma.user.count({ where: { role: { in: ['ADMIN', 'TEACHER'] } } });
+
+    // Student summary
+    const studentPresent = studentAttendances.filter(a => a.status === 'PRESENT').length;
+    const studentAbsent = studentAttendances.filter(a => a.status === 'ABSENT').length;
+    const studentLate = studentAttendances.filter(a => a.status === 'LATE').length;
+    const studentPermission = studentAttendances.filter(a => a.status === 'DAY_OFF').length;
+
+    // Staff summary
+    const staffPresent = staffAttendances.filter(a => a.status === 'PRESENT').length;
+    const staffAbsent = staffAttendances.filter(a => a.status === 'ABSENT').length;
+    const staffLate = staffAttendances.filter(a => a.status === 'LATE').length;
+    const staffPermission = staffAttendances.filter(a => a.status === 'DAY_OFF').length;
+
+    // Build detail rows: unique students
+    const studentMap = new Map<string, { id: string; name: string; role: string; className: string; present: number; absent: number; late: number; permission: number }>();
+    for (const a of studentAttendances) {
+      const key = a.studentId;
+      if (!studentMap.has(key)) {
+        studentMap.set(key, {
+          id: a.student.studentNumber || a.studentId,
+          name: a.student.user.name,
+          role: 'Student',
+          className: a.student.class?.name || a.class.name,
+          present: 0, absent: 0, late: 0, permission: 0,
+        });
+      }
+      const row = studentMap.get(key)!;
+      if (a.status === 'PRESENT') row.present++;
+      else if (a.status === 'ABSENT') row.absent++;
+      else if (a.status === 'LATE') row.late++;
+      else if (a.status === 'DAY_OFF') row.permission++;
+    }
+
+    // Build detail rows: unique staff
+    const staffMap = new Map<string, { id: string; name: string; role: string; department: string; present: number; absent: number; late: number; permission: number }>();
+    for (const a of staffAttendances) {
+      const key = a.userId;
+      if (!staffMap.has(key)) {
+        staffMap.set(key, {
+          id: a.userId,
+          name: a.user.name,
+          role: a.user.role,
+          department: a.user.department?.name || '',
+          present: 0, absent: 0, late: 0, permission: 0,
+        });
+      }
+      const row = staffMap.get(key)!;
+      if (a.status === 'PRESENT') row.present++;
+      else if (a.status === 'ABSENT') row.absent++;
+      else if (a.status === 'LATE') row.late++;
+      else if (a.status === 'DAY_OFF') row.permission++;
+    }
+
+    // Get classes and departments for filter options
+    const classes = await this.prisma.class.findMany({ select: { id: true, name: true } });
+    const departments = await this.prisma.department.findMany({ select: { id: true, name: true } });
+
+    return {
+      students: {
+        total: totalStudents,
+        present: studentPresent,
+        absent: studentAbsent,
+        late: studentLate,
+        permission: studentPermission,
+      },
+      staff: {
+        total: totalStaff,
+        present: staffPresent,
+        absent: staffAbsent,
+        late: staffLate,
+        permission: staffPermission,
+      },
+      details: [
+        ...Array.from(studentMap.values()).map(s => ({ ...s, group: s.className })),
+        ...Array.from(staffMap.values()).map(s => ({ ...s, group: s.department })),
+      ],
+      filters: { classes, departments },
+    };
+  }
+
   async getStudentAttendance(studentId: string) {
     const attendances = await this.prisma.attendance.findMany({
       where: { studentId },

@@ -38,6 +38,13 @@ export class ReportsController {
     return this.reportsService.getSystemStatus();
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @Get('dashboard-summary')
+  async getDashboardSummary(@Query('date') date?: string) {
+    return this.reportsService.getDashboardSummary(date ? new Date(date) : undefined);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get('attendance-summary')
   async getAttendanceSummary(@Query('classId') classId?: string, @Query('date') date?: string) {
