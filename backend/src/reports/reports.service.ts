@@ -282,9 +282,9 @@ export class ReportsService {
 
       result.push({
         day: d,
-        studentPresent: stuDay.filter(a => a.status === 'PRESENT').length,
+        studentPresent: stuDay.filter(a => a.status === 'PRESENT' || a.status === 'LATE').length,
         studentAbsent: stuDay.filter(a => a.status === 'ABSENT').length,
-        staffPresent: stfDay.filter(a => a.status === 'PRESENT').length,
+        staffPresent: stfDay.filter(a => a.status === 'PRESENT' || a.status === 'LATE').length,
         staffAbsent: stfDay.filter(a => a.status === 'ABSENT').length,
       });
     }
