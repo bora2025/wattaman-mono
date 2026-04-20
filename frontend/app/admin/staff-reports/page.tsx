@@ -189,7 +189,7 @@ export default function AdminStaffReports() {
   const isLateStaff = (r: StaffGridRow) => [r.session1Status, r.session2Status, r.session3Status, r.session4Status].some(s => s === 'LATE')
   const dailyLate = grid.filter(r => hasAttendance(r) && isLateStaff(r)).length
   const dailyPresent = grid.filter(r => hasAttendance(r) && !isLateStaff(r)).length
-  const dailyPermission = grid.filter(r => !hasAttendance(r) && [r.session1Status, r.session2Status, r.session3Status, r.session4Status].some(s => s === 'DAY_OFF')).length
+  const dailyPermission = grid.filter(r => !hasAttendance(r) && [r.session1Status, r.session2Status, r.session3Status, r.session4Status].some(s => s === 'DAY_OFF' || s === 'PERMISSION')).length
   const dailyAbsent = isHolidayDate ? 0 : totalStaff - dailyPresent - dailyLate - dailyPermission
 
   return (

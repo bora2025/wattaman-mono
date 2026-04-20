@@ -407,7 +407,7 @@ function SessionCell({ time, status }: { time: string | null; status: string | n
   if (!status || status === 'ABSENT') {
     return <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-center"><span className="text-[10px] sm:text-xs text-red-400">✗</span></td>
   }
-  if (status === 'DAY_OFF') {
+  if (status === 'DAY_OFF' || status === 'PERMISSION') {
     return <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-center"><span className="text-[10px] sm:text-xs text-purple-500 font-medium">🏖</span></td>
   }
   return (

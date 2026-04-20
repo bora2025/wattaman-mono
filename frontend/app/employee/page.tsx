@@ -38,6 +38,7 @@ const statusColors: Record<string, string> = {
   PRESENT: 'bg-emerald-100 text-emerald-700',
   LATE: 'bg-amber-100 text-amber-700',
   ABSENT: 'bg-red-100 text-red-700',
+  PERMISSION: 'bg-blue-100 text-blue-700',
   DAY_OFF: 'bg-slate-100 text-slate-500',
 }
 
@@ -45,6 +46,7 @@ const statusIcons: Record<string, string> = {
   PRESENT: '✅',
   LATE: '⏰',
   ABSENT: '❌',
+  PERMISSION: '🏖',
   DAY_OFF: '📅',
 }
 

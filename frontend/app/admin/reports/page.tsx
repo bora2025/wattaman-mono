@@ -346,7 +346,7 @@ export default function AdminReports() {
   const isLateStudent = (r: GridRow) => [r.session1Status, r.session2Status, r.session3Status, r.session4Status].some(s => s === 'LATE')
   const dailyLate = grid.filter(r => hasAttendance(r) && isLateStudent(r)).length
   const dailyPresent = grid.filter(r => hasAttendance(r) && !isLateStudent(r)).length
-  const dailyPermission = grid.filter(r => !hasAttendance(r) && [r.session1Status, r.session2Status, r.session3Status, r.session4Status].some(s => s === 'DAY_OFF')).length
+  const dailyPermission = grid.filter(r => !hasAttendance(r) && [r.session1Status, r.session2Status, r.session3Status, r.session4Status].some(s => s === 'DAY_OFF' || s === 'PERMISSION')).length
   const dailyAbsent = isHolidayDate ? 0 : totalStudents - dailyPresent - dailyLate - dailyPermission
 
   return (
@@ -834,7 +834,7 @@ function SessionCell({ time, status }: { time: string | null; status: string | n
   if (status === 'ABSENT') {
     return <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-center"><span className="text-[10px] sm:text-xs text-red-400">✗</span></td>
   }
-  if (status === 'DAY_OFF') {
+  if (status === 'DAY_OFF' || status === 'PERMISSION') {
     return <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-center"><span className="text-[10px] sm:text-xs text-purple-500 font-medium">🏖</span></td>
   }
   return (

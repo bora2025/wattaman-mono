@@ -109,7 +109,7 @@ export default function EmployeeReports() {
   const dailyPresent = statuses.filter(s => s === 'PRESENT').length
   const dailyLate = statuses.filter(s => s === 'LATE').length
   const dailyAbsent = statuses.filter(s => s === 'ABSENT').length
-  const dailyPermission = statuses.filter(s => s === 'DAY_OFF').length
+  const dailyPermission = statuses.filter(s => s === 'DAY_OFF' || s === 'PERMISSION').length
   const isHoliday = row?.isHoliday
 
   const tabs = [
