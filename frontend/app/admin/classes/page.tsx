@@ -479,12 +479,13 @@ function ManageClasses() {
     e.preventDefault();
     if (!selectedClass) return;
     try {
+      const autoPassword = 'student' + (newStudentForm.email.split('@')[0] || 'default');
       const registerRes = await apiFetch('/api/auth/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
                   },
-        body: JSON.stringify({ ...newStudentForm, role: 'STUDENT' }),
+        body: JSON.stringify({ ...newStudentForm, password: autoPassword, role: 'STUDENT' }),
       });
       if (registerRes.ok) {
         const newStudent = await registerRes.json();
@@ -856,6 +857,21 @@ function ManageClasses() {
                         📄 {csvUploading ? 'Uploading...' : 'Bulk Upload CSV'}
                         <input type="file" accept=".csv" onChange={handleCsvUpload} className="hidden" disabled={csvUploading} />
                       </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const csv = 'ID,Name,Sex,Email,Phone,Photo\n0001,John Doe,Male,john@example.com,012345678,\n0002,Jane Smith,Female,,098765432,\n0003,សុខ សាន,ប្រុស,,,\n';
+                          const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv;charset=utf-8;' });
+                          const link = document.createElement('a');
+                          link.href = URL.createObjectURL(blob);
+                          link.download = 'student-template.csv';
+                          link.click();
+                          URL.revokeObjectURL(link.href);
+                        }}
+                        className="btn-outline btn-sm inline-flex items-center gap-1"
+                      >
+                        ⬇ Download Sample CSV
+                      </button>
                     </div>
 
                     {/* CSV Result */}
@@ -894,10 +910,6 @@ function ManageClasses() {
                             <input type="email" value={newStudentForm.email} onChange={(e) => setNewStudentForm({ ...newStudentForm, email: e.target.value })} required />
                           </div>
                           <div>
-                            <label className="form-label">Password</label>
-                            <input type="password" value={newStudentForm.password} onChange={(e) => setNewStudentForm({ ...newStudentForm, password: e.target.value })} required />
-                          </div>
-                          <div>
                             <label className="form-label">Sex</label>
                             <select value={newStudentForm.sex} onChange={(e) => setNewStudentForm({ ...newStudentForm, sex: e.target.value })}>
                               <option value="">Select...</option>
@@ -913,15 +925,16 @@ function ManageClasses() {
                             <label className="form-label">Phone Number</label>
                             <input type="text" value={newStudentForm.phone} onChange={(e) => setNewStudentForm({ ...newStudentForm, phone: e.target.value })} placeholder="012 345 678" />
                           </div>
+                          <div>
+                            <label className="form-label">Photo URL</label>
+                            <input type="text" value={newStudentForm.photo} onChange={(e) => setNewStudentForm({ ...newStudentForm, photo: e.target.value })} placeholder="https://example.com/photo.jpg" />
+                          </div>
                         </div>
                         <div>
                           <label className="form-label">Address</label>
                           <input type="text" value={newStudentForm.address} onChange={(e) => setNewStudentForm({ ...newStudentForm, address: e.target.value })} placeholder="Street, City, Province" />
                         </div>
-                        <div>
-                          <label className="form-label">Photo URL</label>
-                          <input type="text" value={newStudentForm.photo} onChange={(e) => setNewStudentForm({ ...newStudentForm, photo: e.target.value })} placeholder="https://example.com/photo.jpg" />
-                        </div>
+                        <p className="text-xs text-slate-400">Password will be auto-generated as: student + email prefix (e.g. studentjohn)</p>
                         <button type="submit" className="btn-success">Add Student</button>
                       </form>
                     )}
