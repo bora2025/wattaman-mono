@@ -48,6 +48,10 @@ function PrintReportContent() {
   const paperSize = searchParams.get('paper') || 'A4'
   const orgName = searchParams.get('orgName') || 'Wattaman School'
   const logoUrl = searchParams.get('logoUrl') || ''
+  const headerLines: string[] = (() => {
+    try { return JSON.parse(searchParams.get('headerLines') || '[]') }
+    catch { return [] }
+  })()
   const signers: string[] = (() => {
     try { return JSON.parse(searchParams.get('signers') || '[]') }
     catch { return ['Teacher', 'Admin'] }
@@ -193,36 +197,51 @@ function PrintReportContent() {
           marginTop: '60px',
         }}
       >
-        {/* Header Section */}
-        <div className="text-center mb-6 border-b-2 border-slate-800 pb-4">
-          {logoUrl && (
-            <div className="flex justify-center mb-2">
-              <img src={logoUrl} alt="Logo" className="h-16 w-auto object-contain" />
+        {/* Header Section — Khmer letter-head style */}
+        <div className="mb-6 border-b-2 border-slate-800 pb-4">
+          <div className="flex items-start gap-4">
+            {logoUrl && (
+              <div className="flex-shrink-0 pt-1">
+                <img src={logoUrl} alt="Logo" className="h-20 w-20 object-contain" />
+              </div>
+            )}
+            <div className="flex-1 text-center">
+              {headerLines.map((line, idx) => (
+                <p key={idx} className={`${idx === 0 ? 'text-base font-bold text-slate-900' : 'text-sm font-semibold text-slate-700'} leading-relaxed`}>
+                  {line}
+                </p>
+              ))}
+              {orgName && (
+                <p className="text-lg font-bold text-slate-900 mt-1 uppercase tracking-wide">
+                  {orgName}
+                </p>
+              )}
             </div>
-          )}
-          <h1 className="text-xl font-bold text-slate-900 uppercase tracking-wide">
-            {orgName}
-          </h1>
-          <h2 className="text-lg font-semibold text-slate-700 mt-2">
-            {t('reports.attendanceReport')}
-          </h2>
-          <div className="mt-3 flex flex-wrap justify-center gap-x-8 gap-y-1 text-sm text-slate-600">
-            <span>
-              <strong>{t('reports.reportPeriod')}:</strong> {getPeriodLabel()}
-            </span>
-            <span>
-              <strong>{t('reports.dateRange')}:</strong>{' '}
-              {startDate === endDate ? formatDate(startDate) : `${formatDate(startDate)} — ${formatDate(endDate)}`}
-            </span>
+            {/* Spacer to balance logo */}
+            {logoUrl && <div className="w-20 flex-shrink-0" />}
           </div>
-          <div className="mt-2 flex flex-wrap justify-center gap-x-8 gap-y-1 text-sm text-slate-600">
-            <span>
-              <strong>{t('common.class')}:</strong> {data.className}
-              {data.subject ? ` — ${data.subject}` : ''}
-            </span>
-            <span>
-              <strong>{t('reports.preparedBy')}:</strong> {data.teacherName}
-            </span>
+          <div className="text-center mt-3">
+            <h2 className="text-lg font-semibold text-slate-700">
+              {t('reports.attendanceReport')}
+            </h2>
+            <div className="mt-2 flex flex-wrap justify-center gap-x-8 gap-y-1 text-sm text-slate-600">
+              <span>
+                <strong>{t('reports.reportPeriod')}:</strong> {getPeriodLabel()}
+              </span>
+              <span>
+                <strong>{t('reports.dateRange')}:</strong>{' '}
+                {startDate === endDate ? formatDate(startDate) : `${formatDate(startDate)} — ${formatDate(endDate)}`}
+              </span>
+            </div>
+            <div className="mt-2 flex flex-wrap justify-center gap-x-8 gap-y-1 text-sm text-slate-600">
+              <span>
+                <strong>{t('common.class')}:</strong> {data.className}
+                {data.subject ? ` — ${data.subject}` : ''}
+              </span>
+              <span>
+                <strong>{t('reports.preparedBy')}:</strong> {data.teacherName}
+              </span>
+            </div>
           </div>
         </div>
 

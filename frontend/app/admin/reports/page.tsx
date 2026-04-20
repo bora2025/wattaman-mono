@@ -866,6 +866,8 @@ function PrintReportModal({
   const [printEndDate, setPrintEndDate] = useState(defaultDate)
   const [paperSize, setPaperSize] = useState('A4')
   const [orgName, setOrgName] = useState('Wattaman School')
+  const [logoUrl, setLogoUrl] = useState('')
+  const [headerLines, setHeaderLines] = useState<string[]>(['ព្រះរាជាណាចក្រកម្ពុជា', 'ជាតិ សាសនា ព្រះមហាក្សត្រ'])
   const [signers, setSigners] = useState<string[]>(['Teacher', 'Admin'])
 
   // Sync defaults when modal opens
@@ -915,6 +917,8 @@ function PrintReportModal({
       period: printPeriod,
       paper: paperSize,
       orgName,
+      logoUrl,
+      headerLines: JSON.stringify(headerLines.filter(l => l.trim())),
       signers: JSON.stringify(signers.filter(s => s.trim())),
     })
     window.open(`/admin/reports/print?${params.toString()}`, '_blank')
@@ -1042,15 +1046,59 @@ function PrintReportModal({
             </div>
           </div>
 
-          {/* Organization Name */}
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-1.5">🏫 Organization Name</label>
-            <input
-              type="text"
-              value={orgName}
-              onChange={e => setOrgName(e.target.value)}
-              className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-            />
+          {/* Letter Header Customization */}
+          <div className="space-y-3 p-4 bg-amber-50/50 rounded-xl border border-amber-200">
+            <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-1.5">📜 Letter Header</h3>
+
+            {/* Logo URL */}
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Logo URL</label>
+              <input
+                type="text"
+                value={logoUrl}
+                onChange={e => setLogoUrl(e.target.value)}
+                placeholder="https://example.com/logo.png"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+              />
+            </div>
+
+            {/* Header Lines */}
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Header Lines (top → bottom)</label>
+              <div className="space-y-1.5">
+                {headerLines.map((line, idx) => (
+                  <div key={idx} className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      value={line}
+                      onChange={e => { const h = [...headerLines]; h[idx] = e.target.value; setHeaderLines(h) }}
+                      className="flex-1 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none text-center"
+                      placeholder={`Line ${idx + 1}`}
+                    />
+                    {headerLines.length > 1 && (
+                      <button onClick={() => setHeaderLines(headerLines.filter((_, i) => i !== idx))} className="w-7 h-7 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center text-xs">✕</button>
+                    )}
+                  </div>
+                ))}
+                <button
+                  onClick={() => setHeaderLines([...headerLines, ''])}
+                  className="text-xs text-emerald-600 hover:text-emerald-700 font-medium"
+                >
+                  + Add line
+                </button>
+              </div>
+            </div>
+
+            {/* Organization Name */}
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Organization Name</label>
+              <input
+                type="text"
+                value={orgName}
+                onChange={e => setOrgName(e.target.value)}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+              />
+            </div>
           </div>
 
           {/* Signers */}
