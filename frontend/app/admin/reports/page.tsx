@@ -867,7 +867,9 @@ function PrintReportModal({
   const [paperSize, setPaperSize] = useState('A4')
   const [orgName, setOrgName] = useState('Wattaman School')
   const [logoUrl, setLogoUrl] = useState('')
+  const [logoText, setLogoText] = useState('')
   const [headerLines, setHeaderLines] = useState<string[]>(['ព្រះរាជាណាចក្រកម្ពុជា', 'ជាតិ សាសនា ព្រះមហាក្សត្រ'])
+  const [lineSpacing, setLineSpacing] = useState('1.6')
   const [signers, setSigners] = useState<string[]>(['Teacher', 'Admin'])
 
   // Sync defaults when modal opens
@@ -918,7 +920,9 @@ function PrintReportModal({
       paper: paperSize,
       orgName,
       logoUrl,
+      logoText,
       headerLines: JSON.stringify(headerLines.filter(l => l.trim())),
+      lineSpacing,
       signers: JSON.stringify(signers.filter(s => s.trim())),
     })
     window.open(`/admin/reports/print?${params.toString()}`, '_blank')
@@ -1062,6 +1066,18 @@ function PrintReportModal({
               />
             </div>
 
+            {/* Logo Text (below logo) */}
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Text Below Logo</label>
+              <input
+                type="text"
+                value={logoText}
+                onChange={e => setLogoText(e.target.value)}
+                placeholder="e.g. ក្រសួងអប់រំ យុវជន និងកីឡា"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+              />
+            </div>
+
             {/* Header Lines */}
             <div>
               <label className="block text-xs font-medium text-slate-500 mb-1">Header Lines (top → bottom)</label>
@@ -1098,6 +1114,23 @@ function PrintReportModal({
                 onChange={e => setOrgName(e.target.value)}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
               />
+            </div>
+
+            {/* Line Spacing */}
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Line Spacing</label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="range"
+                  min="1"
+                  max="3"
+                  step="0.1"
+                  value={lineSpacing}
+                  onChange={e => setLineSpacing(e.target.value)}
+                  className="flex-1 accent-emerald-500"
+                />
+                <span className="text-xs text-slate-500 w-8 text-center">{lineSpacing}</span>
+              </div>
             </div>
           </div>
 

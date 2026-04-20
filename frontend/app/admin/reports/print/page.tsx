@@ -48,6 +48,8 @@ function PrintReportContent() {
   const paperSize = searchParams.get('paper') || 'A4'
   const orgName = searchParams.get('orgName') || 'Wattaman School'
   const logoUrl = searchParams.get('logoUrl') || ''
+  const logoText = searchParams.get('logoText') || ''
+  const lineSpacing = parseFloat(searchParams.get('lineSpacing') || '1.6')
   const headerLines: string[] = (() => {
     try { return JSON.parse(searchParams.get('headerLines') || '[]') }
     catch { return [] }
@@ -201,18 +203,19 @@ function PrintReportContent() {
         <div className="mb-6 border-b-2 border-slate-800 pb-4">
           <div className="flex items-start gap-4">
             {logoUrl && (
-              <div className="flex-shrink-0 pt-1">
+              <div className="flex-shrink-0 pt-1 text-center">
                 <img src={logoUrl} alt="Logo" className="h-20 w-20 object-contain" />
+                {logoText && <p className="text-[9px] text-slate-600 mt-1 max-w-[90px] leading-tight">{logoText}</p>}
               </div>
             )}
-            <div className="flex-1 text-center">
+            <div className="flex-1 text-center" style={{ lineHeight: lineSpacing }}>
               {headerLines.map((line, idx) => (
-                <p key={idx} className={`${idx === 0 ? 'text-base font-bold text-slate-900' : 'text-sm font-semibold text-slate-700'} leading-relaxed`}>
+                <p key={idx} className={`${idx === 0 ? 'text-base font-bold text-slate-900' : 'text-sm font-semibold text-slate-700'}`} style={{ marginBottom: `${(lineSpacing - 1) * 4}px` }}>
                   {line}
                 </p>
               ))}
               {orgName && (
-                <p className="text-lg font-bold text-slate-900 mt-1 uppercase tracking-wide">
+                <p className="text-lg font-bold text-slate-900 uppercase tracking-wide" style={{ marginTop: `${(lineSpacing - 1) * 6}px` }}>
                   {orgName}
                 </p>
               )}
