@@ -1,7 +1,7 @@
 ﻿"use client"
 
 import { useState, useEffect, useMemo } from 'react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
+import { Tooltip, Legend, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import Sidebar from '../../components/Sidebar'
 import AuthGuard from '../../components/AuthGuard'
 import { adminNav } from '../../lib/admin-nav'
@@ -70,7 +70,6 @@ function DashboardContent() {
   const [loading, setLoading] = useState(true)
   const [selectedDate, setSelectedDate] = useState('')
   const [mounted, setMounted] = useState(false)
-  const [activeTab, setActiveTab] = useState<'all'|'students'|'staff'>('all')
   const [roleFilter, setRoleFilter] = useState<'all'|'Student'|'Staff'>('all')
   const [groupFilter, setGroupFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
@@ -112,28 +111,24 @@ function DashboardContent() {
     })
   }, [data, roleFilter, groupFilter, statusFilter, searchQuery])
 
-  const pieData = useMemo(() => {
+  const studentPieData = useMemo(() => {
     if (!data) return []
-    const src = activeTab === 'students' ? data.students : activeTab === 'staff' ? data.staff : {
-      present: data.students.present + data.staff.present, absent: data.students.absent + data.staff.absent,
-      late: data.students.late + data.staff.late, permission: data.students.permission + data.staff.permission,
-    }
     return [
-      { name: t('common.present'), value: src.present, color: '#10B981' },
-      { name: t('common.absent'), value: src.absent, color: '#EF4444' },
-      { name: t('common.late'), value: src.late, color: '#F59E0B' },
-      { name: t('common.permission'), value: src.permission, color: '#3B82F6' },
+      { name: t('common.present'), value: data.students.present, color: '#10B981' },
+      { name: t('common.absent'), value: data.students.absent, color: '#EF4444' },
+      { name: t('common.late'), value: data.students.late, color: '#F59E0B' },
+      { name: t('common.permission'), value: data.students.permission, color: '#3B82F6' },
     ].filter(d => d.value > 0)
-  }, [data, activeTab, t])
+  }, [data, t])
 
-  const barData = useMemo(() => {
+  const staffPieData = useMemo(() => {
     if (!data) return []
     return [
-      { category: t('common.present'), [t('common.students')]: data.students.present, [t('dashboard.staff')]: data.staff.present },
-      { category: t('common.absent'), [t('common.students')]: data.students.absent, [t('dashboard.staff')]: data.staff.absent },
-      { category: t('common.late'), [t('common.students')]: data.students.late, [t('dashboard.staff')]: data.staff.late },
-      { category: t('common.permission'), [t('common.students')]: data.students.permission, [t('dashboard.staff')]: data.staff.permission },
-    ]
+      { name: t('common.present'), value: data.staff.present, color: '#10B981' },
+      { name: t('common.absent'), value: data.staff.absent, color: '#EF4444' },
+      { name: t('common.late'), value: data.staff.late, color: '#F59E0B' },
+      { name: t('common.permission'), value: data.staff.permission, color: '#3B82F6' },
+    ].filter(d => d.value > 0)
   }, [data, t])
 
   const exportCSV = () => {
@@ -255,29 +250,23 @@ function DashboardContent() {
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Student Attendance Distribution */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-              <div className="flex items-center justify-between px-5 pt-5">
-                <h3 className="text-sm font-bold text-gray-700">{t('dashboard.attendanceDistribution')}</h3>
-                <div className="flex bg-gray-100 rounded-lg p-0.5 text-[11px] font-semibold">
-                  {(['all','students','staff'] as const).map(tab => (
-                    <button key={tab} onClick={() => setActiveTab(tab)}
-                      className={`px-2.5 py-1 rounded-md transition-all ${activeTab === tab ? 'bg-white shadow-sm text-gray-800' : 'text-gray-500 hover:text-gray-700'}`}>
-                      {tab === 'all' ? t('common.all') : tab === 'students' ? t('common.students') : t('dashboard.staff')}
-                    </button>
-                  ))}
-                </div>
+              <div className="flex items-center gap-2 px-5 pt-5">
+                <div className="w-1 h-5 rounded-full bg-purple-500"/>
+                <h3 className="text-sm font-bold text-gray-700">{t('dashboard.studentSummary')} - {t('dashboard.attendanceDistribution')}</h3>
               </div>
               <div className="px-5 pb-5" style={{ height: '280px' }}>
-                {pieData.length > 0 ? (
+                {studentPieData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie data={pieData} cx="50%" cy="50%" labelLine={false}
+                      <Pie data={studentPieData} cx="50%" cy="50%" labelLine={false}
                         label={({ name, percent }) => `${name} ${(percent ? (percent*100).toFixed(0) : '0')}%`}
                         outerRadius={85} innerRadius={50} dataKey="value" stroke="none" animationDuration={800}>
-                        {pieData.map((entry,i) => <Cell key={i} fill={entry.color}/>)}
+                        {studentPieData.map((entry,i) => <Cell key={i} fill={entry.color}/>)}
                       </Pie>
                       <Tooltip contentStyle={{ borderRadius:'12px', border:'1px solid #E5E7EB', boxShadow:'0 4px 12px rgba(0,0,0,0.08)', fontSize:'13px' }}
-                        formatter={(value,name) => { const v = Number(value)||0; const tot = pieData.reduce((s,d)=>s+d.value,0); return [`${v} (${tot>0?((v/tot)*100).toFixed(1):0}%)`,name] }}/>
+                        formatter={(value,name) => { const v = Number(value)||0; const tot = studentPieData.reduce((s,d)=>s+d.value,0); return [`${v} (${tot>0?((v/tot)*100).toFixed(1):0}%)`,name] }}/>
                       <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize:'12px', paddingTop:'8px' }}/>
                     </PieChart>
                   </ResponsiveContainer>
@@ -290,24 +279,29 @@ function DashboardContent() {
               </div>
             </div>
 
+            {/* Staff Attendance Distribution */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm">
-              <div className="px-5 pt-5"><h3 className="text-sm font-bold text-gray-700">{t('dashboard.staffVsStudents')}</h3></div>
+              <div className="flex items-center gap-2 px-5 pt-5">
+                <div className="w-1 h-5 rounded-full bg-cyan-500"/>
+                <h3 className="text-sm font-bold text-gray-700">{t('dashboard.staffSummary')} - {t('dashboard.attendanceDistribution')}</h3>
+              </div>
               <div className="px-5 pb-5" style={{ height: '280px' }}>
-                {barData.length > 0 ? (
+                {staffPieData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={barData} barGap={6} barSize={22}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" vertical={false}/>
-                      <XAxis dataKey="category" tick={{ fontSize:12, fill:'#9CA3AF' }} axisLine={false} tickLine={false}/>
-                      <YAxis tick={{ fontSize:12, fill:'#9CA3AF' }} axisLine={false} tickLine={false}/>
-                      <Tooltip contentStyle={{ borderRadius:'12px', border:'1px solid #E5E7EB', boxShadow:'0 4px 12px rgba(0,0,0,0.08)', fontSize:'13px' }} cursor={{ fill:'rgba(99,102,241,0.04)' }}/>
+                    <PieChart>
+                      <Pie data={staffPieData} cx="50%" cy="50%" labelLine={false}
+                        label={({ name, percent }) => `${name} ${(percent ? (percent*100).toFixed(0) : '0')}%`}
+                        outerRadius={85} innerRadius={50} dataKey="value" stroke="none" animationDuration={800}>
+                        {staffPieData.map((entry,i) => <Cell key={i} fill={entry.color}/>)}
+                      </Pie>
+                      <Tooltip contentStyle={{ borderRadius:'12px', border:'1px solid #E5E7EB', boxShadow:'0 4px 12px rgba(0,0,0,0.08)', fontSize:'13px' }}
+                        formatter={(value,name) => { const v = Number(value)||0; const tot = staffPieData.reduce((s,d)=>s+d.value,0); return [`${v} (${tot>0?((v/tot)*100).toFixed(1):0}%)`,name] }}/>
                       <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize:'12px', paddingTop:'8px' }}/>
-                      <Bar dataKey={t('common.students')} fill="#8B5CF6" radius={[6,6,0,0]} animationDuration={800}/>
-                      <Bar dataKey={t('dashboard.staff')} fill="#06B6D4" radius={[6,6,0,0]} animationDuration={800}/>
-                    </BarChart>
+                    </PieChart>
                   </ResponsiveContainer>
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full text-gray-300 gap-2">
-                    <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                    <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/></svg>
                     <span className="text-sm">{t('common.noData')}</span>
                   </div>
                 )}
