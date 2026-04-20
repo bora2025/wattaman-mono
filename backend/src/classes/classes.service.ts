@@ -240,6 +240,8 @@ export class ClassesService {
     const contactIdx = header.findIndex(h => h.includes('mail') || h.includes('phone') || h.includes('email') || h.includes('contact'));
     const photoIdx = header.findIndex(h => h === 'photo');
     const passwordIdx = header.findIndex(h => h === 'password');
+    const dobIdx = header.findIndex(h => h.includes('birth') || h.includes('dob') || h === 'date of birth');
+    const addressIdx = header.findIndex(h => h === 'address');
 
     if (nameIdx === -1) {
       throw new BadRequestException('CSV must have a "Name" column');
@@ -262,6 +264,8 @@ export class ClassesService {
       const contact = contactIdx !== -1 ? cols[contactIdx]?.trim() : '';
       const rawPhoto = photoIdx !== -1 ? cols[photoIdx]?.trim() : '';
       const password = passwordIdx !== -1 ? cols[passwordIdx]?.trim() : '';
+      const dateOfBirth = dobIdx !== -1 ? cols[dobIdx]?.trim() : '';
+      const address = addressIdx !== -1 ? cols[addressIdx]?.trim() : '';
 
       if (!name) {
         results.push({ row: i + 1, id: studentId, name: '', email: '', status: 'skipped', error: 'Missing name' });
@@ -319,6 +323,8 @@ export class ClassesService {
           studentNumber: studentId,
           ...(sex ? { sex } : {}),
           ...(photo ? { photo } : {}),
+          ...(dateOfBirth ? { dateOfBirth: new Date(dateOfBirth) } : {}),
+          ...(address ? { address } : {}),
         };
 
         if (!student) {

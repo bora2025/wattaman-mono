@@ -860,7 +860,7 @@ function ManageClasses() {
                       <button
                         type="button"
                         onClick={() => {
-                          const csv = 'ID,Name,Sex,Email,Phone,Photo\n1,John Doe,Male,,,\n2,Jane Smith,Female,,012345678,\n3,សុខ សាន,ប្រុស,,098765432,https://drive.google.com/file/d/FILE_ID/view\n';
+                          const csv = 'ID,Name,Sex,Date of Birth,Phone,Address,Photo\n1,John Doe,Male,2010-05-15,012345678,Phnom Penh,\n2,Jane Smith,Female,2011-03-22,098765432,,\n3,សុខ សាន,ប្រុស,2010-12-01,,ក្រុងភ្នំពេញ,https://drive.google.com/file/d/FILE_ID/view\n';
                           const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv;charset=utf-8;' });
                           const link = document.createElement('a');
                           link.href = URL.createObjectURL(blob);
@@ -895,7 +895,7 @@ function ManageClasses() {
                             ))}
                           </div>
                         )}
-                        <p className="text-xs text-slate-500">CSV format: ID, Name, Sex, Email (optional), Phone, Photo (Google Drive links supported)</p>
+                        <p className="text-xs text-slate-500">CSV format: ID, Name, Sex, Date of Birth, Phone, Address, Photo (Google Drive links supported)</p>
                       </div>
                     )}
                     {showAddStudentForm && (
@@ -980,13 +980,15 @@ function ManageClasses() {
                                 <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Photo</th>
                                 <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Name</th>
                                 <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Sex</th>
-                                <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Mail Or Phone</th>
+                                <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase">DOB</th>
+                                <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Phone</th>
+                                <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase">Address</th>
                                 <th className="px-3 py-2 text-right text-xs font-semibold text-slate-500 uppercase">Actions</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
                               {classStudents.length === 0 ? (
-                                <tr><td colSpan={6} className="px-3 py-8 text-center text-slate-400">No students yet</td></tr>
+                                <tr><td colSpan={8} className="px-3 py-8 text-center text-slate-400">No students yet</td></tr>
                               ) : (
                                 classStudents.map((s, idx) => (
                                   <tr key={s.id} className="hover:bg-slate-50 transition-colors">
@@ -1004,7 +1006,9 @@ function ManageClasses() {
                                         </span>
                                       ) : <span className="text-slate-300">—</span>}
                                     </td>
-                                    <td className="px-3 py-2 text-slate-500 text-xs truncate max-w-[160px]">{s.phone || s.email}</td>
+                                    <td className="px-3 py-2 text-slate-500 text-xs">{s.dateOfBirth ? new Date(s.dateOfBirth).toLocaleDateString() : <span className="text-slate-300">—</span>}</td>
+                                    <td className="px-3 py-2 text-slate-500 text-xs">{s.phone || <span className="text-slate-300">—</span>}</td>
+                                    <td className="px-3 py-2 text-slate-500 text-xs truncate max-w-[140px]">{s.address || <span className="text-slate-300">—</span>}</td>
                                     <td className="px-3 py-2 text-right">
                                       <div className="flex justify-end gap-1">
                                         <button onClick={() => handleEditStudent(s)} className="btn-warning btn-sm">Edit</button>
