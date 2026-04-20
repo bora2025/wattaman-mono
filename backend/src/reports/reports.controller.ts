@@ -230,6 +230,15 @@ export class ReportsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('staff-print-report-data')
+  async getStaffPrintReportData(
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+  ) {
+    return this.reportsService.getStaffPrintReportData(new Date(startDate), new Date(endDate));
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('employee/my-daily-grid')
   async getEmployeeDailyGrid(@Request() req, @Query('date') date: string) {
     return this.reportsService.getEmployeeDailyGrid(req.user.userId, new Date(date));

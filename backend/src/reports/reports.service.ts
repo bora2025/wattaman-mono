@@ -477,6 +477,49 @@ export class ReportsService {
     };
   }
 
+  /** Get print report data for staff/officers: totals for a custom date range */
+  async getStaffPrintReportData(startDate: Date, endDate: Date) {
+    const start = toUTCMidnight(startDate);
+    const end = new Date(toUTCMidnight(endDate).getTime() + 24 * 60 * 60 * 1000);
+
+    const staff = await this.prisma.user.findMany({
+      where: { role: { notIn: ['STUDENT', 'PARENT'] } },
+      orderBy: { name: 'asc' },
+    });
+
+    const records = await this.prisma.staffAttendance.findMany({
+      where: { date: { gte: start, lt: end } },
+    });
+
+    const holidays = await this.holidaysService.getHolidaysInRange(start, end);
+    const holidayDateSet = new Set(holidays.map(h => h.date.toISOString().split('T')[0]));
+    const formatRule = await this.sessionConfigService.getFormatRules('STAFF');
+
+    const staffData = staff.map((u, idx) => {
+      const userRecs = records.filter(r => r.userId === u.id);
+      const raw = {
+        present: userRecs.filter(r => r.status === 'PRESENT').length,
+        late: userRecs.filter(r => r.status === 'LATE').length,
+        absent: userRecs.filter(r => r.status === 'ABSENT' && !holidayDateSet.has(r.date.toISOString().split('T')[0])).length,
+        dayOff: userRecs.filter(r => r.status === 'DAY_OFF').length,
+      };
+      const totals = this.applyFormatRules(raw, formatRule as any);
+      return {
+        userId: u.id,
+        staffNumber: String(idx + 1).padStart(4, '0'),
+        staffName: u.name,
+        role: u.role,
+        ...totals,
+      };
+    });
+
+    return {
+      startDate: start.toISOString().split('T')[0],
+      endDate: toUTCMidnight(endDate).toISOString().split('T')[0],
+      staff: staffData,
+    };
+  }
+
   /** Export attendance data as CSV string for a class in a date range */
   async exportClassAttendance(classId: string, startDate: Date, endDate: Date): Promise<string> {
     const records = await this.getClassStudentDetail(classId, startDate, endDate);
