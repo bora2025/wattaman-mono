@@ -11,6 +11,7 @@ import { ClassesModule } from './classes/classes.module';
 import { SessionConfigModule } from './session-config/session-config.module';
 import { HolidaysModule } from './holidays/holidays.module';
 import { DepartmentsModule } from './departments/departments.module';
+import { StudyYearsModule } from './study-years/study-years.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { DepartmentsModule } from './departments/departments.module';
     SessionConfigModule,
     HolidaysModule,
     DepartmentsModule,
+    StudyYearsModule,
   ],
   controllers: [AppController],
   providers: [

@@ -6,6 +6,7 @@ export const adminNav = [
   // People Management
   { label: 'nav.manageUsers', href: '/admin/users', icon: 'users' },
   { label: 'nav.manageOfficer', href: '/admin/employees', icon: 'briefcase' },
+  { label: 'nav.studyYears', href: '/admin/study-years', icon: 'calendar' },
   { label: 'nav.manageClasses', href: '/admin/classes', icon: 'book' },
 
   // Attendance

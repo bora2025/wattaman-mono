@@ -2,10 +2,18 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import Sidebar from '../../../components/Sidebar';
 import { adminNav } from '../../../lib/admin-nav';
 import { apiFetch } from '../../../lib/api';
 import { useLanguage } from '../../../lib/i18n';
+
+interface StudyYear {
+  id: string;
+  year: number;
+  label: string | null;
+  isCurrent: boolean;
+}
 
 interface Class {
   id: string;
@@ -13,6 +21,8 @@ interface Class {
   subject: string;
   teacherId: string;
   teacher?: { name: string };
+  studyYearId?: string;
+  studyYear?: StudyYear | null;
   schedule?: string;
 }
 
@@ -173,11 +183,15 @@ const DAY_COLORS: Record<string, string> = {
 
 export default function ManageClasses() {
   const { t } = useLanguage();
+  const searchParams = useSearchParams();
+  const urlStudyYearId = searchParams.get('studyYearId');
   const [classes, setClasses] = useState<Class[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [studyYears, setStudyYears] = useState<StudyYear[]>([]);
+  const [selectedStudyYearId, setSelectedStudyYearId] = useState<string>('');
   const [showForm, setShowForm] = useState(false);
   const [editingClass, setEditingClass] = useState<Class | null>(null);
-  const [formData, setFormData] = useState({ name: '', subject: '', teacherId: '' });
+  const [formData, setFormData] = useState({ name: '', subject: '', teacherId: '', studyYearId: '' });
   const [showStudentModal, setShowStudentModal] = useState(false);
   const [selectedClass, setSelectedClass] = useState<Class | null>(null);
   const [classStudents, setClassStudents] = useState<Student[]>([]);
@@ -193,11 +207,28 @@ export default function ManageClasses() {
   const [customConfigs, setCustomConfigs] = useState<SessionConfigItem[]>([]);
   const [weeklySchedule, setWeeklySchedule] = useState<Record<string, string>>({ ...DEFAULT_SCHEDULE });
   const [showWeekly, setShowWeekly] = useState(false);
-  useEffect(() => { fetchClasses(); fetchTeachers(); }, []);
+  useEffect(() => { fetchStudyYears(); fetchTeachers(); }, []);
+
+  // Load classes when study year changes
+  useEffect(() => {
+    fetchClasses();
+  }, [selectedStudyYearId]);
+
+  // Set initial study year from URL or current
+  useEffect(() => {
+    if (studyYears.length > 0 && !selectedStudyYearId) {
+      if (urlStudyYearId) {
+        setSelectedStudyYearId(urlStudyYearId);
+      } else {
+        const current = studyYears.find(sy => sy.isCurrent);
+        if (current) setSelectedStudyYearId(current.id);
+      }
+    }
+  }, [studyYears, urlStudyYearId]);
 
   useEffect(() => {
     if (!formData || typeof formData.name === 'undefined') {
-      setFormData({ name: '', subject: '', teacherId: '' });
+      setFormData({ name: '', subject: '', teacherId: '', studyYearId: '' });
     }
   }, [formData]);
 
@@ -242,7 +273,8 @@ export default function ManageClasses() {
 
   const fetchClasses = async () => {
     try {
-      const res = await apiFetch('/api/classes');
+      const params = selectedStudyYearId ? `?studyYearId=${selectedStudyYearId}` : '';
+      const res = await apiFetch(`/api/classes${params}`);
       if (res.ok) {
         const data = await res.json();
         setClasses(data);
@@ -256,6 +288,13 @@ export default function ManageClasses() {
       const res = await apiFetch('/api/auth/users?role=teacher');
       if (res.ok) setTeachers(await res.json());
     } catch (err) { console.error('Failed to fetch teachers'); }
+  };
+
+  const fetchStudyYears = async () => {
+    try {
+      const res = await apiFetch('/api/study-years');
+      if (res.ok) setStudyYears(await res.json());
+    } catch (err) { console.error('Failed to fetch study years'); }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -300,7 +339,7 @@ export default function ManageClasses() {
         fetchClasses();
         setShowForm(false);
         setEditingClass(null);
-        setFormData({ name: '', subject: '', teacherId: '' });
+        setFormData({ name: '', subject: '', teacherId: '', studyYearId: '' });
         setSelectedPreset('global-default');
         setCustomConfigs([]);
         setWeeklySchedule({ ...DEFAULT_SCHEDULE });
@@ -314,7 +353,7 @@ export default function ManageClasses() {
 
   const handleEdit = async (cls: Class) => {
     setEditingClass(cls);
-    setFormData({ name: cls.name || '', subject: cls.subject || '', teacherId: cls.teacherId || '' });
+    setFormData({ name: cls.name || '', subject: cls.subject || '', teacherId: cls.teacherId || '', studyYearId: cls.studyYearId || '' });
     setShowForm(true);
     // Load weekly schedule
     if (cls.schedule) {
@@ -523,9 +562,23 @@ export default function ManageClasses() {
             <h1 className="text-2xl font-bold text-slate-800">{t('classes.title')}</h1>
             <p className="text-sm text-slate-500 mt-1">{classes.length} class{classes.length !== 1 ? 'es' : ''} total</p>
           </div>
-          <button onClick={() => { setShowForm(true); setEditingClass(null); setFormData({ name: '', subject: '', teacherId: '' }); setSelectedPreset('global-default'); setCustomConfigs([]); setWeeklySchedule({ ...DEFAULT_SCHEDULE }); setShowWeekly(false); }} className="btn-primary">
-            + {t('classes.addClass')}
-          </button>
+          <div className="flex items-center gap-3">
+            <select
+              value={selectedStudyYearId}
+              onChange={(e) => setSelectedStudyYearId(e.target.value)}
+              className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white"
+            >
+              <option value="">All Study Years</option>
+              {studyYears.map(sy => (
+                <option key={sy.id} value={sy.id}>
+                  {sy.label || sy.year}{sy.isCurrent ? ' (Current)' : ''}
+                </option>
+              ))}
+            </select>
+            <button onClick={() => { setShowForm(true); setEditingClass(null); setFormData({ name: '', subject: '', teacherId: '', studyYearId: selectedStudyYearId }); setSelectedPreset('global-default'); setCustomConfigs([]); setWeeklySchedule({ ...DEFAULT_SCHEDULE }); setShowWeekly(false); }} className="btn-primary">
+              + {t('classes.addClass')}
+            </button>
+          </div>
         </div>
 
         <div className="page-body space-y-6">
@@ -535,7 +588,7 @@ export default function ManageClasses() {
               <h3 className="text-lg font-semibold text-slate-800 mb-4">
                 {editingClass ? 'Edit Class' : 'New Class'}
               </h3>
-              <form onSubmit={handleSubmit} className="grid sm:grid-cols-3 gap-4">
+              <form onSubmit={handleSubmit} className="grid sm:grid-cols-4 gap-4">
                 <div>
                   <label className="form-label">Name</label>
                   <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required />
@@ -551,8 +604,17 @@ export default function ManageClasses() {
                     {teachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                 </div>
+                <div>
+                  <label className="form-label">Study Year</label>
+                  <select value={formData.studyYearId} onChange={(e) => setFormData({ ...formData, studyYearId: e.target.value })}>
+                    <option value="">No study year</option>
+                    {studyYears.map(sy => (
+                      <option key={sy.id} value={sy.id}>{sy.label || sy.year}{sy.isCurrent ? ' (Current)' : ''}</option>
+                    ))}
+                  </select>
+                </div>
                 {/* Attendance Format */}
-                <div className="sm:col-span-3">
+                <div className="sm:col-span-4">
                   <label className="form-label">Attendance Format</label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 mt-1">
                     {ATTENDANCE_PRESETS.map((preset) => (
@@ -649,7 +711,7 @@ export default function ManageClasses() {
                   )}
                 </div>
                 {/* Weekly Schedule Calendar */}
-                <div className="sm:col-span-3">
+                <div className="sm:col-span-4">
                   <div className="flex items-center gap-3 mb-2">
                     <label className="form-label mb-0">Weekly Schedule</label>
                     <label className="inline-flex items-center gap-2 cursor-pointer">
@@ -752,7 +814,7 @@ export default function ManageClasses() {
                     </div>
                   )}
                 </div>
-                <div className="sm:col-span-3 flex gap-2">
+                <div className="sm:col-span-4 flex gap-2">
                   <button type="submit" className="btn-primary">{editingClass ? 'Update Class' : 'Create Class'}</button>
                   <button type="button" onClick={() => { setShowForm(false); setEditingClass(null); setSelectedPreset('global-default'); setCustomConfigs([]); setWeeklySchedule({ ...DEFAULT_SCHEDULE }); setShowWeekly(false); }} className="btn-ghost">Cancel</button>
                 </div>
@@ -1003,6 +1065,11 @@ export default function ManageClasses() {
                 </div>
                 <h3 className="font-semibold text-slate-800 text-lg">{cls.name}</h3>
                 <p className="text-sm text-slate-500 mt-0.5">{cls.subject}</p>
+                {cls.studyYear && (
+                  <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
+                    📅 {cls.studyYear.label || cls.studyYear.year}
+                  </span>
+                )}
                 {cls.teacher && (
                   <p className="text-xs text-slate-400 mt-2">👤 {cls.teacher.name}</p>
                 )}

@@ -42,6 +42,8 @@ model Class {
   subject     String?
   teacherId   String
   teacher     User     @relation("TeacherClasses", fields: [teacherId], references: [id])
+  studyYearId String?
+  studyYear   StudyYear? @relation(fields: [studyYearId], references: [id])
   schedule    String? // e.g., "Mon 9:00-10:00"
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -136,6 +138,19 @@ model SessionConfig {
   updatedAt   DateTime @updatedAt
 
   @@unique([classId, session, scope])
+}
+
+model StudyYear {
+  id        String   @id @default(cuid())
+  year      Int      @unique // e.g., 2026, 2027
+  label     String?  // e.g., "2026-2027"
+  startDate DateTime?
+  endDate   DateTime?
+  isCurrent Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  classes   Class[]
 }
 
 model Holiday {

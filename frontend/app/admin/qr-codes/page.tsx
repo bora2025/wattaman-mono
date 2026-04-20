@@ -40,6 +40,7 @@ interface ClassItem {
   name: string;
   subject: string | null;
   teacher: { name: string } | null;
+  studyYear?: { id: string; year: number; label: string | null } | null;
 }
 
 interface ClassWithStudents extends ClassItem {
@@ -355,13 +356,14 @@ export default function GenerateQRCodes() {
     subtitle: string,
     displayId: string,
     role: 'student' | 'staff',
-    extra?: { dateOfBirth?: string | null; address?: string; phone?: string; sex?: string | null },
+    extra?: { dateOfBirth?: string | null; address?: string; phone?: string; sex?: string | null; studyYear?: string },
   ): Record<string, string> => {
     if (role === 'student') {
       return {
         'Student Name': name,
         'Student ID': displayId,
         'Class Name': subtitle,
+        'Study Year': extra?.studyYear || '',
         'Date of Birth': extra?.dateOfBirth ? new Date(extra.dateOfBirth).toLocaleDateString() : '',
         'Address': extra?.address || '',
         'Phone': extra?.phone || '',
@@ -378,6 +380,7 @@ export default function GenerateQRCodes() {
       'Student Name': '',
       'Student ID': '',
       'Class Name': '',
+      'Study Year': '',
       'Date of Birth': '',
       'Address': '',
       'Phone': '',
@@ -392,7 +395,7 @@ export default function GenerateQRCodes() {
     role: 'student' | 'staff',
     displayId: string,
     photoUrl?: string | null,
-    extra?: { dateOfBirth?: string | null; address?: string; phone?: string; sex?: string | null },
+    extra?: { dateOfBirth?: string | null; address?: string; phone?: string; sex?: string | null; studyYear?: string },
   ): Promise<HTMLCanvasElement> => {
     const design = getDesign(role);
     const fieldValues = buildFieldValues(name, subtitle, displayId, role, extra);
@@ -410,7 +413,7 @@ export default function GenerateQRCodes() {
     role: 'student' | 'staff',
     displayId: string,
     photoUrl?: string | null,
-    extra?: { dateOfBirth?: string | null; address?: string; phone?: string; sex?: string | null },
+    extra?: { dateOfBirth?: string | null; address?: string; phone?: string; sex?: string | null; studyYear?: string },
   ) => {
     if (exporting) return;
     setExporting(true);
@@ -435,7 +438,7 @@ export default function GenerateQRCodes() {
     role: 'student' | 'staff',
     displayId: string,
     photoUrl?: string | null,
-    extra?: { dateOfBirth?: string | null; address?: string; phone?: string; sex?: string | null },
+    extra?: { dateOfBirth?: string | null; address?: string; phone?: string; sex?: string | null; studyYear?: string },
   ) => {
     if (exporting) return;
     setExporting(true);
@@ -453,7 +456,7 @@ export default function GenerateQRCodes() {
 
   const downloadAllCardsPDFA4 = async (
     title: string,
-    people: { name: string; subtitle: string; id: string; displayId: string; role: 'student' | 'staff'; photo?: string | null; extra?: { dateOfBirth?: string | null; address?: string; phone?: string; sex?: string | null } }[]
+    people: { name: string; subtitle: string; id: string; displayId: string; role: 'student' | 'staff'; photo?: string | null; extra?: { dateOfBirth?: string | null; address?: string; phone?: string; sex?: string | null; studyYear?: string } }[]
   ) => {
     const validPeople = people.filter((p) => qrCodes[p.id]);
     if (validPeople.length === 0) return;
@@ -1114,7 +1117,7 @@ export default function GenerateQRCodes() {
                                           displayId: s.studentNumber || String(idx + 1).padStart(4, '0'),
                                           role: 'student' as const,
                                           photo: s.photo,
-                                          extra: { dateOfBirth: s.dateOfBirth, address: s.address, phone: s.phone, sex: s.sex },
+                                          extra: { dateOfBirth: s.dateOfBirth, address: s.address, phone: s.phone, sex: s.sex, studyYear: cls.studyYear?.label || cls.studyYear?.year?.toString() || '' },
                                         }))
                                       )
                                     }
@@ -1170,7 +1173,7 @@ export default function GenerateQRCodes() {
                                       'student',
                                       student.studentNumber || String(globalIdx + 1).padStart(4, '0'),
                                       student.photo,
-                                      { dateOfBirth: student.dateOfBirth, address: student.address, phone: student.phone, sex: student.sex },
+                                      { dateOfBirth: student.dateOfBirth, address: student.address, phone: student.phone, sex: student.sex, studyYear: cls.studyYear?.label || cls.studyYear?.year?.toString() || '' },
                                     )
                                   }
                                   onDownloadPDF={() =>
@@ -1181,7 +1184,7 @@ export default function GenerateQRCodes() {
                                       'student',
                                       student.studentNumber || String(globalIdx + 1).padStart(4, '0'),
                                       student.photo,
-                                      { dateOfBirth: student.dateOfBirth, address: student.address, phone: student.phone, sex: student.sex },
+                                      { dateOfBirth: student.dateOfBirth, address: student.address, phone: student.phone, sex: student.sex, studyYear: cls.studyYear?.label || cls.studyYear?.year?.toString() || '' },
                                     )
                                   }
                                   onDownloadQR={() => downloadQROnly(student.name, student.id)}
@@ -1623,6 +1626,7 @@ function IDCardPreview({
           'Student Name': name,
           'Student ID': personId,
           'Class Name': subtitle,
+          'Study Year': '',
           'Date of Birth': '',
           'Address': '',
           'Phone': '',
@@ -1639,6 +1643,7 @@ function IDCardPreview({
         'Student Name': '',
         'Student ID': '',
         'Class Name': '',
+        'Study Year': '',
         'Date of Birth': '',
         'Address': '',
         'Phone': '',

@@ -12,18 +12,18 @@ export class ClassesController {
 
   @Roles('ADMIN')
   @Post()
-  async createClass(@Body() data: { name: string; subject?: string; teacherId: string; schedule?: string }) {
+  async createClass(@Body() data: { name: string; subject?: string; teacherId: string; schedule?: string; studyYearId?: string }) {
     return this.classesService.createClass(data);
   }
 
   @Get()
-  async getClasses(@Query('teacherId') teacherId?: string) {
-    return this.classesService.getClasses(teacherId);
+  async getClasses(@Query('teacherId') teacherId?: string, @Query('studyYearId') studyYearId?: string) {
+    return this.classesService.getClasses(teacherId, studyYearId);
   }
 
   @Roles('ADMIN')
   @Put(':id')
-  async updateClass(@Param('id') id: string, @Body() data: { name?: string; subject?: string; teacherId?: string; schedule?: string }) {
+  async updateClass(@Param('id') id: string, @Body() data: { name?: string; subject?: string; teacherId?: string; schedule?: string; studyYearId?: string }) {
     return this.classesService.updateClass(id, data);
   }
 

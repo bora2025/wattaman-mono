@@ -6,7 +6,7 @@ import * as bcrypt from 'bcryptjs';
 export class ClassesService {
   constructor(private prisma: PrismaService) {}
 
-  async createClass(data: { name: string; subject?: string; teacherId: string; schedule?: string }) {
+  async createClass(data: { name: string; subject?: string; teacherId: string; schedule?: string; studyYearId?: string }) {
     // Validate that teacherId belongs to a user with TEACHER role
     const teacher = await this.prisma.user.findUnique({ where: { id: data.teacherId } });
     if (!teacher || teacher.role !== 'TEACHER') {
@@ -14,11 +14,11 @@ export class ClassesService {
     }
     return this.prisma.class.create({
       data,
-      include: { teacher: { select: { name: true } } },
+      include: { teacher: { select: { name: true } }, studyYear: true },
     });
   }
 
-  async updateClass(id: string, data: { name?: string; subject?: string; teacherId?: string; schedule?: string }) {
+  async updateClass(id: string, data: { name?: string; subject?: string; teacherId?: string; schedule?: string; studyYearId?: string }) {
     // Validate that teacherId belongs to a user with TEACHER role
     if (data.teacherId) {
       const teacher = await this.prisma.user.findUnique({ where: { id: data.teacherId } });
@@ -29,15 +29,17 @@ export class ClassesService {
     return this.prisma.class.update({
       where: { id },
       data,
-      include: { teacher: { select: { name: true } } },
+      include: { teacher: { select: { name: true } }, studyYear: true },
     });
   }
 
-  async getClasses(teacherId?: string) {
-    const where = teacherId ? { teacherId } : {};
+  async getClasses(teacherId?: string, studyYearId?: string) {
+    const where: any = {};
+    if (teacherId) where.teacherId = teacherId;
+    if (studyYearId) where.studyYearId = studyYearId;
     return this.prisma.class.findMany({
       where,
-      include: { teacher: { select: { name: true } } },
+      include: { teacher: { select: { name: true } }, studyYear: true },
     });
   }
 
