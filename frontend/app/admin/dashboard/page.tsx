@@ -323,9 +323,10 @@ export default function AdminDashboard() {
                         ))}
                       </Pie>
                       <Tooltip
-                        formatter={(value: number, name: string) => {
+                        formatter={(value, name) => {
+                          const v = Number(value) || 0
                           const total = pieData.reduce((s, d) => s + d.value, 0)
-                          return [`${value} (${total > 0 ? ((value / total) * 100).toFixed(1) : 0}%)`, name]
+                          return [`${v} (${total > 0 ? ((v / total) * 100).toFixed(1) : 0}%)`, name]
                         }}
                       />
                       <Legend />
