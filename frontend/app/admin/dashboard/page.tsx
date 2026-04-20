@@ -65,9 +65,11 @@ export default function AdminDashboard() {
       const res = await apiFetch(`/api/reports/dashboard-summary?date=${selectedDate}`)
       if (res.ok) {
         setData(await res.json())
+      } else {
+        console.error('Dashboard API error:', res.status, await res.text().catch(() => ''))
       }
     } catch (err) {
-      console.error('Failed to fetch dashboard data')
+      console.error('Failed to fetch dashboard data', err)
     } finally {
       setLoading(false)
     }
