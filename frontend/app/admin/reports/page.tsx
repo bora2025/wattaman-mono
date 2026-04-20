@@ -123,6 +123,9 @@ export default function AdminReports() {
   const [exporting, setExporting] = useState(false)
   const [exportMessage, setExportMessage] = useState('')
 
+  // Print report state
+  const [showPrintForm, setShowPrintForm] = useState(false)
+
 
   useEffect(() => {
     fetchClasses()
@@ -387,7 +390,10 @@ export default function AdminReports() {
                   </button>
                 </div>
               </div>
-              <div className="w-full lg:w-auto lg:ml-auto">
+              <div className="w-full lg:w-auto lg:ml-auto flex gap-2">
+                <button onClick={() => { setShowPrintForm(true) }} className="btn-primary btn-sm w-full lg:w-auto bg-emerald-600 hover:bg-emerald-700">
+                  🖨️ {t('reports.printReport')}
+                </button>
                 <button onClick={() => { setExportClassId(selectedClassId); setExportDate(selectedDate); setShowExportForm(true) }} className="btn-primary btn-sm w-full lg:w-auto">
                   📊 {t('common.exportReport')}
                 </button>
@@ -667,6 +673,15 @@ export default function AdminReports() {
         exportMessage={exportMessage}
         handleExportReport={handleExportReport}
       />
+
+      {/* Print Report Modal */}
+      <PrintReportModal
+        show={showPrintForm}
+        onClose={() => setShowPrintForm(false)}
+        classes={classes}
+        defaultClassId={selectedClassId}
+        defaultDate={selectedDate}
+      />
     </div>
   )
 }
@@ -833,5 +848,239 @@ function SessionCell({ time, status }: { time: string | null; status: string | n
         <div className="text-[9px] sm:text-[10px] text-amber-500 font-medium">Late</div>
       )}
     </td>
+  )
+}
+
+/* ============ PRINT REPORT MODAL ============ */
+function PrintReportModal({
+  show, onClose, classes, defaultClassId, defaultDate,
+}: {
+  show: boolean; onClose: () => void
+  classes: ClassItem[]; defaultClassId: string; defaultDate: string
+}) {
+  const { t } = useLanguage()
+  const [printClassId, setPrintClassId] = useState(defaultClassId)
+  const [printPeriod, setPrintPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'yearly' | 'custom'>('daily')
+  const [printDate, setPrintDate] = useState(defaultDate)
+  const [printStartDate, setPrintStartDate] = useState(defaultDate)
+  const [printEndDate, setPrintEndDate] = useState(defaultDate)
+  const [paperSize, setPaperSize] = useState('A4')
+  const [orgName, setOrgName] = useState('Wattaman School')
+
+  // Sync defaults when modal opens
+  useEffect(() => {
+    if (show) {
+      setPrintClassId(defaultClassId)
+      setPrintDate(defaultDate)
+      setPrintStartDate(defaultDate)
+      setPrintEndDate(defaultDate)
+    }
+  }, [show, defaultClassId, defaultDate])
+
+  if (!show) return null
+
+  const getDateRange = () => {
+    if (printPeriod === 'custom') {
+      return { start: printStartDate, end: printEndDate }
+    }
+    const base = new Date(printDate + 'T00:00:00Z')
+    const y = base.getUTCFullYear(), m = base.getUTCMonth(), d = base.getUTCDate()
+    switch (printPeriod) {
+      case 'weekly': {
+        const dow = base.getUTCDay()
+        const monday = new Date(Date.UTC(y, m, d - ((dow + 6) % 7)))
+        const sunday = new Date(Date.UTC(y, m, d - ((dow + 6) % 7) + 6))
+        return { start: monday.toISOString().split('T')[0], end: sunday.toISOString().split('T')[0] }
+      }
+      case 'monthly': {
+        const first = new Date(Date.UTC(y, m, 1))
+        const last = new Date(Date.UTC(y, m + 1, 0))
+        return { start: first.toISOString().split('T')[0], end: last.toISOString().split('T')[0] }
+      }
+      case 'yearly':
+        return { start: `${y}-01-01`, end: `${y}-12-31` }
+      default:
+        return { start: printDate, end: printDate }
+    }
+  }
+
+  const handlePrint = () => {
+    if (!printClassId) return
+    const { start, end } = getDateRange()
+    const params = new URLSearchParams({
+      classId: printClassId,
+      startDate: start,
+      endDate: end,
+      period: printPeriod,
+      paper: paperSize,
+      orgName,
+    })
+    window.open(`/admin/reports/print?${params.toString()}`, '_blank')
+    onClose()
+  }
+
+  const selectedClassName = printClassId ? classes.find(c => c.id === printClassId)?.name || '' : ''
+  const { start: previewStart, end: previewEnd } = getDateRange()
+
+  const periodOptions = [
+    { value: 'daily', label: t('reports.daily'), icon: '📅' },
+    { value: 'weekly', label: t('reports.weekly'), icon: '📆' },
+    { value: 'monthly', label: t('reports.monthly'), icon: '🗓️' },
+    { value: 'yearly', label: t('reports.yearly'), icon: '📊' },
+    { value: 'custom', label: t('reports.customRange'), icon: '🔧' },
+  ] as const
+
+  const paperOptions = [
+    { value: 'A4', label: 'A4', desc: '210 × 297 mm' },
+    { value: 'Letter', label: 'Letter', desc: '8.5 × 11 in' },
+    { value: 'Legal', label: 'Legal', desc: '8.5 × 14 in' },
+  ]
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-200 bg-gradient-to-r from-emerald-50 to-white rounded-t-2xl">
+          <div>
+            <h2 className="text-lg font-bold text-slate-800">🖨️ {t('reports.printAttendanceReport')}</h2>
+            <p className="text-xs text-slate-500 mt-0.5">{t('reports.selectOptionsAndPrint')}</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 text-sm">✕</button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          {/* Class Selector */}
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">📖 {t('common.class')}</label>
+            <select
+              value={printClassId}
+              onChange={e => setPrintClassId(e.target.value)}
+              className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-white"
+            >
+              <option value="">— {t('common.class')} —</option>
+              {classes.map(cls => (
+                <option key={cls.id} value={cls.id}>{cls.name} — {cls.subject || 'N/A'}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Period Selector */}
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">📋 {t('reports.reportPeriod')}</label>
+            <div className="grid grid-cols-3 gap-2">
+              {periodOptions.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => setPrintPeriod(opt.value)}
+                  className={`flex items-center gap-1.5 p-2.5 rounded-xl border text-left transition-all text-sm ${
+                    printPeriod === opt.value
+                      ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200'
+                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  <span>{opt.icon}</span>
+                  <span className={`font-semibold ${printPeriod === opt.value ? 'text-emerald-700' : 'text-slate-700'}`}>{opt.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Date Picker(s) */}
+          {printPeriod === 'custom' ? (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">{t('reports.startDate')}</label>
+                <input
+                  type="date"
+                  value={printStartDate}
+                  onChange={e => setPrintStartDate(e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1.5">{t('reports.endDate')}</label>
+                <input
+                  type="date"
+                  value={printEndDate}
+                  onChange={e => setPrintEndDate(e.target.value)}
+                  className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                />
+              </div>
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-1.5">📆 {t('common.date')}</label>
+              <input
+                type="date"
+                value={printDate}
+                onChange={e => setPrintDate(e.target.value)}
+                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+              />
+            </div>
+          )}
+
+          {/* Paper Size */}
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">📄 {t('reports.paperSize')}</label>
+            <div className="flex gap-2">
+              {paperOptions.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => setPaperSize(opt.value)}
+                  className={`flex-1 p-2.5 rounded-xl border text-center transition-all ${
+                    paperSize === opt.value
+                      ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-200'
+                      : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50'
+                  }`}
+                >
+                  <div className={`text-sm font-semibold ${paperSize === opt.value ? 'text-emerald-700' : 'text-slate-700'}`}>{opt.label}</div>
+                  <div className="text-[10px] text-slate-400 mt-0.5">{opt.desc}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Organization Name */}
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">🏫 Organization Name</label>
+            <input
+              type="text"
+              value={orgName}
+              onChange={e => setOrgName(e.target.value)}
+              className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+            />
+          </div>
+
+          {/* Preview/Summary */}
+          <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 space-y-2">
+            <h4 className="text-xs uppercase tracking-wider font-semibold text-slate-400">{t('reports.exportPreview')}</h4>
+            <div className="grid grid-cols-2 gap-y-1.5 text-sm">
+              <span className="text-slate-500">{t('common.class')}:</span>
+              <span className="font-medium text-slate-800">{selectedClassName || '—'}</span>
+              <span className="text-slate-500">{t('reports.dateRange')}:</span>
+              <span className="font-medium text-slate-800">
+                {previewStart === previewEnd ? previewStart : `${previewStart} → ${previewEnd}`}
+              </span>
+              <span className="text-slate-500">{t('reports.paperSize')}:</span>
+              <span className="font-medium text-emerald-600">{paperSize}</span>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-3 pt-1">
+            <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl border border-slate-300 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+              {t('common.cancel')}
+            </button>
+            <button
+              onClick={handlePrint}
+              disabled={!printClassId}
+              className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm flex items-center justify-center gap-2"
+            >
+              🖨️ {t('reports.preview')}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }

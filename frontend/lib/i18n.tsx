@@ -421,6 +421,15 @@ const en: Record<string, string> = {
   'reports.morning': 'Morning',
   'reports.afternoon': 'Afternoon',
   'reports.holiday': 'Holiday',
+  'reports.printReport': 'Print Report',
+  'reports.printAttendanceReport': 'Print Attendance Report',
+  'reports.selectOptionsAndPrint': 'Select options and print report',
+  'reports.paperSize': 'Paper Size',
+  'reports.preview': 'Preview & Print',
+  'reports.attendanceReport': 'Attendance Report',
+  'reports.preparedBy': 'Teacher',
+  'reports.printDate': 'Print Date',
+  'reports.noDataForRange': 'No data available for the selected date range.',
 
   // Audit
   'audit.title': 'Audit Logs',
@@ -929,6 +938,15 @@ const kh: Record<string, string> = {
   'reports.morning': 'ពេលព្រឹក',
   'reports.afternoon': 'ពេលរសៀល',
   'reports.holiday': 'ថ្ងៃឈប់សម្រាក',
+  'reports.printReport': 'បោះពុម្ពរបាយការណ៍',
+  'reports.printAttendanceReport': 'បោះពុម្ពរបាយការណ៍វត្តមាន',
+  'reports.selectOptionsAndPrint': 'ជ្រើសរើសជម្រើស និងបោះពុម្ពរបាយការណ៍',
+  'reports.paperSize': 'ទំហំក្រដាស',
+  'reports.preview': 'មើលមុន និងបោះពុម្ព',
+  'reports.attendanceReport': 'របាយការណ៍វត្តមាន',
+  'reports.preparedBy': 'គ្រូបង្រៀន',
+  'reports.printDate': 'កាលបរិច្ឆេទបោះពុម្ព',
+  'reports.noDataForRange': 'គ្មានទិន្នន័យសម្រាប់ជួរកាលបរិច្ឆេទដែលបានជ្រើស។',
 
   // Audit
   'audit.title': 'កំណត់ត្រាសវនកម្ម',

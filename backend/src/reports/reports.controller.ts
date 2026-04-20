@@ -220,6 +220,16 @@ export class ReportsController {
   // ========== EMPLOYEE SELF-SERVICE REPORTS ==========
 
   @UseGuards(JwtAuthGuard)
+  @Get('print-report-data')
+  async getPrintReportData(
+    @Query('classId') classId: string,
+    @Query('startDate') startDate: string,
+    @Query('endDate') endDate: string,
+  ) {
+    return this.reportsService.getPrintReportData(classId, new Date(startDate), new Date(endDate));
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('employee/my-daily-grid')
   async getEmployeeDailyGrid(@Request() req, @Query('date') date: string) {
     return this.reportsService.getEmployeeDailyGrid(req.user.userId, new Date(date));

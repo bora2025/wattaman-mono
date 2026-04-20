@@ -428,6 +428,55 @@ export class ReportsService {
     }));
   }
 
+  /** Get print report data: class info + student attendance totals for a custom date range */
+  async getPrintReportData(classId: string, startDate: Date, endDate: Date) {
+    const start = toUTCMidnight(startDate);
+    const end = new Date(toUTCMidnight(endDate).getTime() + 24 * 60 * 60 * 1000);
+
+    const cls = await this.prisma.class.findUnique({
+      where: { id: classId },
+      include: {
+        teacher: { select: { name: true } },
+        students: { include: { user: { select: { name: true } } } },
+      },
+    });
+    if (!cls) return null;
+
+    const records = await this.prisma.attendance.findMany({
+      where: { classId, date: { gte: start, lt: end } },
+    });
+
+    const holidays = await this.holidaysService.getHolidaysInRange(start, end);
+    const holidayDateSet = new Set(holidays.map(h => h.date.toISOString().split('T')[0]));
+    const formatRule = await this.sessionConfigService.getFormatRules('CLASS');
+
+    const students = cls.students.map((s, idx) => {
+      const studentRecs = records.filter(r => r.studentId === s.id);
+      const raw = {
+        present: studentRecs.filter(r => r.status === 'PRESENT').length,
+        late: studentRecs.filter(r => r.status === 'LATE').length,
+        absent: studentRecs.filter(r => r.status === 'ABSENT' && !holidayDateSet.has(r.date.toISOString().split('T')[0])).length,
+        dayOff: studentRecs.filter(r => r.status === 'DAY_OFF').length,
+      };
+      const totals = this.applyFormatRules(raw, formatRule as any);
+      return {
+        studentId: s.id,
+        studentNumber: s.studentNumber || String(idx + 1).padStart(4, '0'),
+        studentName: s.user.name,
+        ...totals,
+      };
+    });
+
+    return {
+      className: cls.name,
+      subject: cls.subject,
+      teacherName: cls.teacher.name,
+      startDate: start.toISOString().split('T')[0],
+      endDate: toUTCMidnight(endDate).toISOString().split('T')[0],
+      students,
+    };
+  }
+
   /** Export attendance data as CSV string for a class in a date range */
   async exportClassAttendance(classId: string, startDate: Date, endDate: Date): Promise<string> {
     const records = await this.getClassStudentDetail(classId, startDate, endDate);
