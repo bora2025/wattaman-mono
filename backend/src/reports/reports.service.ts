@@ -50,6 +50,11 @@ function isSessionOvertime(
   return cambodiaNowHHMM > cfg.endTime;
 }
 
+/** Check if a status represents permission/day-off (both "PERMISSION" and "DAY_OFF" are used) */
+function isDayOffStatus(status: string | null | undefined): boolean {
+  return status === 'DAY_OFF' || status === 'PERMISSION';
+}
+
 @Injectable()
 export class ReportsService {
   constructor(
@@ -121,12 +126,14 @@ export class ReportsService {
     const present = attendances.filter(a => a.status === 'PRESENT').length;
     const absent = attendances.filter(a => a.status === 'ABSENT').length;
     const late = attendances.filter(a => a.status === 'LATE').length;
+    const permission = attendances.filter(a => isDayOffStatus(a.status)).length;
 
     return {
       total,
       present,
       absent,
       late,
+      permission,
       attendanceRate: total > 0 ? (present / total) * 100 : 0,
     };
   }
@@ -161,13 +168,13 @@ export class ReportsService {
     const studentPresent = studentAttendances.filter(a => a.status === 'PRESENT').length;
     const studentAbsent = studentAttendances.filter(a => a.status === 'ABSENT').length;
     const studentLate = studentAttendances.filter(a => a.status === 'LATE').length;
-    const studentPermission = studentAttendances.filter(a => a.status === 'DAY_OFF').length;
+    const studentPermission = studentAttendances.filter(a => isDayOffStatus(a.status)).length;
 
     // Staff summary — count from actual records
     const staffPresent = staffAttendances.filter(a => a.status === 'PRESENT').length;
     const staffRecordedAbsent = staffAttendances.filter(a => a.status === 'ABSENT').length;
     const staffLate = staffAttendances.filter(a => a.status === 'LATE').length;
-    const staffPermission = staffAttendances.filter(a => a.status === 'DAY_OFF').length;
+    const staffPermission = staffAttendances.filter(a => isDayOffStatus(a.status)).length;
     // Staff with no attendance record = absent (not recorded)
     const staffWithRecords = new Set(staffAttendances.map(a => a.userId));
     const allStaffUsers = await this.prisma.user.findMany({
@@ -194,7 +201,7 @@ export class ReportsService {
       if (a.status === 'PRESENT') row.present++;
       else if (a.status === 'ABSENT') row.absent++;
       else if (a.status === 'LATE') row.late++;
-      else if (a.status === 'DAY_OFF') row.permission++;
+      else if (isDayOffStatus(a.status)) row.permission++;
     }
 
     // Build detail rows: unique staff (from attendance records)
@@ -214,7 +221,7 @@ export class ReportsService {
       if (a.status === 'PRESENT') row.present++;
       else if (a.status === 'ABSENT') row.absent++;
       else if (a.status === 'LATE') row.late++;
-      else if (a.status === 'DAY_OFF') row.permission++;
+      else if (isDayOffStatus(a.status)) row.permission++;
     }
 
     // Add staff with NO attendance record (they are absent)
@@ -345,6 +352,7 @@ export class ReportsService {
       const present = attendances.filter(a => a.status === 'PRESENT').length;
       const absent = attendances.filter(a => a.status === 'ABSENT').length;
       const late = attendances.filter(a => a.status === 'LATE').length;
+      const permission = attendances.filter(a => isDayOffStatus(a.status)).length;
 
       results.push({
         classId: cls.id,
@@ -353,6 +361,8 @@ export class ReportsService {
         totalStudents,
         present,
         absent,
+        late,
+        permission,
         late,
         attendanceRate: totalStudents > 0 ? (present / totalStudents) * 100 : 0,
         students: cls.students.map(s => {
@@ -390,16 +400,18 @@ export class ReportsService {
     const present = attendances.filter(a => a.status === 'PRESENT').length;
     const absent = attendances.filter(a => a.status === 'ABSENT').length;
     const late = attendances.filter(a => a.status === 'LATE').length;
+    const permission = attendances.filter(a => isDayOffStatus(a.status)).length;
 
-    const byClass: Record<string, { className: string; present: number; absent: number; late: number; total: number }> = {};
+    const byClass: Record<string, { className: string; present: number; absent: number; late: number; permission: number; total: number }> = {};
     for (const a of attendances) {
       if (!byClass[a.classId]) {
-        byClass[a.classId] = { className: a.class.name, present: 0, absent: 0, late: 0, total: 0 };
+        byClass[a.classId] = { className: a.class.name, present: 0, absent: 0, late: 0, permission: 0, total: 0 };
       }
       byClass[a.classId].total++;
       if (a.status === 'PRESENT') byClass[a.classId].present++;
       else if (a.status === 'ABSENT') byClass[a.classId].absent++;
       else if (a.status === 'LATE') byClass[a.classId].late++;
+      else if (isDayOffStatus(a.status)) byClass[a.classId].permission++;
     }
 
     return {
@@ -408,6 +420,7 @@ export class ReportsService {
       present,
       absent,
       late,
+      permission,
       attendanceRate: total > 0 ? (present / total) * 100 : 0,
       classSummaries: Object.entries(byClass).map(([classId, data]) => ({
         classId,
@@ -487,7 +500,7 @@ export class ReportsService {
       const s4 = recs.find(a => a.session === 4);
 
       const allAbsent = recs.length === 0 || recs.every(a => a.status === 'ABSENT');
-      const hasDayOff = recs.some(a => a.status === 'DAY_OFF');
+      const hasDayOff = recs.some(a => isDayOffStatus(a.status));
 
       // Compute session statuses
       let session1Status = s1?.status || null;
@@ -511,14 +524,14 @@ export class ReportsService {
         studentId: s.id,
         studentNumber: s.studentNumber || String(idx + 1).padStart(4, '0'),
         studentName: s.user.name,
-        checkInMorning: s1 && s1.status !== 'ABSENT' && s1.status !== 'DAY_OFF' ? toCambodiaTimeShort(s1.checkInTime) : null,
+        checkInMorning: s1 && s1.status !== 'ABSENT' && !isDayOffStatus(s1.status) ? toCambodiaTimeShort(s1.checkInTime) : null,
         checkOutMorning: s2IsCheckOut
           ? (s1?.checkOutTime ? toCambodiaTimeShort(s1.checkOutTime) : null)
-          : (s2 && s2.status !== 'ABSENT' && s2.status !== 'DAY_OFF' ? toCambodiaTimeShort(s2.checkOutTime || s2.checkInTime) : null),
-        checkInAfternoon: s3 && s3.status !== 'ABSENT' && s3.status !== 'DAY_OFF' ? toCambodiaTimeShort(s3.checkInTime) : null,
+          : (s2 && s2.status !== 'ABSENT' && !isDayOffStatus(s2.status) ? toCambodiaTimeShort(s2.checkOutTime || s2.checkInTime) : null),
+        checkInAfternoon: s3 && s3.status !== 'ABSENT' && !isDayOffStatus(s3.status) ? toCambodiaTimeShort(s3.checkInTime) : null,
         checkOutAfternoon: s4IsCheckOut
           ? (s3?.checkOutTime ? toCambodiaTimeShort(s3.checkOutTime) : null)
-          : (s4 && s4.status !== 'ABSENT' && s4.status !== 'DAY_OFF' ? toCambodiaTimeShort(s4.checkOutTime || s4.checkInTime) : null),
+          : (s4 && s4.status !== 'ABSENT' && !isDayOffStatus(s4.status) ? toCambodiaTimeShort(s4.checkOutTime || s4.checkInTime) : null),
         dayOff: hasDayOff || allAbsent,
         isHoliday,
         session1Status,
@@ -574,7 +587,7 @@ export class ReportsService {
         present: studentRecs.filter(r => r.status === 'PRESENT').length,
         late: studentRecs.filter(r => r.status === 'LATE').length,
         absent: studentRecs.filter(r => r.status === 'ABSENT' && !holidayDateSet.has(r.date.toISOString().split('T')[0])).length,
-        dayOff: studentRecs.filter(r => r.status === 'DAY_OFF').length,
+        dayOff: studentRecs.filter(r => isDayOffStatus(r.status)).length,
       };
       return this.applyFormatRules(raw, formatRule as any);
     };
@@ -617,7 +630,7 @@ export class ReportsService {
         present: studentRecs.filter(r => r.status === 'PRESENT').length,
         late: studentRecs.filter(r => r.status === 'LATE').length,
         absent: studentRecs.filter(r => r.status === 'ABSENT' && !holidayDateSet.has(r.date.toISOString().split('T')[0])).length,
-        dayOff: studentRecs.filter(r => r.status === 'DAY_OFF').length,
+        dayOff: studentRecs.filter(r => isDayOffStatus(r.status)).length,
       };
       const totals = this.applyFormatRules(raw, formatRule as any);
       return {
@@ -662,7 +675,7 @@ export class ReportsService {
         present: userRecs.filter(r => r.status === 'PRESENT').length,
         late: userRecs.filter(r => r.status === 'LATE').length,
         absent: userRecs.filter(r => r.status === 'ABSENT' && !holidayDateSet.has(r.date.toISOString().split('T')[0])).length,
-        dayOff: userRecs.filter(r => r.status === 'DAY_OFF').length,
+        dayOff: userRecs.filter(r => isDayOffStatus(r.status)).length,
       };
       const totals = this.applyFormatRules(raw, formatRule as any);
       return {
@@ -727,7 +740,7 @@ export class ReportsService {
     const dailyHeader = `Day,ID,Student Name,${sessionHeaders},Permission`;
     const fmtCell = (time: string | null, status: string | null) => {
       if (!status || status === 'ABSENT') return 'Absent';
-      if (status === 'DAY_OFF') return 'Day Off';
+      if (isDayOffStatus(status)) return 'Day Off';
       if (status === 'LATE') return time ? `${time} (Late)` : 'Late';
       return time || 'Present';
     };
@@ -888,7 +901,7 @@ export class ReportsService {
         present: userRecs.filter(r => r.status === 'PRESENT').length,
         late: userRecs.filter(r => r.status === 'LATE').length,
         absent: userRecs.filter(r => r.status === 'ABSENT' && !holidayDateSet.has(r.date.toISOString().split('T')[0])).length,
-        dayOff: userRecs.filter(r => r.status === 'DAY_OFF').length,
+        dayOff: userRecs.filter(r => isDayOffStatus(r.status)).length,
       };
       return this.applyFormatRules(raw, formatRule as any);
     };
@@ -952,10 +965,10 @@ export class ReportsService {
   }): string {
     const { session1Status, session2Status, session3Status, session4Status } = sessions;
 
-    const morningIn = session1Status && session1Status !== 'ABSENT' && session1Status !== 'DAY_OFF';
-    const morningOut = session2Status && session2Status !== 'ABSENT' && session2Status !== 'DAY_OFF';
-    const afternoonIn = session3Status && session3Status !== 'ABSENT' && session3Status !== 'DAY_OFF';
-    const afternoonOut = session4Status && session4Status !== 'ABSENT' && session4Status !== 'DAY_OFF';
+    const morningIn = session1Status && session1Status !== 'ABSENT' && !isDayOffStatus(session1Status);
+    const morningOut = session2Status && session2Status !== 'ABSENT' && !isDayOffStatus(session2Status);
+    const afternoonIn = session3Status && session3Status !== 'ABSENT' && !isDayOffStatus(session3Status);
+    const afternoonOut = session4Status && session4Status !== 'ABSENT' && !isDayOffStatus(session4Status);
 
     const hasMorning = morningIn || morningOut;
     const hasAfternoon = afternoonIn || afternoonOut;
@@ -969,8 +982,8 @@ export class ReportsService {
     const absentCount = allStatuses.filter(s => s === 'ABSENT').length;
     if (!hasPresent && absentCount >= 3) return 'Absent';
 
-    // Check for DAY_OFF
-    if ([session1Status, session2Status, session3Status, session4Status].some(s => s === 'DAY_OFF')) {
+    // Check for DAY_OFF / PERMISSION
+    if ([session1Status, session2Status, session3Status, session4Status].some(s => isDayOffStatus(s))) {
       return 'Day Off';
     }
 
@@ -1149,7 +1162,7 @@ export class ReportsService {
       const fmtCell = (time: Date | null, status: string | null) => {
         if (!status) return '';
         if (status === 'ABSENT') return 'Absent';
-        if (status === 'DAY_OFF') return 'Day Off';
+        if (isDayOffStatus(status)) return 'Day Off';
         if (status === 'LATE') return time ? `${toCambodiaTimeShort(time)} (Late)` : 'Late';
         return time ? toCambodiaTimeShort(time) || 'Present' : 'Present';
       };
@@ -1640,7 +1653,7 @@ export class ReportsService {
     const fmtCell = (time: string | null, status: string | null) => {
       if (!status) return '';
       if (status === 'ABSENT') return 'Absent';
-      if (status === 'DAY_OFF') return 'Permission';
+      if (isDayOffStatus(status)) return 'Permission';
       if (status === 'LATE') return time ? `${time} (Late)` : 'Late';
       return time || 'Present';
     };
@@ -1652,7 +1665,7 @@ export class ReportsService {
     const isLate = (r: any) => [r.session1Status, r.session2Status, r.session3Status, r.session4Status].some((s: string) => s === 'LATE');
     const present = grid.filter(r => hasAtt(r) && !isLate(r)).length;
     const late = grid.filter(r => hasAtt(r) && isLate(r)).length;
-    const permission = grid.filter(r => [r.session1Status, r.session2Status, r.session3Status, r.session4Status].some((s: string) => s === 'DAY_OFF')).length;
+    const permission = grid.filter(r => [r.session1Status, r.session2Status, r.session3Status, r.session4Status].some((s: string) => isDayOffStatus(s))).length;
     const absent = grid.length - present - late - permission;
     const dailySummary = `\n"Total Staff: ${grid.length}","Present: ${present}","Present (Late): ${late}","Absent: ${absent}","Permission: ${permission}"`;
 
@@ -1741,7 +1754,7 @@ export class ReportsService {
     const fmtCell = (time: Date | null, status: string | null) => {
       if (!status) return '';
       if (status === 'ABSENT') return 'Absent';
-      if (status === 'DAY_OFF') return 'Permission';
+      if (isDayOffStatus(status)) return 'Permission';
       if (status === 'LATE') return time ? `${toCambodiaTimeShort(time)} (Late)` : 'Late';
       return time ? toCambodiaTimeShort(time) || 'Present' : 'Present';
     };
@@ -2209,7 +2222,7 @@ export class ReportsService {
       present: recs.filter(r => r.status === 'PRESENT').length,
       late: recs.filter(r => r.status === 'LATE').length,
       absent: recs.filter(r => r.status === 'ABSENT' && !holidayDateSet.has(r.date.toISOString().split('T')[0])).length,
-      dayOff: recs.filter(r => r.status === 'DAY_OFF').length,
+      dayOff: recs.filter(r => isDayOffStatus(r.status)).length,
     });
 
     return [{
@@ -2292,7 +2305,7 @@ export class ReportsService {
     const fmtCell = (time: Date | null, status: string | null) => {
       if (!status) return '';
       if (status === 'ABSENT') return 'Absent';
-      if (status === 'DAY_OFF') return 'Permission';
+      if (isDayOffStatus(status)) return 'Permission';
       if (status === 'LATE') return time ? `${toCambodiaTimeShort(time)} (Late)` : 'Late';
       return time ? toCambodiaTimeShort(time) || 'Present' : 'Present';
     };
@@ -2350,7 +2363,7 @@ export class ReportsService {
     const present = recs.filter(r => r.status === 'PRESENT').length;
     const late = recs.filter(r => r.status === 'LATE').length;
     const absent = recs.filter(r => r.status === 'ABSENT' && !holidayDateSet.has(r.date.toISOString().split('T')[0])).length;
-    const dayOff = recs.filter(r => r.status === 'DAY_OFF').length;
+    const dayOff = recs.filter(r => isDayOffStatus(r.status)).length;
 
     const row = ws.addRow([label, user.name, user.role, present, late, absent, dayOff]);
     this.styleDataRow(row);
