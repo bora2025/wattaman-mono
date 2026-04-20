@@ -61,6 +61,12 @@ export class ClassesController {
     return this.classesService.deleteClass(id);
   }
 
+  @Roles('ADMIN')
+  @Post('cleanup-orphaned-students')
+  async cleanupOrphanedStudents() {
+    return this.classesService.cleanupOrphanedStudents();
+  }
+
   @Delete(':id/students/:studentId')
   async removeStudentFromClass(@Param('id') classId: string, @Param('studentId') studentId: string) {
     return this.classesService.removeStudentFromClass(classId, studentId);

@@ -5,6 +5,7 @@ import Sidebar from '../../../components/Sidebar'
 import AuthGuard from '../../../components/AuthGuard'
 import { adminNav } from '../../../lib/admin-nav'
 import { useLanguage } from '../../../lib/i18n'
+import { apiFetch } from '../../../lib/api'
 
 interface CacheItem {
   key: string
@@ -67,6 +68,7 @@ export default function SettingsPage() {
   const [totalSize, setTotalSize] = useState('')
   const [message, setMessage] = useState('')
   const [msgType, setMsgType] = useState<'success' | 'error'>('success')
+  const [cleaningUp, setCleaningUp] = useState(false)
 
   const refresh = () => {
     setItems(getCacheItems())
@@ -111,6 +113,24 @@ export default function SettingsPage() {
       showMsg(`Cleared ${names.length} browser cache${names.length !== 1 ? 's' : ''}`)
     } else {
       showMsg('Browser cache API not available', 'error')
+    }
+  }
+
+  const cleanupOrphanedStudents = async () => {
+    if (!confirm('This will permanently delete all students that are not assigned to any class. Continue?')) return
+    setCleaningUp(true)
+    try {
+      const res = await apiFetch('/api/classes/cleanup-orphaned-students', { method: 'POST' })
+      const data = await res.json()
+      if (res.ok) {
+        showMsg(`Cleaned up ${data.deleted} orphaned student${data.deleted !== 1 ? 's' : ''} successfully`)
+      } else {
+        showMsg(data.message || 'Failed to cleanup', 'error')
+      }
+    } catch {
+      showMsg('Failed to cleanup orphaned students', 'error')
+    } finally {
+      setCleaningUp(false)
     }
   }
 
@@ -199,6 +219,28 @@ export default function SettingsPage() {
                       Clear Browser Cache
                     </button>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Database Cleanup */}
+            <div className="card p-5">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center text-lg shadow-sm flex-shrink-0">
+                  🗑️
+                </div>
+                <div className="flex-1">
+                  <h3 className="font-semibold text-slate-800">Cleanup Orphaned Students</h3>
+                  <p className="text-sm text-slate-500 mt-1 mb-3">
+                    Remove students that are not assigned to any class. This happens when classes are deleted but students remain in the database.
+                  </p>
+                  <button
+                    onClick={cleanupOrphanedStudents}
+                    disabled={cleaningUp}
+                    className="btn-danger text-sm px-3 py-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {cleaningUp ? 'Cleaning up...' : 'Cleanup Orphaned Students'}
+                  </button>
                 </div>
               </div>
             </div>

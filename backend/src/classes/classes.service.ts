@@ -131,12 +131,94 @@ export class ClassesService {
   }
 
   async deleteClass(id: string) {
-    // Remove class association from students first
-    await this.prisma.student.updateMany({
+    // Find all students in this class
+    const students = await this.prisma.student.findMany({
       where: { classId: id },
-      data: { classId: null },
+      select: { id: true, userId: true },
     });
-    return this.prisma.class.delete({ where: { id } });
+
+    const studentIds = students.map(s => s.id);
+    const userIds = students.map(s => s.userId);
+
+    // Delete attendance records for these students
+    if (studentIds.length > 0) {
+      await this.prisma.attendance.deleteMany({
+        where: { studentId: { in: studentIds } },
+      });
+    }
+
+    // Delete student records
+    await this.prisma.student.deleteMany({
+      where: { classId: id },
+    });
+
+    // Delete session configs for this class
+    await this.prisma.sessionConfig.deleteMany({
+      where: { classId: id },
+    });
+
+    // Delete attendance records for this class (in case any remain)
+    await this.prisma.attendance.deleteMany({
+      where: { classId: id },
+    });
+
+    // Delete the class
+    const deletedClass = await this.prisma.class.delete({ where: { id } });
+
+    // Delete user accounts for these students
+    if (userIds.length > 0) {
+      await this.prisma.refreshToken.deleteMany({
+        where: { userId: { in: userIds } },
+      });
+      await this.prisma.notification.deleteMany({
+        where: { userId: { in: userIds } },
+      });
+      await this.prisma.user.deleteMany({
+        where: { id: { in: userIds }, role: 'STUDENT' },
+      });
+    }
+
+    return deletedClass;
+  }
+
+  async cleanupOrphanedStudents() {
+    // Find students with no class (orphaned from deleted classes)
+    const orphanedStudents = await this.prisma.student.findMany({
+      where: { classId: null },
+      select: { id: true, userId: true },
+    });
+
+    if (orphanedStudents.length === 0) {
+      return { deleted: 0 };
+    }
+
+    const studentIds = orphanedStudents.map(s => s.id);
+    const userIds = orphanedStudents.map(s => s.userId);
+
+    // Delete attendance records for orphaned students
+    await this.prisma.attendance.deleteMany({
+      where: { studentId: { in: studentIds } },
+    });
+
+    // Delete orphaned student records
+    await this.prisma.student.deleteMany({
+      where: { id: { in: studentIds } },
+    });
+
+    // Delete user accounts for orphaned students
+    if (userIds.length > 0) {
+      await this.prisma.refreshToken.deleteMany({
+        where: { userId: { in: userIds } },
+      });
+      await this.prisma.notification.deleteMany({
+        where: { userId: { in: userIds } },
+      });
+      await this.prisma.user.deleteMany({
+        where: { id: { in: userIds }, role: 'STUDENT' },
+      });
+    }
+
+    return { deleted: orphanedStudents.length };
   }
 
   async bulkAddStudentsFromCsv(classId: string, fileBuffer: Buffer) {
