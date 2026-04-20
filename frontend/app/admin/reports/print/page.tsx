@@ -48,6 +48,10 @@ function PrintReportContent() {
   const paperSize = searchParams.get('paper') || 'A4'
   const orgName = searchParams.get('orgName') || 'Wattaman School'
   const logoUrl = searchParams.get('logoUrl') || ''
+  const signers: string[] = (() => {
+    try { return JSON.parse(searchParams.get('signers') || '[]') }
+    catch { return ['Teacher', 'Admin'] }
+  })()
 
   const [data, setData] = useState<PrintData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -301,16 +305,16 @@ function PrintReportContent() {
         </div>
 
         {/* Signature area */}
-        <div className="mt-12 flex justify-between px-8">
-          <div className="text-center">
-            <div className="border-b border-slate-400 w-48 mb-1"></div>
-            <p className="text-xs text-slate-500">{t('reports.preparedBy')}</p>
+        {signers.length > 0 && (
+          <div className={`mt-12 flex ${signers.length <= 3 ? 'justify-between' : 'justify-around flex-wrap gap-y-8'} px-4`}>
+            {signers.map((signer, idx) => (
+              <div key={idx} className="text-center">
+                <div className="border-b border-slate-400 w-40 mb-1"></div>
+                <p className="text-xs text-slate-500">{signer}</p>
+              </div>
+            ))}
           </div>
-          <div className="text-center">
-            <div className="border-b border-slate-400 w-48 mb-1"></div>
-            <p className="text-xs text-slate-500">Admin</p>
-          </div>
-        </div>
+        )}
       </div>
     </>
   )

@@ -587,6 +587,7 @@ function StaffPrintReportModal({
   const [printEndDate, setPrintEndDate] = useState(defaultDate)
   const [paperSize, setPaperSize] = useState('A4')
   const [orgName, setOrgName] = useState('Wattaman School')
+  const [signers, setSigners] = useState<string[]>(['Admin', 'Director'])
 
   const getDateRange = () => {
     if (printPeriod === 'custom') {
@@ -621,6 +622,7 @@ function StaffPrintReportModal({
       period: printPeriod,
       paper: paperSize,
       orgName,
+      signers: JSON.stringify(signers.filter(s => s.trim())),
     })
     window.open(`/admin/staff-reports/print?${params.toString()}`, '_blank')
     onClose()
@@ -740,6 +742,33 @@ function StaffPrintReportModal({
               onChange={e => setOrgName(e.target.value)}
               className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
             />
+          </div>
+
+          {/* Signers */}
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">✍️ Signers</label>
+            <div className="space-y-2">
+              {signers.map((signer, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={signer}
+                    onChange={e => { const s = [...signers]; s[idx] = e.target.value; setSigners(s) }}
+                    className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                    placeholder={`Signer ${idx + 1}`}
+                  />
+                  {signers.length > 1 && (
+                    <button onClick={() => setSigners(signers.filter((_, i) => i !== idx))} className="w-8 h-8 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center text-sm">✕</button>
+                  )}
+                </div>
+              ))}
+              <button
+                onClick={() => setSigners([...signers, ''])}
+                className="text-xs text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1"
+              >
+                + Add signer
+              </button>
+            </div>
           </div>
 
           {/* Preview/Summary */}
