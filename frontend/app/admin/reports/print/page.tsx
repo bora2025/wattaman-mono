@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { apiFetch } from '../../../../lib/api'
 import { useLanguage } from '../../../../lib/i18n'
@@ -67,7 +67,6 @@ function PrintReportContent() {
   const [data, setData] = useState<PrintData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const hasPrinted = useRef(false)
 
   useEffect(() => {
     if (!classId || !startDate || !endDate) {
@@ -100,13 +99,7 @@ function PrintReportContent() {
     }
   }
 
-  // Auto-print once data is loaded
-  useEffect(() => {
-    if (data && !hasPrinted.current) {
-      hasPrinted.current = true
-      setTimeout(() => window.print(), 500)
-    }
-  }, [data])
+  // User clicks "Print Report" button to print manually
 
   const paper = PAPER_SIZES[paperSize] || PAPER_SIZES.A4
 
