@@ -9,7 +9,7 @@ COPY package.json package-lock.json ./
 COPY prisma/schema.prisma prisma/schema.prisma
 
 # Install all dependencies (postinstall runs prisma generate with schema available)
-RUN npm ci --legacy-peer-deps
+RUN npm install --legacy-peer-deps
 
 # Copy rest of source code
 COPY . .
