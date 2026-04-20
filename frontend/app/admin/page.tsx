@@ -39,6 +39,43 @@ interface DashboardData {
 
 type StatusFilter = 'all' | 'present' | 'absent' | 'late' | 'permission'
 
+const roleLabels: Record<string, string> = {
+  ADMIN: 'Admin',
+  TEACHER: 'Teacher',
+  PRIMARY_SCHOOL_PRINCIPAL: 'Primary School Principal',
+  SECONDARY_SCHOOL_PRINCIPAL: 'Secondary School Principal',
+  HIGH_SCHOOL_PRINCIPAL: 'High School Principal',
+  UNIVERSITY_RECTOR: 'University Rector',
+  OFFICER: 'Officer',
+  STAFF: 'Staff',
+  OFFICE_HEAD: 'Office Head',
+  DEPUTY_OFFICE_HEAD: 'Deputy Office Head',
+  DEPARTMENT_HEAD: 'Department Head',
+  DEPUTY_DEPARTMENT_HEAD: 'Deputy Department Head',
+  GENERAL_DEPARTMENT_DIRECTOR: 'General Dept. Director',
+  DEPUTY_GENERAL_DEPARTMENT_DIRECTOR: 'Deputy General Dept. Director',
+  COMPANY_CEO: 'CEO',
+  CREDIT_OFFICER: 'Credit Officer',
+  SECURITY_GUARD: 'Security Guard',
+  JANITOR: 'Janitor',
+  PROJECT_MANAGER: 'Project Manager',
+  BRANCH_MANAGER: 'Branch Manager',
+  EXECUTIVE_DIRECTOR: 'Executive Director',
+  HR_MANAGER: 'HR Manager',
+  ATHLETE_MALE: 'Athlete (M)',
+  ATHLETE_FEMALE: 'Athlete (F)',
+  TRAINER: 'Trainer',
+  BARISTA: 'Barista',
+  CASHIER: 'Cashier',
+  RECEPTIONIST: 'Receptionist',
+  GENERAL_MANAGER: 'General Manager',
+}
+
+function getRoleLabel(role: string): string {
+  if (role === 'Student') return 'Student'
+  return roleLabels[role] || role
+}
+
 function DashboardContent() {
   const { t } = useLanguage()
   const [data, setData] = useState<DashboardData | null>(null)
@@ -471,10 +508,10 @@ function DashboardContent() {
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                             row.role === 'Student' ? 'bg-purple-100 text-purple-700' : 'bg-cyan-100 text-cyan-700'
                           }`}>
-                            {row.role === 'Student' ? t('common.students') : t('dashboard.staff')}
+                            {row.role === 'Student' ? t('common.students') : getRoleLabel(row.role)}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-gray-500 hidden sm:table-cell">{row.group || 'â€”'}</td>
+                        <td className="px-4 py-3 text-gray-500 hidden sm:table-cell">{row.group || '-'}</td>
                         <td className="text-center px-4 py-3">
                           {row.present > 0 && <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold">{row.present}</span>}
                         </td>

@@ -155,7 +155,7 @@ export class ReportsService {
 
     // Totals
     const totalStudents = await this.prisma.student.count();
-    const totalStaff = await this.prisma.user.count({ where: { role: { in: ['ADMIN', 'TEACHER'] } } });
+    const totalStaff = await this.prisma.user.count({ where: { role: { notIn: ['STUDENT', 'PARENT'] } } });
 
     // Student summary
     const studentPresent = studentAttendances.filter(a => a.status === 'PRESENT').length;
@@ -163,11 +163,19 @@ export class ReportsService {
     const studentLate = studentAttendances.filter(a => a.status === 'LATE').length;
     const studentPermission = studentAttendances.filter(a => a.status === 'DAY_OFF').length;
 
-    // Staff summary
+    // Staff summary — count from actual records
     const staffPresent = staffAttendances.filter(a => a.status === 'PRESENT').length;
-    const staffAbsent = staffAttendances.filter(a => a.status === 'ABSENT').length;
+    const staffRecordedAbsent = staffAttendances.filter(a => a.status === 'ABSENT').length;
     const staffLate = staffAttendances.filter(a => a.status === 'LATE').length;
     const staffPermission = staffAttendances.filter(a => a.status === 'DAY_OFF').length;
+    // Staff with no attendance record = absent (not recorded)
+    const staffWithRecords = new Set(staffAttendances.map(a => a.userId));
+    const allStaffUsers = await this.prisma.user.findMany({
+      where: { role: { notIn: ['STUDENT', 'PARENT'] } },
+      select: { id: true, name: true, role: true, department: { select: { name: true } } },
+    });
+    const staffNoRecord = allStaffUsers.filter(u => !staffWithRecords.has(u.id));
+    const totalStaffAbsent = staffRecordedAbsent + staffNoRecord.length;
 
     // Build detail rows: unique students
     const studentMap = new Map<string, { id: string; name: string; role: string; className: string; present: number; absent: number; late: number; permission: number }>();
@@ -189,7 +197,7 @@ export class ReportsService {
       else if (a.status === 'DAY_OFF') row.permission++;
     }
 
-    // Build detail rows: unique staff
+    // Build detail rows: unique staff (from attendance records)
     const staffMap = new Map<string, { id: string; name: string; role: string; department: string; present: number; absent: number; late: number; permission: number }>();
     for (const a of staffAttendances) {
       const key = a.userId;
@@ -209,6 +217,17 @@ export class ReportsService {
       else if (a.status === 'DAY_OFF') row.permission++;
     }
 
+    // Add staff with NO attendance record (they are absent)
+    for (const u of staffNoRecord) {
+      staffMap.set(u.id, {
+        id: u.id,
+        name: u.name,
+        role: u.role,
+        department: u.department?.name || '',
+        present: 0, absent: 1, late: 0, permission: 0,
+      });
+    }
+
     // Get classes and departments for filter options
     const classes = await this.prisma.class.findMany({ select: { id: true, name: true } });
     const departments = await this.prisma.department.findMany({ select: { id: true, name: true } });
@@ -224,7 +243,7 @@ export class ReportsService {
       staff: {
         total: totalStaff,
         present: staffPresent,
-        absent: staffAbsent,
+        absent: totalStaffAbsent,
         late: staffLate,
         permission: staffPermission,
       },
