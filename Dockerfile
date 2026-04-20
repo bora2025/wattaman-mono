@@ -6,13 +6,14 @@ WORKDIR /app
 
 # Copy package files and prisma schema (needed for postinstall prisma generate)
 COPY backend/package.json backend/package-lock.json ./
-COPY backend/prisma/schema.prisma prisma/schema.prisma
+COPY backend/prisma/ prisma/
 
 # Install all dependencies (postinstall runs prisma generate; @swc/core downloads native binary)
 RUN npm install --legacy-peer-deps
 
-# Copy rest of source code
-COPY backend/ ./
+# Copy rest of backend source code
+COPY backend/src/ ./src/
+COPY backend/nest-cli.json backend/tsconfig.json backend/tsconfig.build.json backend/build.js ./
 
 # Build NestJS
 RUN npm run build
