@@ -867,9 +867,11 @@ function PrintReportModal({
   const [paperSize, setPaperSize] = useState('A4')
   const [orgName, setOrgName] = useState('Wattaman School')
   const [logoUrl, setLogoUrl] = useState('')
-  const [logoText, setLogoText] = useState('')
+  const [logoTextLines, setLogoTextLines] = useState<string[]>([''])
   const [headerLines, setHeaderLines] = useState<string[]>(['ព្រះរាជាណាចក្រកម្ពុជា', 'ជាតិ សាសនា ព្រះមហាក្សត្រ'])
-  const [lineSpacing, setLineSpacing] = useState('1.6')
+  const [logoGap, setLogoGap] = useState('4')
+  const [logoTextGap, setLogoTextGap] = useState('4')
+  const [headerGap, setHeaderGap] = useState('6')
   const [signers, setSigners] = useState<string[]>(['Teacher', 'Admin'])
 
   // Sync defaults when modal opens
@@ -920,9 +922,11 @@ function PrintReportModal({
       paper: paperSize,
       orgName,
       logoUrl,
-      logoText,
+      logoTextLines: JSON.stringify(logoTextLines.filter(l => l.trim())),
       headerLines: JSON.stringify(headerLines.filter(l => l.trim())),
-      lineSpacing,
+      logoGap,
+      logoTextGap,
+      headerGap,
       signers: JSON.stringify(signers.filter(s => s.trim())),
     })
     window.open(`/admin/reports/print?${params.toString()}`, '_blank')
@@ -1066,16 +1070,44 @@ function PrintReportModal({
               />
             </div>
 
-            {/* Logo Text (below logo) */}
+            {/* Spacing below logo */}
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Spacing Below Logo (px)</label>
+              <div className="flex items-center gap-2">
+                <input type="range" min="0" max="20" step="1" value={logoGap} onChange={e => setLogoGap(e.target.value)} className="flex-1 accent-emerald-500" />
+                <span className="text-xs text-slate-500 w-8 text-center">{logoGap}</span>
+              </div>
+            </div>
+
+            {/* Logo Text Lines (below logo) */}
             <div>
               <label className="block text-xs font-medium text-slate-500 mb-1">Text Below Logo</label>
-              <input
-                type="text"
-                value={logoText}
-                onChange={e => setLogoText(e.target.value)}
-                placeholder="e.g. ក្រសួងអប់រំ យុវជន និងកីឡា"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
-              />
+              <div className="space-y-1.5">
+                {logoTextLines.map((line, idx) => (
+                  <div key={idx} className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      value={line}
+                      onChange={e => { const l = [...logoTextLines]; l[idx] = e.target.value; setLogoTextLines(l) }}
+                      className="flex-1 rounded-lg border border-slate-300 px-3 py-1.5 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                      placeholder={`Line ${idx + 1}`}
+                    />
+                    {logoTextLines.length > 1 && (
+                      <button onClick={() => setLogoTextLines(logoTextLines.filter((_, i) => i !== idx))} className="w-7 h-7 rounded-lg bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center text-xs">✕</button>
+                    )}
+                  </div>
+                ))}
+                <button onClick={() => setLogoTextLines([...logoTextLines, ''])} className="text-xs text-emerald-600 hover:text-emerald-700 font-medium">+ Add line</button>
+              </div>
+            </div>
+
+            {/* Spacing below logo text */}
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Spacing Below Logo Text (px)</label>
+              <div className="flex items-center gap-2">
+                <input type="range" min="0" max="20" step="1" value={logoTextGap} onChange={e => setLogoTextGap(e.target.value)} className="flex-1 accent-emerald-500" />
+                <span className="text-xs text-slate-500 w-8 text-center">{logoTextGap}</span>
+              </div>
             </div>
 
             {/* Header Lines */}
@@ -1096,12 +1128,16 @@ function PrintReportModal({
                     )}
                   </div>
                 ))}
-                <button
-                  onClick={() => setHeaderLines([...headerLines, ''])}
-                  className="text-xs text-emerald-600 hover:text-emerald-700 font-medium"
-                >
-                  + Add line
-                </button>
+                <button onClick={() => setHeaderLines([...headerLines, ''])} className="text-xs text-emerald-600 hover:text-emerald-700 font-medium">+ Add line</button>
+              </div>
+            </div>
+
+            {/* Spacing below header lines */}
+            <div>
+              <label className="block text-xs font-medium text-slate-500 mb-1">Spacing Below Header Lines (px)</label>
+              <div className="flex items-center gap-2">
+                <input type="range" min="0" max="20" step="1" value={headerGap} onChange={e => setHeaderGap(e.target.value)} className="flex-1 accent-emerald-500" />
+                <span className="text-xs text-slate-500 w-8 text-center">{headerGap}</span>
               </div>
             </div>
 
@@ -1114,23 +1150,6 @@ function PrintReportModal({
                 onChange={e => setOrgName(e.target.value)}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
               />
-            </div>
-
-            {/* Line Spacing */}
-            <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1">Line Spacing</label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="range"
-                  min="1"
-                  max="3"
-                  step="0.1"
-                  value={lineSpacing}
-                  onChange={e => setLineSpacing(e.target.value)}
-                  className="flex-1 accent-emerald-500"
-                />
-                <span className="text-xs text-slate-500 w-8 text-center">{lineSpacing}</span>
-              </div>
             </div>
           </div>
 
