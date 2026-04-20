@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import Sidebar from '../../../components/Sidebar';
@@ -181,7 +181,15 @@ const DAY_COLORS: Record<string, string> = {
   'night-shift': 'bg-slate-100 text-slate-600 border-slate-300',
 };
 
-export default function ManageClasses() {
+export default function ManageClassesPage() {
+  return (
+    <Suspense>
+      <ManageClasses />
+    </Suspense>
+  );
+}
+
+function ManageClasses() {
   const { t } = useLanguage();
   const searchParams = useSearchParams();
   const urlStudyYearId = searchParams.get('studyYearId');
