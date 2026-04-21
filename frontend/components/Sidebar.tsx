@@ -194,7 +194,7 @@ export default function Sidebar({ title, subtitle, navItems, accentColor = 'indi
               >✕</button>
             </div>
             <nav className="px-3 py-3 space-y-0.5">
-              {navItems.map((item) => {
+              {navItems.filter(item => !tabs.some(t => t.href === item.href)).map((item) => {
                 const isActive = pathname === item.href;
                 return (
                   <Link
