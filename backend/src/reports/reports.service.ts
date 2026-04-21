@@ -437,7 +437,6 @@ export class ReportsService {
         absent,
         late,
         permission,
-        late,
         attendanceRate: totalStudents > 0 ? (present / totalStudents) * 100 : 0,
         students: cls.students.map(s => {
           const records = attendances.filter(a => a.studentId === s.id);
