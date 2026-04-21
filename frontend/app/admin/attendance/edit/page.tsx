@@ -32,6 +32,13 @@ interface ClassItem {
   subject: string | null
 }
 
+const permissionScopeLabel = (type: string) => {
+  if (type === 'HALF_DAY_MORNING') return 'Morning sessions (1-2)'
+  if (type === 'HALF_DAY_AFTERNOON') return 'Afternoon sessions (3-4)'
+  if (type === 'MULTI_DAY') return 'All sessions (1-4) across selected date range'
+  return 'All sessions (1-4)'
+}
+
 export default function EditAttendance() {
   const { t } = useLanguage()
   const [classes, setClasses] = useState<ClassItem[]>([])
@@ -166,7 +173,7 @@ export default function EditAttendance() {
         }),
       })
       if (!res.ok) throw new Error('Failed to update permission type')
-      setSuccess(`Updated ${studentRow.studentName} permission type to ${newType}`)
+      setSuccess(`Updated ${studentRow.studentName}: ${newType} applied to ${permissionScopeLabel(newType)}`)
       setTimeout(() => setSuccess(''), 3000)
       await fetchRecords()
     } catch {
