@@ -112,6 +112,53 @@ function countPermissionDayEquivalents<T extends { status: string; permissionTyp
   return total;
 }
 
+function blockContribution(statuses: string[]): { present: number; late: number; absent: number; permission: number } {
+  const hasPresent = statuses.some(s => s === 'PRESENT');
+  const hasLate = statuses.some(s => s === 'LATE');
+  const hasPermission = statuses.some(s => isDayOffStatus(s));
+  const hasAbsent = statuses.some(s => s === 'ABSENT');
+
+  // Precedence for mixed states in the same half-day block:
+  // PRESENT > LATE > PERMISSION > ABSENT
+  if (hasPresent) return { present: 0.5, late: 0, absent: 0, permission: 0 };
+  if (hasLate) return { present: 0, late: 0.5, absent: 0, permission: 0 };
+  if (hasPermission) return { present: 0, late: 0, absent: 0, permission: 0.5 };
+  if (hasAbsent) return { present: 0, late: 0, absent: 0.5, permission: 0 };
+  return { present: 0, late: 0, absent: 0, permission: 0 };
+}
+
+function countHalfDayBlocks<T extends { status: string; date: Date; session: number }>(
+  records: T[],
+  entityKey: (r: T) => string,
+): { present: number; late: number; absent: number; permission: number } {
+  const grouped = new Map<string, T[]>();
+  for (const rec of records) {
+    const key = `${entityKey(rec)}|${rec.date.toISOString().split('T')[0]}`;
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key)!.push(rec);
+  }
+
+  const total = { present: 0, late: 0, absent: 0, permission: 0 };
+  for (const dayRecords of grouped.values()) {
+    const morningStatuses = dayRecords.filter(r => r.session === 1 || r.session === 2).map(r => r.status);
+    const afternoonStatuses = dayRecords.filter(r => r.session === 3 || r.session === 4).map(r => r.status);
+
+    const morning = blockContribution(morningStatuses);
+    total.present += morning.present;
+    total.late += morning.late;
+    total.absent += morning.absent;
+    total.permission += morning.permission;
+
+    const afternoon = blockContribution(afternoonStatuses);
+    total.present += afternoon.present;
+    total.late += afternoon.late;
+    total.absent += afternoon.absent;
+    total.permission += afternoon.permission;
+  }
+
+  return total;
+}
+
 function countPermissionPresence<T extends { status: string; date: Date }>(
   records: T[],
   entityKey: (r: T) => string,
@@ -239,17 +286,19 @@ export class ReportsService {
     const totalStudents = await this.prisma.student.count();
     const totalStaff = await this.prisma.user.count({ where: { role: { notIn: ['STUDENT', 'PARENT'] } } });
 
-    // Student summary
-    const studentPresent = studentAttendances.filter(a => a.status === 'PRESENT').length;
-    const studentAbsent = studentAttendances.filter(a => a.status === 'ABSENT').length;
-    const studentLate = studentAttendances.filter(a => a.status === 'LATE').length;
-    const studentPermission = countPermissionPresence(studentAttendances as any, (a: any) => a.studentId);
+    // Student summary (half-day block scoring)
+    const studentTotals = countHalfDayBlocks(studentAttendances as any, (a: any) => a.studentId);
+    const studentPresent = studentTotals.present;
+    const studentAbsent = studentTotals.absent;
+    const studentLate = studentTotals.late;
+    const studentPermission = studentTotals.permission;
 
-    // Staff summary — count from actual records
-    const staffPresent = staffAttendances.filter(a => a.status === 'PRESENT').length;
-    const staffRecordedAbsent = staffAttendances.filter(a => a.status === 'ABSENT').length;
-    const staffLate = staffAttendances.filter(a => a.status === 'LATE').length;
-    const staffPermission = countPermissionPresence(staffAttendances as any, (a: any) => a.userId);
+    // Staff summary — half-day block scoring from actual records
+    const staffTotals = countHalfDayBlocks(staffAttendances as any, (a: any) => a.userId);
+    const staffPresent = staffTotals.present;
+    const staffRecordedAbsent = staffTotals.absent;
+    const staffLate = staffTotals.late;
+    const staffPermission = staffTotals.permission;
     // Staff with no attendance record = absent (not recorded)
     const staffWithRecords = new Set(staffAttendances.map(a => a.userId));
     const allStaffUsers = await this.prisma.user.findMany({
@@ -273,9 +322,9 @@ export class ReportsService {
         });
       }
       const row = studentMap.get(key)!;
-      if (a.status === 'PRESENT') row.present++;
-      else if (a.status === 'ABSENT') row.absent++;
-      else if (a.status === 'LATE') row.late++;
+      row.present = row.present;
+      row.absent = row.absent;
+      row.late = row.late;
     }
 
     // Build detail rows: unique staff (from attendance records)
@@ -292,9 +341,9 @@ export class ReportsService {
         });
       }
       const row = staffMap.get(key)!;
-      if (a.status === 'PRESENT') row.present++;
-      else if (a.status === 'ABSENT') row.absent++;
-      else if (a.status === 'LATE') row.late++;
+      row.present = row.present;
+      row.absent = row.absent;
+      row.late = row.late;
     }
 
     // Add staff with NO attendance record (they are absent)
@@ -308,18 +357,26 @@ export class ReportsService {
       });
     }
 
-    // Permission day-equivalent per person: half + half = full day.
+    // Half-day block counts per person/day.
     for (const [studentId, row] of studentMap.entries()) {
-      row.permission = countPermissionPresence(
+      const totals = countHalfDayBlocks(
         studentAttendances.filter((a: any) => a.studentId === studentId) as any,
         (a: any) => a.studentId,
       );
+      row.present = totals.present;
+      row.absent = totals.absent;
+      row.late = totals.late;
+      row.permission = totals.permission;
     }
     for (const [userId, row] of staffMap.entries()) {
-      row.permission = countPermissionPresence(
+      const totals = countHalfDayBlocks(
         staffAttendances.filter((a: any) => a.userId === userId) as any,
         (a: any) => a.userId,
       );
+      row.present = totals.present;
+      row.absent = totals.absent;
+      row.late = totals.late;
+      row.permission = totals.permission;
     }
 
     // Get classes and departments for filter options

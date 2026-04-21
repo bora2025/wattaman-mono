@@ -361,27 +361,32 @@ export default function AdminReports() {
   const isHolidayDate = grid.length > 0 && grid[0].isHoliday === true
   const totalStudents = grid.length
   const getStatus = (r: GridRow, field: typeof activeSessions[number]['statusField']) => (r as any)[field] as string | null
-  const activeStatuses = grid.flatMap(r => activeSessions.map(sd => getStatus(r, sd.statusField)).filter(Boolean) as string[])
-  const dailyPresent = activeStatuses.filter(s => s === 'PRESENT').length
-  const dailyLate = activeStatuses.filter(s => s === 'LATE').length
-  const dailyAbsent = isHolidayDate ? 0 : activeStatuses.filter(s => s === 'ABSENT').length
-
-  // Permission count is block-based (AM block + PM block), not raw session count.
-  // A block counts as permission only when it contains permission/day-off and no present/late/absent.
   const permissionBlocks = [{ sessions: [1, 2] }, { sessions: [3, 4] }]
-  const dailyPermission = grid.reduce((sum, row) => {
-    let rowPermission = 0
+  const dailyTotals = grid.reduce((acc, row) => {
     for (const block of permissionBlocks) {
       const blockDefs = activeSessions.filter(sd => block.sessions.includes(sd.session))
       if (blockDefs.length === 0) continue
       const statuses = blockDefs.map(sd => getStatus(row, sd.statusField)).filter(Boolean) as string[]
       if (statuses.length === 0) continue
+
+      const hasPresent = statuses.some(s => s === 'PRESENT')
+      const hasLate = statuses.some(s => s === 'LATE')
       const hasPermission = statuses.some(s => s === 'PERMISSION' || s === 'DAY_OFF')
-      const hasOther = statuses.some(s => s === 'PRESENT' || s === 'LATE' || s === 'ABSENT')
-      if (hasPermission && !hasOther) rowPermission += 1
+      const hasAbsent = statuses.some(s => s === 'ABSENT')
+
+      // Mixed block precedence: PRESENT > LATE > PERMISSION > ABSENT
+      if (hasPresent) acc.present += 0.5
+      else if (hasLate) acc.late += 0.5
+      else if (hasPermission) acc.permission += 0.5
+      else if (hasAbsent) acc.absent += 0.5
     }
-    return sum + rowPermission
-  }, 0)
+    return acc
+  }, { present: 0, late: 0, absent: 0, permission: 0 })
+
+  const dailyPresent = dailyTotals.present
+  const dailyLate = dailyTotals.late
+  const dailyPermission = dailyTotals.permission
+  const dailyAbsent = isHolidayDate ? 0 : dailyTotals.absent
 
   return (
     <div className="page-shell">

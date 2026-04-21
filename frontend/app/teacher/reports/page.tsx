@@ -175,9 +175,31 @@ export default function TeacherReports() {
 
   // Daily summary counts
   const isHolidayDate = grid.length > 0 && grid[0].isHoliday === true
-  const dailyLate = grid.filter(r => !r.dayOff && activeSessions.some(sd => (r as any)[sd.statusField] === 'LATE')).length
-  const dailyPresent = grid.filter(r => !r.dayOff).length - dailyLate
-  const dailyAbsent = isHolidayDate ? 0 : grid.filter(r => r.dayOff).length
+  const getStatus = (r: GridRow, field: typeof activeSessions[number]['statusField']) => (r as any)[field] as string | null
+  const permissionBlocks = [{ sessions: [1, 2] }, { sessions: [3, 4] }]
+  const dailyTotals = grid.reduce((acc, row) => {
+    for (const block of permissionBlocks) {
+      const blockDefs = activeSessions.filter(sd => block.sessions.includes(sd.session))
+      if (blockDefs.length === 0) continue
+      const statuses = blockDefs.map(sd => getStatus(row, sd.statusField)).filter(Boolean) as string[]
+      if (statuses.length === 0) continue
+
+      const hasPresent = statuses.some(s => s === 'PRESENT')
+      const hasLate = statuses.some(s => s === 'LATE')
+      const hasPermission = statuses.some(s => s === 'PERMISSION' || s === 'DAY_OFF')
+      const hasAbsent = statuses.some(s => s === 'ABSENT')
+
+      if (hasPresent) acc.present += 0.5
+      else if (hasLate) acc.late += 0.5
+      else if (hasPermission) acc.permission += 0.5
+      else if (hasAbsent) acc.absent += 0.5
+    }
+    return acc
+  }, { present: 0, late: 0, absent: 0, permission: 0 })
+
+  const dailyLate = dailyTotals.late
+  const dailyPresent = dailyTotals.present
+  const dailyAbsent = isHolidayDate ? 0 : dailyTotals.absent
   const totalStudents = grid.length
 
   return (
