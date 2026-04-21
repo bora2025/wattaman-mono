@@ -169,6 +169,47 @@ function countHalfDayBlocks<T extends { status: string; date: Date; session: num
   return total;
 }
 
+/**
+ * Count unique entities by their dominant attendance status for the day (headcount).
+ * Returns whole numbers (1 per person) — intended for the daily dashboard summary.
+ * AM block + PM block are evaluated with blockContribution, then priority wins:
+ * PRESENT > LATE > PERMISSION > ABSENT
+ */
+function countDailyHeadcount<T extends { status: string; date: Date; session: number }>(
+  records: T[],
+  entityKey: (r: T) => string,
+  preferPermissionOverAbsent: boolean,
+): { present: number; late: number; absent: number; permission: number } {
+  const grouped = new Map<string, T[]>();
+  for (const rec of records) {
+    const key = entityKey(rec);
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key)!.push(rec);
+  }
+
+  const total = { present: 0, late: 0, absent: 0, permission: 0 };
+  for (const personRecords of grouped.values()) {
+    const am = blockContribution(
+      personRecords.filter(r => r.session === 1 || r.session === 2).map(r => r.status),
+      preferPermissionOverAbsent,
+    );
+    const pm = blockContribution(
+      personRecords.filter(r => r.session === 3 || r.session === 4).map(r => r.status),
+      preferPermissionOverAbsent,
+    );
+    const hasPresent = am.present > 0 || pm.present > 0;
+    const hasLate = am.late > 0 || pm.late > 0;
+    const hasPerm = am.permission > 0 || pm.permission > 0;
+    const hasAbsent = am.absent > 0 || pm.absent > 0;
+
+    if (hasPresent) total.present += 1;
+    else if (hasLate) total.late += 1;
+    else if (hasPerm) total.permission += 1;
+    else if (hasAbsent) total.absent += 1;
+  }
+  return total;
+}
+
 function countPermissionPresence<T extends { status: string; date: Date }>(
   records: T[],
   entityKey: (r: T) => string,
@@ -299,9 +340,9 @@ export class ReportsService {
     const totalStudents = await this.prisma.student.count();
     const totalStaff = await this.prisma.user.count({ where: { role: { notIn: ['STUDENT', 'PARENT'] } } });
 
-    // Student summary (half-day block scoring)
+    // Student summary — headcount: each student counted once by dominant status for the day
     const classRule = await this.sessionConfigService.getFormatRules('CLASS', organizationId);
-    const studentTotals = countHalfDayBlocks(
+    const studentTotals = countDailyHeadcount(
       studentAttendances as any,
       (a: any) => a.studentId,
       classRule.caseStudyABEnabled ?? true,
@@ -311,9 +352,9 @@ export class ReportsService {
     const studentLate = studentTotals.late;
     const studentPermission = studentTotals.permission;
 
-    // Staff summary — half-day block scoring from actual records
+    // Staff summary — headcount from actual records
     const staffRule = await this.sessionConfigService.getFormatRules('STAFF', organizationId);
-    const staffTotals = countHalfDayBlocks(
+    const staffTotals = countDailyHeadcount(
       staffAttendances as any,
       (a: any) => a.userId,
       staffRule.caseStudyABEnabled ?? true,
@@ -380,9 +421,9 @@ export class ReportsService {
       });
     }
 
-    // Half-day block counts per person/day.
+    // Headcount per individual for detail rows.
     for (const [studentId, row] of studentMap.entries()) {
-      const totals = countHalfDayBlocks(
+      const totals = countDailyHeadcount(
         studentAttendances.filter((a: any) => a.studentId === studentId) as any,
         (a: any) => a.studentId,
         classRule.caseStudyABEnabled ?? true,
@@ -393,7 +434,7 @@ export class ReportsService {
       row.permission = totals.permission;
     }
     for (const [userId, row] of staffMap.entries()) {
-      const totals = countHalfDayBlocks(
+      const totals = countDailyHeadcount(
         staffAttendances.filter((a: any) => a.userId === userId) as any,
         (a: any) => a.userId,
         staffRule.caseStudyABEnabled ?? true,
