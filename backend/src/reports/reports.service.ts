@@ -810,8 +810,6 @@ export class ReportsService {
       where: { classId, date: { gte: start, lt: end } },
     });
 
-    const holidays = await this.holidaysService.getHolidaysInRange(start, end);
-    const holidayDateSet = new Set(holidays.map(h => h.date.toISOString().split('T')[0]));
     let formatRule: any = { permissionsPerAbsent: 3, latesPerAbsentHalf: 3, caseStudyABEnabled: true, enabled: false };
     try {
       formatRule = await this.sessionConfigService.getFormatRules('CLASS');
@@ -842,7 +840,7 @@ export class ReportsService {
     return {
       className: cls.name,
       subject: cls.subject,
-      teacherName: cls.teacher.name,
+      teacherName: cls.teacher?.name ?? '',
       startDate: start.toISOString().split('T')[0],
       endDate: toUTCMidnight(endDate).toISOString().split('T')[0],
       students,
@@ -863,8 +861,6 @@ export class ReportsService {
       where: { date: { gte: start, lt: end } },
     });
 
-    const holidays = await this.holidaysService.getHolidaysInRange(start, end);
-    const holidayDateSet = new Set(holidays.map(h => h.date.toISOString().split('T')[0]));
     let formatRule: any = { permissionsPerAbsent: 3, latesPerAbsentHalf: 3, caseStudyABEnabled: true, enabled: false };
     try {
       formatRule = await this.sessionConfigService.getFormatRules('STAFF');
