@@ -22,6 +22,7 @@ interface AttendanceRecord {
   studentId: string
   status: 'PRESENT' | 'ABSENT' | 'LATE' | 'PERMISSION'
   checkInTime?: string
+  permissionType?: string
 }
 
 interface ClassItem {
@@ -405,7 +406,14 @@ function AdminTakeAttendance() {
 
   const updateAttendance = useCallback((studentId: string, status: 'PRESENT' | 'ABSENT' | 'LATE' | 'PERMISSION') => {
     const now = (status === 'PRESENT' || status === 'LATE') ? new Date().toISOString() : undefined
-    setAttendance(prev => prev.map(a => a.studentId === studentId ? { ...a, status, checkInTime: now } : a))
+    setAttendance(prev => prev.map(a => a.studentId === studentId ? {
+      ...a, status, checkInTime: now,
+      permissionType: status === 'PERMISSION' ? (a.permissionType || 'FULL_DAY') : a.permissionType,
+    } : a))
+  }, [])
+
+  const updatePermissionType = useCallback((studentId: string, permType: string) => {
+    setAttendance(prev => prev.map(a => a.studentId === studentId ? { ...a, permissionType: permType } : a))
   }, [])
 
   const handleQrScanned = useCallback((qrData: string) => {
@@ -751,7 +759,7 @@ function AdminTakeAttendance() {
             status: record.status,
             checkInTime: record.checkInTime,
             ...(record.status === 'PERMISSION' ? {
-              permissionType: 'FULL_DAY',
+                permissionType: record.permissionType || 'FULL_DAY',
               permissionStartDate: date,
               permissionEndDate: date,
             } : {}),
@@ -1381,6 +1389,18 @@ function AdminTakeAttendance() {
                       <option value="PERMISSION">📋 {t('common.permission')}</option>
                     </select>
                   </div>
+                  {status === 'PERMISSION' && (
+                    <select
+                      value={record?.permissionType || 'FULL_DAY'}
+                      onChange={(e) => updatePermissionType(student.id, e.target.value)}
+                      className="mt-2 w-full text-xs px-2 py-1.5 rounded-lg border border-blue-200 bg-blue-50 text-blue-800 font-medium"
+                    >
+                      <option value="HALF_DAY_MORNING">🌅 Half Day (Morning)</option>
+                      <option value="HALF_DAY_AFTERNOON">🌤️ Half Day (Afternoon)</option>
+                      <option value="FULL_DAY">☀️ Full Day</option>
+                      <option value="MULTI_DAY">📅 Many Days</option>
+                    </select>
+                  )}
                 </div>
               )
             })}

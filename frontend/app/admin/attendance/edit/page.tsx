@@ -42,9 +42,7 @@ export default function EditAttendance() {
   const [saving, setSaving] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
-  const [permissionType, setPermissionType] = useState('FULL_DAY')
-  const [permissionStartDate, setPermissionStartDate] = useState(() => new Date().toISOString().split('T')[0])
-  const [permissionEndDate, setPermissionEndDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [permissionTypes, setPermissionTypes] = useState<Record<string, string>>({})
 
 
   useEffect(() => { fetchClasses() }, [])
@@ -69,8 +67,17 @@ export default function EditAttendance() {
     setError('')
     try {
       const res = await apiFetch(`/api/attendance/records?classId=${selectedClassId}&date=${selectedDate}`)
-      if (res.ok) setRows(await res.json())
-      else setError('Failed to load attendance records.')
+      if (res.ok) {
+        const data = await res.json()
+        setRows(data)
+        // Initialize per-row permissionType from existing session records
+        const init: Record<string, string> = {}
+        data.forEach((row: StudentRow) => {
+          const permSess = row.sessions.find((s: SessionRecord) => s.permissionType)
+          if (permSess?.permissionType) init[row.studentId] = permSess.permissionType
+        })
+        setPermissionTypes(prev => ({ ...init, ...prev }))
+      } else setError('Failed to load attendance records.')
     } catch (err) {
       console.error('Error:', err)
       setError('Failed to connect to server.')
@@ -99,9 +106,9 @@ export default function EditAttendance() {
             attendanceId: sessionRec.attendanceId,
             status: newStatus,
             ...(newStatus === 'PERMISSION' ? {
-              permissionType,
-              permissionStartDate,
-              permissionEndDate,
+              permissionType: permissionTypes[studentRow.studentId] || 'FULL_DAY',
+              permissionStartDate: selectedDate,
+              permissionEndDate: selectedDate,
             } : {}),
           }),
         })
@@ -118,9 +125,9 @@ export default function EditAttendance() {
             status: newStatus,
             date: selectedDate,
             ...(newStatus === 'PERMISSION' ? {
-              permissionType,
-              permissionStartDate,
-              permissionEndDate,
+              permissionType: permissionTypes[studentRow.studentId] || 'FULL_DAY',
+              permissionStartDate: selectedDate,
+              permissionEndDate: selectedDate,
             } : {}),
           }),
         })
@@ -221,37 +228,6 @@ export default function EditAttendance() {
               <button onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])} className="btn-ghost btn-sm">
                 📅 Today
               </button>
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Permission Type</label>
-                <select
-                  value={permissionType}
-                  onChange={(e) => setPermissionType(e.target.value)}
-                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                >
-                  <option value="HALF_DAY_MORNING">Half Day (Morning)</option>
-                  <option value="HALF_DAY_AFTERNOON">Half Day (Afternoon)</option>
-                  <option value="FULL_DAY">Full Day</option>
-                  <option value="MULTI_DAY">Many Day (From-To)</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Permission From</label>
-                <input
-                  type="date"
-                  value={permissionStartDate}
-                  onChange={(e) => setPermissionStartDate(e.target.value)}
-                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Permission To</label>
-                <input
-                  type="date"
-                  value={permissionEndDate}
-                  onChange={(e) => setPermissionEndDate(e.target.value)}
-                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                />
-              </div>
             </div>
             <p className="mt-2 text-sm font-medium text-slate-700">{dayLabel} — {selectedClassName}</p>
           </div>
@@ -293,6 +269,7 @@ export default function EditAttendance() {
                           <div>{sessionLabel(s)}</div>
                         </th>
                       ))}
+                      <th className="px-3 py-3 font-semibold text-center">Permission Type</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -317,6 +294,22 @@ export default function EditAttendance() {
                             </select>
                           </td>
                         ))}
+                         <td className="px-3 py-2.5 text-center">
+                           {row.sessions.some(s => s.status === 'PERMISSION') ? (
+                             <select
+                               value={permissionTypes[row.studentId] || 'FULL_DAY'}
+                               onChange={(e) => setPermissionTypes(prev => ({ ...prev, [row.studentId]: e.target.value }))}
+                               className="rounded-lg border border-blue-200 bg-blue-50 text-blue-800 px-2 py-1.5 text-xs font-semibold outline-none cursor-pointer"
+                             >
+                               <option value="HALF_DAY_MORNING">🌅 Half Day (AM)</option>
+                               <option value="HALF_DAY_AFTERNOON">🌤️ Half Day (PM)</option>
+                               <option value="FULL_DAY">☀️ Full Day</option>
+                               <option value="MULTI_DAY">📅 Many Days</option>
+                             </select>
+                           ) : (
+                             <span className="text-xs text-slate-300">—</span>
+                           )}
+                         </td>
                       </tr>
                     ))}
                   </tbody>
