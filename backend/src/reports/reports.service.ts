@@ -812,7 +812,12 @@ export class ReportsService {
 
     const holidays = await this.holidaysService.getHolidaysInRange(start, end);
     const holidayDateSet = new Set(holidays.map(h => h.date.toISOString().split('T')[0]));
-    const formatRule = await this.sessionConfigService.getFormatRules('CLASS');
+    let formatRule: any = { permissionsPerAbsent: 3, latesPerAbsentHalf: 3, enabled: false };
+    try {
+      formatRule = await this.sessionConfigService.getFormatRules('CLASS');
+    } catch (e) {
+      console.warn('[reports/print-report-data] format-rules fallback:', e?.message || e);
+    }
 
     const students = cls.students.map((s, idx) => {
       const studentRecs = records.filter(r => r.studentId === s.id);
@@ -859,7 +864,12 @@ export class ReportsService {
 
     const holidays = await this.holidaysService.getHolidaysInRange(start, end);
     const holidayDateSet = new Set(holidays.map(h => h.date.toISOString().split('T')[0]));
-    const formatRule = await this.sessionConfigService.getFormatRules('STAFF');
+    let formatRule: any = { permissionsPerAbsent: 3, latesPerAbsentHalf: 3, enabled: false };
+    try {
+      formatRule = await this.sessionConfigService.getFormatRules('STAFF');
+    } catch (e) {
+      console.warn('[reports/staff-print-report-data] format-rules fallback:', e?.message || e);
+    }
 
     const staffData = staff.map((u, idx) => {
       const userRecs = records.filter(r => r.userId === u.id);
