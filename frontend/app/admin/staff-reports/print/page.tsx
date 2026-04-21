@@ -149,11 +149,13 @@ function StaffPrintReportContent() {
     )
   }
 
-  const totals = {
-    present: data.staff.filter(s => s.present > 0).length,
-    late: data.staff.filter(s => s.late > 0).length,
-    absent: data.staff.filter(s => s.absent > 0).length,
-    dayOff: data.staff.filter(s => s.dayOff > 0).length,
+  // Each staff counted once in their worst/dominant status so totals sum to exactly N staff
+  const totals = { present: 0, late: 0, absent: 0, dayOff: 0 }
+  for (const s of data.staff) {
+    if (s.absent > 0) totals.absent += 1
+    else if (s.dayOff > 0) totals.dayOff += 1
+    else if (s.late > 0) totals.late += 1
+    else totals.present += 1
   }
 
   return (
