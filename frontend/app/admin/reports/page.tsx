@@ -20,6 +20,10 @@ interface GridRow {
   session2Status: string | null
   session3Status: string | null
   session4Status: string | null
+  session1PermissionType?: string | null
+  session2PermissionType?: string | null
+  session3PermissionType?: string | null
+  session4PermissionType?: string | null
 }
 
 interface TotalsRow {
@@ -98,6 +102,27 @@ const DAY_FORMAT_STYLES: Record<string, { bg: string; icon: string; label: strin
   evening: { bg: 'bg-purple-100 text-purple-600', icon: '🌆', label: 'Evening' },
   'night-shift': { bg: 'bg-slate-200 text-slate-600', icon: '🌙', label: 'Night Shift' },
 };
+
+function permissionTypeLabel(value?: string | null): string {
+  if (value === 'HALF_DAY_MORNING') return 'Half Day (AM)'
+  if (value === 'HALF_DAY_AFTERNOON') return 'Half Day (PM)'
+  if (value === 'FULL_DAY') return 'Full Day'
+  if (value === 'MULTI_DAY') return 'Many Days'
+  return 'Permission'
+}
+
+function getRowPermissionLabel(row: GridRow): string | null {
+  const statuses = [row.session1Status, row.session2Status, row.session3Status, row.session4Status]
+  const hasPermission = statuses.some(s => s === 'PERMISSION' || s === 'DAY_OFF')
+  if (!hasPermission) return null
+
+  const types = [row.session1PermissionType, row.session2PermissionType, row.session3PermissionType, row.session4PermissionType]
+  const firstType = types.find(Boolean)
+  if (firstType) return permissionTypeLabel(firstType)
+
+  if (statuses.some(s => s === 'DAY_OFF')) return 'Day Off'
+  return 'Permission'
+}
 
 export default function AdminReports() {
   const { t } = useLanguage()
@@ -561,11 +586,14 @@ export default function AdminReports() {
                               <SessionCell key={sd.session} time={(row as any)[sd.field]} status={(row as any)[sd.statusField]} />
                             ))}
                             <td className="px-2 sm:px-3 py-2 sm:py-2.5 text-center">
-                              {row.dayOff ? (
-                                <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-medium px-1.5 sm:px-2 py-0.5 rounded-full bg-red-100 text-red-700">🚫 Yes</span>
-                              ) : (
-                                <span className="text-[10px] sm:text-xs text-slate-400">—</span>
-                              )}
+                              {(() => {
+                                const label = getRowPermissionLabel(row)
+                                return label ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-medium px-1.5 sm:px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">📋 {label}</span>
+                                ) : (
+                                  <span className="text-[10px] sm:text-xs text-slate-400">—</span>
+                                )
+                              })()}
                             </td>
                           </tr>
                         ))}

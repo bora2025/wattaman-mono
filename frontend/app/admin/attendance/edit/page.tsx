@@ -143,6 +143,39 @@ export default function EditAttendance() {
     } finally { setSaving(null) }
   }
 
+  const handlePermissionTypeChange = async (studentRow: StudentRow, newType: string) => {
+    setPermissionTypes(prev => ({ ...prev, [studentRow.studentId]: newType }))
+
+    const permissionSession = studentRow.sessions.find(s => s.status === 'PERMISSION' && s.attendanceId)
+    if (!permissionSession?.attendanceId) return
+
+    setSaving(`${studentRow.studentId}-${permissionSession.session}`)
+    setError('')
+    setSuccess('')
+
+    try {
+      const res = await apiFetch('/api/attendance/update', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          attendanceId: permissionSession.attendanceId,
+          status: 'PERMISSION',
+          permissionType: newType,
+          permissionStartDate: selectedDate,
+          permissionEndDate: selectedDate,
+        }),
+      })
+      if (!res.ok) throw new Error('Failed to update permission type')
+      setSuccess(`Updated ${studentRow.studentName} permission type to ${newType}`)
+      setTimeout(() => setSuccess(''), 3000)
+      await fetchRecords()
+    } catch {
+      setError('Failed to update permission type. Please try again.')
+    } finally {
+      setSaving(null)
+    }
+  }
+
   const goDay = (offset: number) => {
     const d = new Date(selectedDate)
     d.setDate(d.getDate() + offset)
@@ -298,8 +331,9 @@ export default function EditAttendance() {
                            {row.sessions.some(s => s.status === 'PERMISSION') ? (
                              <select
                                value={permissionTypes[row.studentId] || 'FULL_DAY'}
-                               onChange={(e) => setPermissionTypes(prev => ({ ...prev, [row.studentId]: e.target.value }))}
-                               className="rounded-lg border border-blue-200 bg-blue-50 text-blue-800 px-2 py-1.5 text-xs font-semibold outline-none cursor-pointer"
+                               onChange={(e) => handlePermissionTypeChange(row, e.target.value)}
+                               disabled={saving !== null}
+                               className="rounded-lg border border-blue-200 bg-blue-50 text-blue-800 px-2 py-1.5 text-xs font-semibold outline-none cursor-pointer disabled:opacity-50"
                              >
                                <option value="HALF_DAY_MORNING">🌅 Half Day (AM)</option>
                                <option value="HALF_DAY_AFTERNOON">🌤️ Half Day (PM)</option>

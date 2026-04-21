@@ -55,6 +55,17 @@ export class AttendanceService {
 
     const sessions = permissionSessions(permissionType);
     const days = dateRangeDays(from, to);
+    const cleanup = days.map(day =>
+      this.prisma.attendance.deleteMany({
+        where: {
+          studentId,
+          classId,
+          date: day,
+          status: 'PERMISSION',
+          session: { notIn: sessions },
+        },
+      }),
+    );
     const writes = days.flatMap(day =>
       sessions.map(session =>
         this.prisma.attendance.upsert({
@@ -85,7 +96,7 @@ export class AttendanceService {
       ),
     );
 
-    await this.prisma.$transaction(writes);
+    await this.prisma.$transaction([...cleanup, ...writes]);
     return {
       status: 'PERMISSION',
       permissionType,
@@ -112,6 +123,16 @@ export class AttendanceService {
 
     const sessions = permissionSessions(permissionType);
     const days = dateRangeDays(from, to);
+    const cleanup = days.map(day =>
+      this.prisma.staffAttendance.deleteMany({
+        where: {
+          userId,
+          date: day,
+          status: 'PERMISSION',
+          session: { notIn: sessions },
+        },
+      }),
+    );
     const writes = days.flatMap(day =>
       sessions.map(session =>
         this.prisma.staffAttendance.upsert({
@@ -141,7 +162,7 @@ export class AttendanceService {
       ),
     );
 
-    await this.prisma.$transaction(writes);
+    await this.prisma.$transaction([...cleanup, ...writes]);
     return {
       status: 'PERMISSION',
       permissionType,
