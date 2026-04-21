@@ -63,7 +63,7 @@ function pickBottomTabs(navItems: NavItem[], bottomTabs?: string[]): NavItem[] {
   if (navItems.length <= 5) return navItems;
   const picked = [navItems[0]];
   // Find scan/attendance, reports, classes/users
-  const priorities = ['attendance', 'scan', 'reports', 'classes', 'users', 'search'];
+  const priorities = ['camera', 'attendance', 'scan', 'reports', 'classes', 'users', 'search'];
   for (const p of priorities) {
     if (picked.length >= 4) break;
     const match = navItems.find(n => n.href.includes(p) && !picked.includes(n));

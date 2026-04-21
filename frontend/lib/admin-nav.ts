@@ -10,7 +10,7 @@ export const adminNav = [
   { label: 'nav.manageClasses', href: '/admin/classes', icon: 'book' },
 
   // Attendance
-  { label: 'nav.takeAttendance', href: '/admin/attendance', icon: 'camera' },
+  { label: 'nav.takeAttendance', href: '/admin/camera', icon: 'camera' },
   { label: 'nav.officerAttendance', href: '/admin/staff-attendance', icon: 'clipboard' },
   { label: 'nav.editAttendance', href: '/admin/attendance/edit', icon: 'edit' },
   { label: 'nav.editOfficerAttendance', href: '/admin/staff-attendance/edit', icon: 'edit' },

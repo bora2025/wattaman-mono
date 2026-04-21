@@ -63,7 +63,7 @@ export default function TeacherDashboard() {
                 <span className="action-icon" style={{ color: 'var(--color-icon)' }}><IconBook size={26} /></span>
                 <span className="action-label">{t('nav.myClasses')}</span>
               </Link>
-              <Link href="/teacher/attendance" className="action-card-mobile">
+              <Link href="/teacher/camera" className="action-card-mobile">
                 <span className="action-icon" style={{ color: 'var(--color-icon)' }}><IconCamera size={26} /></span>
                 <span className="action-label">{t('nav.takeAttendance')}</span>
               </Link>
