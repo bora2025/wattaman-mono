@@ -71,7 +71,7 @@ function pickBottomTabs(navItems: NavItem[], bottomTabs?: string[]): NavItem[] {
   }
 
   if (hasAdminRoot) {
-    const adminOrder = ['/admin', '/admin/users', '/admin/camera', '/admin/reports', '/admin/settings'];
+    const adminOrder = ['/admin', '/admin/manage-hub', '/admin/camera', '/admin/reports', '/admin/settings'];
     const adminTabs = adminOrder.map(href => navItems.find(n => n.href === href)).filter(Boolean) as NavItem[];
     if (adminTabs.length === 5) return adminTabs;
   }
@@ -158,7 +158,6 @@ export default function Sidebar({ title, subtitle, navItems, accentColor = 'indi
                   style={{ color: 'var(--color-text-secondary)' }}
                 >
                   <NavIcon icon={tab.icon} size={24} />
-                  <span className="mobile-tab-label">{t('common.more') || 'More'}</span>
                 </button>
               );
             }
@@ -172,7 +171,6 @@ export default function Sidebar({ title, subtitle, navItems, accentColor = 'indi
                 style={{ color: isActive ? 'var(--color-primary)' : 'var(--color-text-secondary)' }}
               >
                 <NavIcon icon={tab.icon} size={24} />
-                <span className="mobile-tab-label">{t(tab.label)}</span>
                 {isActive && <span className="mobile-tab-indicator" style={{ background: 'var(--color-primary)' }} />}
               </Link>
             );
