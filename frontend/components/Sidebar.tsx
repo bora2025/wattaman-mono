@@ -71,9 +71,11 @@ function pickBottomTabs(navItems: NavItem[], bottomTabs?: string[]): NavItem[] {
   }
 
   if (hasAdminRoot) {
-    const adminOrder = ['/admin', '/admin/manage-hub', '/admin/camera', '/admin/reports', '/admin/settings'];
+    const adminOrder = ['/admin', '/admin/manage-hub', '/admin/camera', '/admin/reports'];
     const adminTabs = adminOrder.map(href => navItems.find(n => n.href === href)).filter(Boolean) as NavItem[];
-    if (adminTabs.length === 5) return adminTabs;
+    if (adminTabs.length === 4) {
+      return [...adminTabs, { label: 'common.more', href: '__more__', icon: 'settings' }];
+    }
   }
 
   // Auto-pick: first item (dashboard) + up to 3 most important + last (settings)
