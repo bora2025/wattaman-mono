@@ -308,7 +308,8 @@ function StaffPrintReportContent() {
                 </td>
               </tr>
             ))}
-            {/* Totals Row */}
+            {/* Totals Row — daily only */}
+            {period === 'daily' && (
             <tr className="bg-slate-200 font-bold">
               <td className="border border-slate-400 px-2 py-2 text-center" colSpan={3}>
                 {t('common.total')} ({data.staff.length} staff)
@@ -326,6 +327,7 @@ function StaffPrintReportContent() {
                 {totals.dayOff}
               </td>
             </tr>
+            )}
           </tbody>
         </table>
 
