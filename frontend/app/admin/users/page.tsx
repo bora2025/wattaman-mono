@@ -87,7 +87,7 @@ export default function ManageUsers() {
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
-  const [role, setRole] = useState('TEACHER')
+  const [role, setRole] = useState('ADMIN')
   const [newPhoto, setNewPhoto] = useState('')
   const [message, setMessage] = useState('')
   const [msgType, setMsgType] = useState<'success' | 'error'>('success')
