@@ -158,15 +158,17 @@ export class SessionConfigService {
   /** Get attendance format rules for a scope (CLASS or STAFF) */
   async getFormatRules(scope: string, organizationId?: string | null) {
     const orgId = organizationId || null;
-    const rule = await this.prisma.attendanceFormatRule.findUnique({
-      where: { scope_organizationId: { scope, organizationId: orgId } },
+
+    // Use findFirst to handle nullable organizationId (PostgreSQL NULL != NULL in unique indexes)
+    const rule = await this.prisma.attendanceFormatRule.findFirst({
+      where: { scope, organizationId: orgId },
     });
     if (rule) return rule;
 
     // Fallback to global scope defaults when organization-specific record does not exist.
     if (orgId) {
-      const globalRule = await this.prisma.attendanceFormatRule.findUnique({
-        where: { scope_organizationId: { scope, organizationId: null } },
+      const globalRule = await this.prisma.attendanceFormatRule.findFirst({
+        where: { scope, organizationId: null },
       });
       if (globalRule) return globalRule;
     }
@@ -202,22 +204,24 @@ export class SessionConfigService {
     enabled: boolean;
   }) {
     const orgId = data.organizationId || null;
-    return this.prisma.attendanceFormatRule.upsert({
-      where: { scope_organizationId: { scope: data.scope, organizationId: orgId } },
-      update: {
-        permissionsPerAbsent: data.permissionsPerAbsent,
-        latesPerAbsentHalf: data.latesPerAbsentHalf,
-        caseStudyABEnabled: data.caseStudyABEnabled,
-        enabled: data.enabled,
-      },
-      create: {
-        scope: data.scope,
-        organizationId: orgId,
-        permissionsPerAbsent: data.permissionsPerAbsent,
-        latesPerAbsentHalf: data.latesPerAbsentHalf,
-        caseStudyABEnabled: data.caseStudyABEnabled,
-        enabled: data.enabled,
-      },
+    // Use findFirst + update/create to handle nullable organizationId (PostgreSQL NULL != NULL in unique indexes)
+    const existing = await this.prisma.attendanceFormatRule.findFirst({
+      where: { scope: data.scope, organizationId: orgId },
+    });
+    const payload = {
+      permissionsPerAbsent: data.permissionsPerAbsent,
+      latesPerAbsentHalf: data.latesPerAbsentHalf,
+      caseStudyABEnabled: data.caseStudyABEnabled,
+      enabled: data.enabled,
+    };
+    if (existing) {
+      return this.prisma.attendanceFormatRule.update({
+        where: { id: existing.id },
+        data: payload,
+      });
+    }
+    return this.prisma.attendanceFormatRule.create({
+      data: { scope: data.scope, organizationId: orgId, ...payload },
     });
   }
 }

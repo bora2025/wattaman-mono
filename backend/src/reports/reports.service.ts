@@ -812,7 +812,7 @@ export class ReportsService {
 
     const holidays = await this.holidaysService.getHolidaysInRange(start, end);
     const holidayDateSet = new Set(holidays.map(h => h.date.toISOString().split('T')[0]));
-    let formatRule: any = { permissionsPerAbsent: 3, latesPerAbsentHalf: 3, enabled: false };
+    let formatRule: any = { permissionsPerAbsent: 3, latesPerAbsentHalf: 3, caseStudyABEnabled: true, enabled: false };
     try {
       formatRule = await this.sessionConfigService.getFormatRules('CLASS');
     } catch (e) {
@@ -821,19 +821,20 @@ export class ReportsService {
 
     const students = cls.students.map((s, idx) => {
       const studentRecs = records.filter(r => r.studentId === s.id);
-      const raw = {
-        present: studentRecs.filter(r => r.status === 'PRESENT').length,
-        late: studentRecs.filter(r => r.status === 'LATE').length,
-        absent: studentRecs.filter(r => r.status === 'ABSENT' && !holidayDateSet.has(r.date.toISOString().split('T')[0])).length,
-        dayOff: countPermissionDayEquivalents(studentRecs as any, (r: any) => r.studentId),
-      };
-      const totals = this.applyFormatRules(raw, formatRule as any);
+      const halfDayTotals = countHalfDayBlocks(
+        studentRecs as any,
+        (r: any) => r.studentId,
+        formatRule.caseStudyABEnabled ?? true,
+      );
       const permissionBreakdown = buildPermissionTypeBreakdown(studentRecs as any);
       return {
         studentId: s.id,
         studentNumber: s.studentNumber || String(idx + 1).padStart(4, '0'),
         studentName: s.user.name,
-        ...totals,
+        present: halfDayTotals.present,
+        late: halfDayTotals.late,
+        absent: halfDayTotals.absent,
+        dayOff: halfDayTotals.permission,
         permissionBreakdown,
       };
     });
@@ -864,7 +865,7 @@ export class ReportsService {
 
     const holidays = await this.holidaysService.getHolidaysInRange(start, end);
     const holidayDateSet = new Set(holidays.map(h => h.date.toISOString().split('T')[0]));
-    let formatRule: any = { permissionsPerAbsent: 3, latesPerAbsentHalf: 3, enabled: false };
+    let formatRule: any = { permissionsPerAbsent: 3, latesPerAbsentHalf: 3, caseStudyABEnabled: true, enabled: false };
     try {
       formatRule = await this.sessionConfigService.getFormatRules('STAFF');
     } catch (e) {
@@ -873,20 +874,21 @@ export class ReportsService {
 
     const staffData = staff.map((u, idx) => {
       const userRecs = records.filter(r => r.userId === u.id);
-      const raw = {
-        present: userRecs.filter(r => r.status === 'PRESENT').length,
-        late: userRecs.filter(r => r.status === 'LATE').length,
-        absent: userRecs.filter(r => r.status === 'ABSENT' && !holidayDateSet.has(r.date.toISOString().split('T')[0])).length,
-        dayOff: countPermissionDayEquivalents(userRecs as any, (r: any) => r.userId),
-      };
-      const totals = this.applyFormatRules(raw, formatRule as any);
+      const halfDayTotals = countHalfDayBlocks(
+        userRecs as any,
+        (r: any) => r.userId,
+        formatRule.caseStudyABEnabled ?? true,
+      );
       const permissionBreakdown = buildPermissionTypeBreakdown(userRecs as any);
       return {
         userId: u.id,
         staffNumber: String(idx + 1).padStart(4, '0'),
         staffName: u.name,
         role: u.role,
-        ...totals,
+        present: halfDayTotals.present,
+        late: halfDayTotals.late,
+        absent: halfDayTotals.absent,
+        dayOff: halfDayTotals.permission,
         permissionBreakdown,
       };
     });
