@@ -76,6 +76,42 @@ function buildPermissionTypeBreakdown(records: Array<{ status: string; permissio
   return base;
 }
 
+function permissionDayEquivalentForGroup(records: Array<{ status: string; permissionType: string | null }>): number {
+  const perms = records.filter(r => isDayOffStatus(r.status));
+  if (perms.length === 0) return 0;
+
+  // DAY_OFF and FULL_DAY/MULTI_DAY represent a full-day permission.
+  if (perms.some(r => r.status === 'DAY_OFF')) return 1;
+  if (perms.some(r => r.permissionType === 'FULL_DAY' || r.permissionType === 'MULTI_DAY')) return 1;
+
+  const hasMorningHalf = perms.some(r => r.permissionType === 'HALF_DAY_MORNING');
+  const hasAfternoonHalf = perms.some(r => r.permissionType === 'HALF_DAY_AFTERNOON');
+  if (hasMorningHalf && hasAfternoonHalf) return 1;
+  if (hasMorningHalf || hasAfternoonHalf) return 0.5;
+
+  // Legacy PERMISSION rows without permissionType: treat as full day to avoid undercount.
+  return 1;
+}
+
+function countPermissionDayEquivalents<T extends { status: string; permissionType: string | null; date: Date }>(
+  records: T[],
+  entityKey: (r: T) => string,
+): number {
+  const groups = new Map<string, T[]>();
+  for (const rec of records) {
+    if (!isDayOffStatus(rec.status)) continue;
+    const key = `${entityKey(rec)}|${rec.date.toISOString().split('T')[0]}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(rec);
+  }
+
+  let total = 0;
+  for (const groupRecords of groups.values()) {
+    total += permissionDayEquivalentForGroup(groupRecords);
+  }
+  return total;
+}
+
 @Injectable()
 export class ReportsService {
   constructor(
@@ -147,7 +183,7 @@ export class ReportsService {
     const present = attendances.filter(a => a.status === 'PRESENT').length;
     const absent = attendances.filter(a => a.status === 'ABSENT').length;
     const late = attendances.filter(a => a.status === 'LATE').length;
-    const permission = attendances.filter(a => isDayOffStatus(a.status)).length;
+    const permission = countPermissionDayEquivalents(attendances as any, (a: any) => a.studentId);
 
     return {
       total,
@@ -189,13 +225,13 @@ export class ReportsService {
     const studentPresent = studentAttendances.filter(a => a.status === 'PRESENT').length;
     const studentAbsent = studentAttendances.filter(a => a.status === 'ABSENT').length;
     const studentLate = studentAttendances.filter(a => a.status === 'LATE').length;
-    const studentPermission = studentAttendances.filter(a => isDayOffStatus(a.status)).length;
+    const studentPermission = countPermissionDayEquivalents(studentAttendances as any, (a: any) => a.studentId);
 
     // Staff summary — count from actual records
     const staffPresent = staffAttendances.filter(a => a.status === 'PRESENT').length;
     const staffRecordedAbsent = staffAttendances.filter(a => a.status === 'ABSENT').length;
     const staffLate = staffAttendances.filter(a => a.status === 'LATE').length;
-    const staffPermission = staffAttendances.filter(a => isDayOffStatus(a.status)).length;
+    const staffPermission = countPermissionDayEquivalents(staffAttendances as any, (a: any) => a.userId);
     // Staff with no attendance record = absent (not recorded)
     const staffWithRecords = new Set(staffAttendances.map(a => a.userId));
     const allStaffUsers = await this.prisma.user.findMany({
@@ -222,7 +258,6 @@ export class ReportsService {
       if (a.status === 'PRESENT') row.present++;
       else if (a.status === 'ABSENT') row.absent++;
       else if (a.status === 'LATE') row.late++;
-      else if (isDayOffStatus(a.status)) row.permission++;
     }
 
     // Build detail rows: unique staff (from attendance records)
@@ -242,7 +277,6 @@ export class ReportsService {
       if (a.status === 'PRESENT') row.present++;
       else if (a.status === 'ABSENT') row.absent++;
       else if (a.status === 'LATE') row.late++;
-      else if (isDayOffStatus(a.status)) row.permission++;
     }
 
     // Add staff with NO attendance record (they are absent)
@@ -254,6 +288,20 @@ export class ReportsService {
         department: u.department?.name || '',
         present: 0, absent: 1, late: 0, permission: 0,
       });
+    }
+
+    // Permission day-equivalent per person: half + half = full day.
+    for (const [studentId, row] of studentMap.entries()) {
+      row.permission = countPermissionDayEquivalents(
+        studentAttendances.filter((a: any) => a.studentId === studentId) as any,
+        (a: any) => a.studentId,
+      );
+    }
+    for (const [userId, row] of staffMap.entries()) {
+      row.permission = countPermissionDayEquivalents(
+        staffAttendances.filter((a: any) => a.userId === userId) as any,
+        (a: any) => a.userId,
+      );
     }
 
     // Get classes and departments for filter options
@@ -378,7 +426,7 @@ export class ReportsService {
       const present = attendances.filter(a => a.status === 'PRESENT').length;
       const absent = attendances.filter(a => a.status === 'ABSENT').length;
       const late = attendances.filter(a => a.status === 'LATE').length;
-      const permission = attendances.filter(a => isDayOffStatus(a.status)).length;
+      const permission = countPermissionDayEquivalents(attendances as any, (a: any) => a.studentId);
 
       results.push({
         classId: cls.id,
@@ -426,7 +474,7 @@ export class ReportsService {
     const present = attendances.filter(a => a.status === 'PRESENT').length;
     const absent = attendances.filter(a => a.status === 'ABSENT').length;
     const late = attendances.filter(a => a.status === 'LATE').length;
-    const permission = attendances.filter(a => isDayOffStatus(a.status)).length;
+    const permission = countPermissionDayEquivalents(attendances as any, (a: any) => a.studentId);
 
     const byClass: Record<string, { className: string; present: number; absent: number; late: number; permission: number; total: number }> = {};
     for (const a of attendances) {
@@ -437,7 +485,14 @@ export class ReportsService {
       if (a.status === 'PRESENT') byClass[a.classId].present++;
       else if (a.status === 'ABSENT') byClass[a.classId].absent++;
       else if (a.status === 'LATE') byClass[a.classId].late++;
-      else if (isDayOffStatus(a.status)) byClass[a.classId].permission++;
+    }
+
+    // Permission in class summaries as day-equivalents per student/day
+    for (const classId of Object.keys(byClass)) {
+      byClass[classId].permission = countPermissionDayEquivalents(
+        attendances.filter((a: any) => a.classId === classId) as any,
+        (a: any) => a.studentId,
+      );
     }
 
     return {
@@ -623,7 +678,7 @@ export class ReportsService {
         present: studentRecs.filter(r => r.status === 'PRESENT').length,
         late: studentRecs.filter(r => r.status === 'LATE').length,
         absent: studentRecs.filter(r => r.status === 'ABSENT' && !holidayDateSet.has(r.date.toISOString().split('T')[0])).length,
-        dayOff: studentRecs.filter(r => isDayOffStatus(r.status)).length,
+        dayOff: countPermissionDayEquivalents(studentRecs as any, (r: any) => r.studentId),
       };
       return this.applyFormatRules(raw, formatRule as any);
     };
@@ -666,7 +721,7 @@ export class ReportsService {
         present: studentRecs.filter(r => r.status === 'PRESENT').length,
         late: studentRecs.filter(r => r.status === 'LATE').length,
         absent: studentRecs.filter(r => r.status === 'ABSENT' && !holidayDateSet.has(r.date.toISOString().split('T')[0])).length,
-        dayOff: studentRecs.filter(r => isDayOffStatus(r.status)).length,
+        dayOff: countPermissionDayEquivalents(studentRecs as any, (r: any) => r.studentId),
       };
       const totals = this.applyFormatRules(raw, formatRule as any);
       const permissionBreakdown = buildPermissionTypeBreakdown(studentRecs as any);
@@ -713,7 +768,7 @@ export class ReportsService {
         present: userRecs.filter(r => r.status === 'PRESENT').length,
         late: userRecs.filter(r => r.status === 'LATE').length,
         absent: userRecs.filter(r => r.status === 'ABSENT' && !holidayDateSet.has(r.date.toISOString().split('T')[0])).length,
-        dayOff: userRecs.filter(r => isDayOffStatus(r.status)).length,
+        dayOff: countPermissionDayEquivalents(userRecs as any, (r: any) => r.userId),
       };
       const totals = this.applyFormatRules(raw, formatRule as any);
       const permissionBreakdown = buildPermissionTypeBreakdown(userRecs as any);
@@ -953,7 +1008,7 @@ export class ReportsService {
         present: userRecs.filter(r => r.status === 'PRESENT').length,
         late: userRecs.filter(r => r.status === 'LATE').length,
         absent: userRecs.filter(r => r.status === 'ABSENT' && !holidayDateSet.has(r.date.toISOString().split('T')[0])).length,
-        dayOff: userRecs.filter(r => isDayOffStatus(r.status)).length,
+        dayOff: countPermissionDayEquivalents(userRecs as any, (r: any) => r.userId),
       };
       return this.applyFormatRules(raw, formatRule as any);
     };
@@ -2274,7 +2329,7 @@ export class ReportsService {
       present: recs.filter(r => r.status === 'PRESENT').length,
       late: recs.filter(r => r.status === 'LATE').length,
       absent: recs.filter(r => r.status === 'ABSENT' && !holidayDateSet.has(r.date.toISOString().split('T')[0])).length,
-      dayOff: recs.filter(r => isDayOffStatus(r.status)).length,
+      dayOff: countPermissionDayEquivalents(recs as any, (r: any) => r.userId),
     });
 
     return [{
