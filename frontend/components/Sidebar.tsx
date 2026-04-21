@@ -59,6 +59,23 @@ function pickBottomTabs(navItems: NavItem[], bottomTabs?: string[]): NavItem[] {
   if (bottomTabs) {
     return bottomTabs.map(href => navItems.find(n => n.href === href)).filter(Boolean) as NavItem[];
   }
+
+  // UX-specific fixed tab order where camera stays centered.
+  const hasAdminRoot = navItems.some(n => n.href === '/admin');
+  const hasTeacherRoot = navItems.some(n => n.href === '/teacher');
+
+  if (hasTeacherRoot) {
+    const teacherOrder = ['/teacher', '/teacher/classes', '/teacher/camera', '/teacher/reports', '/teacher/session-settings'];
+    const teacherTabs = teacherOrder.map(href => navItems.find(n => n.href === href)).filter(Boolean) as NavItem[];
+    if (teacherTabs.length === 5) return teacherTabs;
+  }
+
+  if (hasAdminRoot) {
+    const adminOrder = ['/admin', '/admin/users', '/admin/camera', '/admin/reports', '/admin/settings'];
+    const adminTabs = adminOrder.map(href => navItems.find(n => n.href === href)).filter(Boolean) as NavItem[];
+    if (adminTabs.length === 5) return adminTabs;
+  }
+
   // Auto-pick: first item (dashboard) + up to 3 most important + last (settings)
   if (navItems.length <= 5) return navItems;
   const picked = [navItems[0]];
