@@ -8,6 +8,7 @@
   --color-primary-dark: #00A88A;
   --color-primary-light: #E6FFF7;
   --color-bg-mobile: #EEFFF7;
+  --color-bg-mobile-2: #E8F8FF;
   --color-card-border: rgba(0, 201, 167, 0.4);
   --color-text: #0F172A;
   --color-text-secondary: #64748B;
@@ -20,7 +21,10 @@
 @layer base {
   body {
     @apply text-slate-800 antialiased;
-    background-color: var(--color-bg-mobile);
+    background:
+      radial-gradient(1200px 300px at -10% -10%, rgba(0, 201, 167, 0.12), transparent 60%),
+      radial-gradient(900px 240px at 110% -20%, rgba(56, 189, 248, 0.12), transparent 60%),
+      linear-gradient(180deg, var(--color-bg-mobile) 0%, var(--color-bg-mobile-2) 100%);
   }
   @screen lg {
     body {
@@ -88,6 +92,7 @@
     @apply bg-white shadow-sm;
     border-radius: 12px;
     border: 1px solid var(--color-card-border);
+    box-shadow: 0 6px 18px rgba(15, 118, 110, 0.08);
   }
   @screen lg {
     .card {
@@ -117,6 +122,7 @@
   .btn-primary {
     @apply btn text-white shadow-sm;
     background-color: var(--color-primary);
+    box-shadow: 0 8px 20px rgba(0, 168, 138, 0.24);
   }
   .btn-primary:hover {
     background-color: var(--color-primary-dark);
@@ -186,7 +192,7 @@
     min-height: 100vh;
     min-height: 100dvh;
     /* Room for bottom nav on mobile */
-    padding-bottom: 70px;
+    padding-bottom: 84px;
   }
   @screen lg {
     .page-content {
@@ -197,6 +203,7 @@
     @apply px-4 sm:px-6 lg:px-8 py-4 sm:py-5;
     background: transparent;
     border: none;
+    margin-top: 6px;
   }
   @screen lg {
     .page-header {
@@ -207,9 +214,20 @@
     @apply px-4 sm:px-6 lg:px-8 py-4 sm:py-6;
   }
 
+  /* Common section heading for consistent modern hierarchy */
+  .section-title {
+    @apply text-base sm:text-lg font-bold tracking-tight;
+    color: var(--color-text);
+  }
+  .section-subtitle {
+    @apply text-xs sm:text-sm;
+    color: var(--color-text-secondary);
+  }
+
   /* ── Table — horizontal scroll on mobile ── */
   .table-container {
     @apply card overflow-hidden;
+    border-radius: 14px;
   }
   .table-container .table-scroll {
     @apply overflow-x-auto -mx-px;
@@ -229,6 +247,10 @@
   }
   .table-container tbody tr {
     @apply border-b border-slate-100 last:border-b-0 hover:bg-slate-50 transition-colors;
+  }
+
+  .table-container tbody tr:nth-child(odd) {
+    background: rgba(248, 250, 252, 0.45);
   }
 
   /* ── Avatar — mobile: teal tint ── */
@@ -295,6 +317,7 @@
     border-radius: 14px;
     border: 1.5px dashed var(--color-card-border);
     min-height: 80px;
+    box-shadow: 0 6px 16px rgba(2, 132, 199, 0.08);
   }
   .action-card-mobile .action-icon {
     display: flex;
@@ -315,6 +338,60 @@
   @screen lg {
     .action-card-mobile {
       @apply hidden;
+    }
+  }
+
+  /* ── Modern mobile chrome ── */
+  .mobile-topbar-wrap {
+    @apply fixed top-0 left-0 right-0 z-40 px-4 py-2;
+    background: transparent;
+  }
+  .mobile-topbar {
+    @apply flex items-center justify-between px-3 py-2 rounded-2xl;
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 8px 22px rgba(15, 118, 110, 0.12);
+  }
+
+  .mobile-bottomnav-wrap {
+    @apply fixed bottom-0 left-0 right-0 z-40 px-3;
+    background: linear-gradient(180deg, rgba(238, 255, 247, 0) 0%, rgba(238, 255, 247, 0.9) 30%, rgba(238, 255, 247, 1) 100%);
+  }
+  .mobile-bottomnav {
+    @apply flex items-end justify-around px-2 py-2 rounded-2xl;
+    min-height: 72px;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    box-shadow: 0 10px 28px rgba(2, 132, 199, 0.14);
+  }
+  .mobile-tab-btn {
+    @apply flex flex-col items-center justify-center flex-1 relative transition-all duration-200;
+    min-height: 52px;
+  }
+  .mobile-tab-label {
+    @apply text-[10px] mt-1 font-medium truncate max-w-[64px];
+  }
+  .mobile-tab-indicator {
+    @apply absolute -bottom-1 w-5 h-0.5 rounded-full;
+  }
+  .mobile-tab-camera {
+    margin-top: -16px;
+    height: 62px;
+    background: linear-gradient(180deg, #00C9A7 0%, #00A88A 100%);
+    color: #ffffff !important;
+    border-radius: 9999px;
+    box-shadow: 0 10px 20px rgba(0, 168, 138, 0.36);
+  }
+  .mobile-tab-camera .mobile-tab-label {
+    color: rgba(255, 255, 255, 0.95);
+  }
+
+  @screen lg {
+    .mobile-topbar-wrap,
+    .mobile-bottomnav-wrap {
+      display: none;
     }
   }
 }

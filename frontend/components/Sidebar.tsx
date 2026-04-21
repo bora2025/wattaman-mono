@@ -118,15 +118,16 @@ export default function Sidebar({ title, subtitle, navItems, accentColor = 'indi
   return (
     <>
       {/* ── Mobile: Top greeting bar ── */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-40 px-4 py-3 flex items-center justify-between" style={{ paddingTop: 'env(safe-area-inset-top)', background: 'var(--color-bg-mobile)' }}>
-        <div>
-          <h1 className="font-bold text-lg" style={{ color: 'var(--color-text)' }}>{title}</h1>
-          {subtitle && <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{subtitle}</p>}
-        </div>
-        <div className="flex items-center gap-2">
+      <div className="lg:hidden mobile-topbar-wrap">
+        <div className="mobile-topbar" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+          <div>
+            <h1 className="font-bold text-lg leading-tight" style={{ color: 'var(--color-text)' }}>{title}</h1>
+            {subtitle && <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{subtitle}</p>}
+          </div>
+          <div className="flex items-center gap-2">
           <button
             onClick={() => setLang(lang === 'en' ? 'kh' : 'en')}
-            className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm"
+            className="w-10 h-10 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm ring-1 ring-white/70"
             style={{ color: 'var(--color-icon)' }}
             aria-label="Language"
           >
@@ -134,41 +135,45 @@ export default function Sidebar({ title, subtitle, navItems, accentColor = 'indi
           </button>
           <button
             onClick={handleLogout}
-            className="w-10 h-10 rounded-full bg-white flex items-center justify-center shadow-sm"
+            className="w-10 h-10 rounded-full bg-white/90 backdrop-blur flex items-center justify-center shadow-sm ring-1 ring-white/70"
             style={{ color: 'var(--color-icon)' }}
             aria-label="Logout"
           >
             <IconLogout size={20} />
           </button>
+          </div>
         </div>
       </div>
 
       {/* ── Mobile: Bottom tab bar (matches mobile app) ── */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t" style={{ borderColor: 'var(--color-input-border)', paddingBottom: 'env(safe-area-inset-bottom)' }}>
-        <nav className="flex items-stretch justify-around" style={{ height: '60px' }}>
-          {tabs.map((tab) => {
+      <div className="lg:hidden mobile-bottomnav-wrap" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+        <nav className="mobile-bottomnav">
+          {tabs.map((tab, idx) => {
             if (tab.href === '__more__') {
               return (
                 <button
                   key="more"
                   onClick={() => { setShowMore(true); setCollapsed(true); }}
-                  className="flex items-center justify-center flex-1 transition-colors"
+                  className="mobile-tab-btn"
                   style={{ color: 'var(--color-text-secondary)' }}
                 >
                   <NavIcon icon={tab.icon} size={24} />
+                  <span className="mobile-tab-label">{t('common.more') || 'More'}</span>
                 </button>
               );
             }
             const isActive = pathname === tab.href;
+            const isCameraCenter = tabs.length === 5 && idx === 2;
             return (
               <Link
                 key={tab.href}
                 href={tab.href}
-                className="flex items-center justify-center flex-1 relative transition-colors"
+                className={`mobile-tab-btn ${isCameraCenter ? 'mobile-tab-camera' : ''}`}
                 style={{ color: isActive ? 'var(--color-primary)' : 'var(--color-text-secondary)' }}
               >
                 <NavIcon icon={tab.icon} size={24} />
-                {isActive && <span className="absolute bottom-1.5 w-5 h-0.5 rounded-full" style={{ background: 'var(--color-primary)' }} />}
+                <span className="mobile-tab-label">{t(tab.label)}</span>
+                {isActive && <span className="mobile-tab-indicator" style={{ background: 'var(--color-primary)' }} />}
               </Link>
             );
           })}
