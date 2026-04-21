@@ -73,6 +73,7 @@ export default function TeacherReports() {
   const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState<'daily' | 'totals'>('daily')
   const [sessionConfigs, setSessionConfigs] = useState<Array<{session: number; type: string; startTime: string; endTime: string}>>([])
+  const [caseStudyABEnabled, setCaseStudyABEnabled] = useState(true)
 
   useEffect(() => {
     fetchClasses()
@@ -115,13 +116,18 @@ export default function TeacherReports() {
     setLoading(true)
     setError('')
     try {
-      const [gridRes, totalsRes] = await Promise.all([
+      const [gridRes, totalsRes, classRuleRes] = await Promise.all([
         apiFetch(`/api/reports/attendance-grid?classId=${selectedClassId}&date=${selectedDate}`),
         apiFetch(`/api/reports/attendance-totals?classId=${selectedClassId}&date=${selectedDate}`),
+        apiFetch('/api/session-config/format-rules?scope=CLASS'),
       ])
       if (gridRes.ok) setGrid(await gridRes.json())
       else setError('Failed to load attendance data.')
       if (totalsRes.ok) setTotals(await totalsRes.json())
+      if (classRuleRes.ok) {
+        const rule = await classRuleRes.json()
+        setCaseStudyABEnabled(rule.caseStudyABEnabled ?? true)
+      }
     } catch (err) {
       console.error('Error fetching report data:', err)
       setError('Failed to connect to server.')
@@ -191,8 +197,13 @@ export default function TeacherReports() {
 
       if (hasPresent) acc.present += 0.5
       else if (hasLate) acc.late += 0.5
-      else if (hasPermission) acc.permission += 0.5
-      else if (hasAbsent) acc.absent += 0.5
+      else if (caseStudyABEnabled) {
+        if (hasPermission) acc.permission += 0.5
+        else if (hasAbsent) acc.absent += 0.5
+      } else {
+        if (hasAbsent) acc.absent += 0.5
+        else if (hasPermission) acc.permission += 0.5
+      }
     }
     return acc
   }, { present: 0, late: 0, absent: 0, permission: 0 })

@@ -147,6 +147,7 @@ export default function AdminReports() {
   const [exportUseCustomRange, setExportUseCustomRange] = useState(false)
   const [exporting, setExporting] = useState(false)
   const [exportMessage, setExportMessage] = useState('')
+  const [caseStudyABEnabled, setCaseStudyABEnabled] = useState(true)
 
   // Print report state
   const [showPrintForm, setShowPrintForm] = useState(false)
@@ -224,13 +225,18 @@ export default function AdminReports() {
     setLoading(true)
     setError('')
     try {
-      const [gridRes, totalsRes] = await Promise.all([
+      const [gridRes, totalsRes, classRuleRes] = await Promise.all([
         apiFetch(`/api/reports/attendance-grid?classId=${selectedClassId}&date=${selectedDate}`),
         apiFetch(`/api/reports/attendance-totals?classId=${selectedClassId}&date=${selectedDate}`),
+        apiFetch('/api/session-config/format-rules?scope=CLASS'),
       ])
       if (gridRes.ok) setGrid(await gridRes.json())
       else setError('Failed to load attendance data.')
       if (totalsRes.ok) setTotals(await totalsRes.json())
+      if (classRuleRes.ok) {
+        const rule = await classRuleRes.json()
+        setCaseStudyABEnabled(rule.caseStudyABEnabled ?? true)
+      }
     } catch (err) {
       console.error('Error fetching report data:', err)
       setError('Failed to connect to server.')
@@ -374,11 +380,18 @@ export default function AdminReports() {
       const hasPermission = statuses.some(s => s === 'PERMISSION' || s === 'DAY_OFF')
       const hasAbsent = statuses.some(s => s === 'ABSENT')
 
-      // Mixed block precedence: PRESENT > LATE > PERMISSION > ABSENT
+      // Mixed block precedence is configurable from Session Settings:
+      // Case A/B enabled: PRESENT > LATE > PERMISSION > ABSENT
+      // Disabled: PRESENT > LATE > ABSENT > PERMISSION
       if (hasPresent) acc.present += 0.5
       else if (hasLate) acc.late += 0.5
-      else if (hasPermission) acc.permission += 0.5
-      else if (hasAbsent) acc.absent += 0.5
+      else if (caseStudyABEnabled) {
+        if (hasPermission) acc.permission += 0.5
+        else if (hasAbsent) acc.absent += 0.5
+      } else {
+        if (hasAbsent) acc.absent += 0.5
+        else if (hasPermission) acc.permission += 0.5
+      }
     }
     return acc
   }, { present: 0, late: 0, absent: 0, permission: 0 })

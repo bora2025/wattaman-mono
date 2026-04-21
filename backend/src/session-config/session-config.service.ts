@@ -147,27 +147,47 @@ export class SessionConfigService {
 
   // ========== ATTENDANCE FORMAT RULES ==========
 
+  async getUserOrganizationId(userId: string): Promise<string | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { departmentId: true },
+    });
+    return user?.departmentId || null;
+  }
+
   /** Get attendance format rules for a scope (CLASS or STAFF) */
-  async getFormatRules(scope: string) {
+  async getFormatRules(scope: string, organizationId?: string | null) {
+    const orgId = organizationId || null;
     const rule = await this.prisma.attendanceFormatRule.findUnique({
-      where: { scope },
+      where: { scope_organizationId: { scope, organizationId: orgId } },
     });
     if (rule) return rule;
+
+    // Fallback to global scope defaults when organization-specific record does not exist.
+    if (orgId) {
+      const globalRule = await this.prisma.attendanceFormatRule.findUnique({
+        where: { scope_organizationId: { scope, organizationId: null } },
+      });
+      if (globalRule) return globalRule;
+    }
+
     // Return defaults
     return {
       id: null,
       scope,
+      organizationId: orgId,
       permissionsPerAbsent: 3,
       latesPerAbsentHalf: 3,
+      caseStudyABEnabled: true,
       enabled: false,
     };
   }
 
   /** Get all format rules (both CLASS and STAFF) */
-  async getAllFormatRules() {
+  async getAllFormatRules(organizationId?: string | null) {
     const [classRule, staffRule] = await Promise.all([
-      this.getFormatRules('CLASS'),
-      this.getFormatRules('STAFF'),
+      this.getFormatRules('CLASS', organizationId),
+      this.getFormatRules('STAFF', organizationId),
     ]);
     return { CLASS: classRule, STAFF: staffRule };
   }
@@ -175,21 +195,27 @@ export class SessionConfigService {
   /** Upsert attendance format rules for a scope */
   async saveFormatRules(data: {
     scope: string;
+    organizationId?: string | null;
     permissionsPerAbsent: number;
     latesPerAbsentHalf: number;
+    caseStudyABEnabled: boolean;
     enabled: boolean;
   }) {
+    const orgId = data.organizationId || null;
     return this.prisma.attendanceFormatRule.upsert({
-      where: { scope: data.scope },
+      where: { scope_organizationId: { scope: data.scope, organizationId: orgId } },
       update: {
         permissionsPerAbsent: data.permissionsPerAbsent,
         latesPerAbsentHalf: data.latesPerAbsentHalf,
+        caseStudyABEnabled: data.caseStudyABEnabled,
         enabled: data.enabled,
       },
       create: {
         scope: data.scope,
+        organizationId: orgId,
         permissionsPerAbsent: data.permissionsPerAbsent,
         latesPerAbsentHalf: data.latesPerAbsentHalf,
+        caseStudyABEnabled: data.caseStudyABEnabled,
         enabled: data.enabled,
       },
     });

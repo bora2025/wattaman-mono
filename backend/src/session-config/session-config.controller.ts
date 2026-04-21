@@ -1,4 +1,5 @@
 import { Controller, Get, Post, Delete, Body, Query, UseGuards } from '@nestjs/common';
+import { Request } from '@nestjs/common';
 import { SessionConfigService } from './session-config.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -45,24 +46,36 @@ export class SessionConfigController {
 
   /** Get attendance format rules (all scopes or specific) */
   @Get('format-rules')
-  async getFormatRules(@Query('scope') scope?: string) {
+  async getFormatRules(@Request() req, @Query('scope') scope?: string) {
+    const orgId = req?.user?.role === 'ADMIN'
+      ? await this.sessionConfigService.getUserOrganizationId(req.user.userId)
+      : null;
     if (scope) {
-      return this.sessionConfigService.getFormatRules(scope);
+      return this.sessionConfigService.getFormatRules(scope, orgId);
     }
-    return this.sessionConfigService.getAllFormatRules();
+    return this.sessionConfigService.getAllFormatRules(orgId);
   }
 
   /** Save attendance format rules for a scope */
   @Post('format-rules')
   async saveFormatRules(
+    @Request() req,
     @Body()
     body: {
       scope: string;
       permissionsPerAbsent: number;
       latesPerAbsentHalf: number;
+      caseStudyABEnabled?: boolean;
       enabled: boolean;
     },
   ) {
-    return this.sessionConfigService.saveFormatRules(body);
+    const orgId = req?.user?.role === 'ADMIN'
+      ? await this.sessionConfigService.getUserOrganizationId(req.user.userId)
+      : null;
+    return this.sessionConfigService.saveFormatRules({
+      ...body,
+      organizationId: orgId,
+      caseStudyABEnabled: body.caseStudyABEnabled ?? true,
+    });
   }
 }

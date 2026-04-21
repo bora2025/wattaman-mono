@@ -112,24 +112,34 @@ function countPermissionDayEquivalents<T extends { status: string; permissionTyp
   return total;
 }
 
-function blockContribution(statuses: string[]): { present: number; late: number; absent: number; permission: number } {
+function blockContribution(
+  statuses: string[],
+  preferPermissionOverAbsent: boolean,
+): { present: number; late: number; absent: number; permission: number } {
   const hasPresent = statuses.some(s => s === 'PRESENT');
   const hasLate = statuses.some(s => s === 'LATE');
   const hasPermission = statuses.some(s => isDayOffStatus(s));
   const hasAbsent = statuses.some(s => s === 'ABSENT');
 
   // Precedence for mixed states in the same half-day block:
-  // PRESENT > LATE > PERMISSION > ABSENT
+  // PRESENT > LATE > (PERMISSION > ABSENT) if Case A/B enabled
+  // PRESENT > LATE > (ABSENT > PERMISSION) if disabled
   if (hasPresent) return { present: 0.5, late: 0, absent: 0, permission: 0 };
   if (hasLate) return { present: 0, late: 0.5, absent: 0, permission: 0 };
-  if (hasPermission) return { present: 0, late: 0, absent: 0, permission: 0.5 };
-  if (hasAbsent) return { present: 0, late: 0, absent: 0.5, permission: 0 };
+  if (preferPermissionOverAbsent) {
+    if (hasPermission) return { present: 0, late: 0, absent: 0, permission: 0.5 };
+    if (hasAbsent) return { present: 0, late: 0, absent: 0.5, permission: 0 };
+  } else {
+    if (hasAbsent) return { present: 0, late: 0, absent: 0.5, permission: 0 };
+    if (hasPermission) return { present: 0, late: 0, absent: 0, permission: 0.5 };
+  }
   return { present: 0, late: 0, absent: 0, permission: 0 };
 }
 
 function countHalfDayBlocks<T extends { status: string; date: Date; session: number }>(
   records: T[],
   entityKey: (r: T) => string,
+  preferPermissionOverAbsent: boolean,
 ): { present: number; late: number; absent: number; permission: number } {
   const grouped = new Map<string, T[]>();
   for (const rec of records) {
@@ -143,13 +153,13 @@ function countHalfDayBlocks<T extends { status: string; date: Date; session: num
     const morningStatuses = dayRecords.filter(r => r.session === 1 || r.session === 2).map(r => r.status);
     const afternoonStatuses = dayRecords.filter(r => r.session === 3 || r.session === 4).map(r => r.status);
 
-    const morning = blockContribution(morningStatuses);
+    const morning = blockContribution(morningStatuses, preferPermissionOverAbsent);
     total.present += morning.present;
     total.late += morning.late;
     total.absent += morning.absent;
     total.permission += morning.permission;
 
-    const afternoon = blockContribution(afternoonStatuses);
+    const afternoon = blockContribution(afternoonStatuses, preferPermissionOverAbsent);
     total.present += afternoon.present;
     total.late += afternoon.late;
     total.absent += afternoon.absent;
@@ -260,10 +270,13 @@ export class ReportsService {
     };
   }
 
-  async getDashboardSummary(date?: Date) {
+  async getDashboardSummary(date?: Date, requesterUserId?: string) {
     const targetDate = date || new Date();
     const dayStart = toUTCMidnight(targetDate);
     const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+    const organizationId = requesterUserId
+      ? await this.sessionConfigService.getUserOrganizationId(requesterUserId)
+      : null;
 
     // Student attendance for today
     const studentAttendances = await this.prisma.attendance.findMany({
@@ -287,14 +300,24 @@ export class ReportsService {
     const totalStaff = await this.prisma.user.count({ where: { role: { notIn: ['STUDENT', 'PARENT'] } } });
 
     // Student summary (half-day block scoring)
-    const studentTotals = countHalfDayBlocks(studentAttendances as any, (a: any) => a.studentId);
+    const classRule = await this.sessionConfigService.getFormatRules('CLASS', organizationId);
+    const studentTotals = countHalfDayBlocks(
+      studentAttendances as any,
+      (a: any) => a.studentId,
+      classRule.caseStudyABEnabled ?? true,
+    );
     const studentPresent = studentTotals.present;
     const studentAbsent = studentTotals.absent;
     const studentLate = studentTotals.late;
     const studentPermission = studentTotals.permission;
 
     // Staff summary — half-day block scoring from actual records
-    const staffTotals = countHalfDayBlocks(staffAttendances as any, (a: any) => a.userId);
+    const staffRule = await this.sessionConfigService.getFormatRules('STAFF', organizationId);
+    const staffTotals = countHalfDayBlocks(
+      staffAttendances as any,
+      (a: any) => a.userId,
+      staffRule.caseStudyABEnabled ?? true,
+    );
     const staffPresent = staffTotals.present;
     const staffRecordedAbsent = staffTotals.absent;
     const staffLate = staffTotals.late;
@@ -362,6 +385,7 @@ export class ReportsService {
       const totals = countHalfDayBlocks(
         studentAttendances.filter((a: any) => a.studentId === studentId) as any,
         (a: any) => a.studentId,
+        classRule.caseStudyABEnabled ?? true,
       );
       row.present = totals.present;
       row.absent = totals.absent;
@@ -372,6 +396,7 @@ export class ReportsService {
       const totals = countHalfDayBlocks(
         staffAttendances.filter((a: any) => a.userId === userId) as any,
         (a: any) => a.userId,
+        staffRule.caseStudyABEnabled ?? true,
       );
       row.present = totals.present;
       row.absent = totals.absent;

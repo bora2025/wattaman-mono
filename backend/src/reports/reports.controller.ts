@@ -41,8 +41,11 @@ export class ReportsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN')
   @Get('dashboard-summary')
-  async getDashboardSummary(@Query('date') date?: string) {
-    return this.reportsService.getDashboardSummary(date ? new Date(date) : undefined);
+  async getDashboardSummary(@Request() req, @Query('date') date?: string) {
+    return this.reportsService.getDashboardSummary(
+      date ? new Date(date) : undefined,
+      req?.user?.userId,
+    );
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

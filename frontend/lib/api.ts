@@ -65,12 +65,24 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
 }
 
 /** Helper to get the current user info from the access token cookie via /auth/me */
-export async function getCurrentUser(): Promise<{ userId: string; email: string; role: string } | null> {
+export async function getCurrentUser(): Promise<{
+  userId: string;
+  email: string;
+  role: string;
+  departmentId?: string | null;
+  department?: { id: string; name: string; nameKh?: string } | null;
+} | null> {
   try {
     const res = await apiFetch('/api/auth/me');
     if (res.ok) {
       const data = await res.json();
-      return { userId: data.id, email: data.email, role: data.role };
+      return {
+        userId: data.id,
+        email: data.email,
+        role: data.role,
+        departmentId: data.departmentId ?? null,
+        department: data.department ?? null,
+      };
     }
     return null;
   } catch {

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Sidebar from '../../../components/Sidebar'
 import { adminNav } from '../../../lib/admin-nav'
-import { apiFetch } from '../../../lib/api'
+import { apiFetch, getCurrentUser } from '../../../lib/api'
 import { useLanguage } from '../../../lib/i18n'
 
 const SESSION_NAMES: Record<number, string> = {
@@ -156,10 +156,11 @@ export default function SessionSettingsPage() {
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
   const [selectedPreset, setSelectedPreset] = useState<string>('custom')
+  const [organizationName, setOrganizationName] = useState<string>('Global')
 
   // Attendance format rules state
-  const [classFormatRule, setClassFormatRule] = useState({ permissionsPerAbsent: 3, latesPerAbsentHalf: 3, enabled: false })
-  const [staffFormatRule, setStaffFormatRule] = useState({ permissionsPerAbsent: 3, latesPerAbsentHalf: 3, enabled: false })
+  const [classFormatRule, setClassFormatRule] = useState({ permissionsPerAbsent: 3, latesPerAbsentHalf: 3, caseStudyABEnabled: true, enabled: false })
+  const [staffFormatRule, setStaffFormatRule] = useState({ permissionsPerAbsent: 3, latesPerAbsentHalf: 3, caseStudyABEnabled: true, enabled: false })
 
   const detectPreset = (cfgs: SessionConfigItem[]): string => {
     for (const preset of ATTENDANCE_PRESETS) {
@@ -186,11 +187,14 @@ export default function SessionSettingsPage() {
 
   const fetchAllConfigs = async () => {
     try {
-      const [classRes, staffRes, rulesRes] = await Promise.all([
+      const [classRes, staffRes, rulesRes, me] = await Promise.all([
         apiFetch('/api/session-config/global'),
         apiFetch('/api/session-config/staff'),
         apiFetch('/api/session-config/format-rules'),
+        getCurrentUser(),
       ])
+      if (me?.department?.name) setOrganizationName(me.department.name)
+      else setOrganizationName('Global')
       if (classRes.ok) {
         const data = await classRes.json()
         if (data.length >= 4) {
@@ -211,8 +215,18 @@ export default function SessionSettingsPage() {
       }
       if (rulesRes.ok) {
         const rules = await rulesRes.json()
-        if (rules.CLASS) setClassFormatRule(rules.CLASS)
-        if (rules.STAFF) setStaffFormatRule(rules.STAFF)
+        if (rules.CLASS) setClassFormatRule({
+          permissionsPerAbsent: rules.CLASS.permissionsPerAbsent,
+          latesPerAbsentHalf: rules.CLASS.latesPerAbsentHalf,
+          caseStudyABEnabled: rules.CLASS.caseStudyABEnabled ?? true,
+          enabled: rules.CLASS.enabled,
+        })
+        if (rules.STAFF) setStaffFormatRule({
+          permissionsPerAbsent: rules.STAFF.permissionsPerAbsent,
+          latesPerAbsentHalf: rules.STAFF.latesPerAbsentHalf,
+          caseStudyABEnabled: rules.STAFF.caseStudyABEnabled ?? true,
+          enabled: rules.STAFF.enabled,
+        })
       }
     } catch (e) {
       console.error('Error fetching session configs:', e)
@@ -244,6 +258,7 @@ export default function SessionSettingsPage() {
             scope: isStaff ? 'STAFF' : 'CLASS',
             permissionsPerAbsent: currentRule.permissionsPerAbsent,
             latesPerAbsentHalf: currentRule.latesPerAbsentHalf,
+            caseStudyABEnabled: currentRule.caseStudyABEnabled,
             enabled: currentRule.enabled,
           }),
         }),
@@ -328,6 +343,11 @@ export default function SessionSettingsPage() {
             {activeTab === 'CLASS'
               ? 'Configure global default time windows for student class attendance. Teachers can override these per-class.'
               : 'Configure time windows for staff check-in and check-out sessions.'}
+          </div>
+
+          <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
+            <span>🏢</span>
+            <span>Admin scope: {organizationName} organization</span>
           </div>
 
           {/* Attendance Format Presets — Class Sessions only */}
@@ -543,6 +563,38 @@ export default function SessionSettingsPage() {
                       <p className="text-xs text-slate-500 mt-2">
                         Every {activeTab === 'STAFF' ? staffFormatRule.latesPerAbsentHalf : classFormatRule.latesPerAbsentHalf} accumulated lates will be converted to 1 half-day absence in reports
                       </p>
+                    </div>
+
+                    <div className="p-4 rounded-xl border border-blue-200 bg-blue-50 sm:col-span-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-lg">🧪</span>
+                            <h4 className="font-medium text-sm text-slate-800">Case Study A/B Mixed Session Rules</h4>
+                          </div>
+                          <p className="text-xs text-slate-600">Apply professional half-day mixed scoring for AM/PM blocks in reports and dashboard.</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={activeTab === 'STAFF' ? staffFormatRule.caseStudyABEnabled : classFormatRule.caseStudyABEnabled}
+                            onChange={(e) => {
+                              const val = e.target.checked
+                              if (activeTab === 'STAFF') {
+                                setStaffFormatRule(prev => ({ ...prev, caseStudyABEnabled: val }))
+                              } else {
+                                setClassFormatRule(prev => ({ ...prev, caseStudyABEnabled: val }))
+                              }
+                            }}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                      </div>
+                      <ul className="mt-3 text-xs text-slate-600 space-y-1">
+                        <li>Case A: AM absent + PM permission gives Absent 0.5, Permission 0.5</li>
+                        <li>Case B: AM present + AM absent + PM permission gives Present 0.5, Absent 0, Permission 0.5</li>
+                      </ul>
                     </div>
                   </div>
                 )}
