@@ -121,6 +121,14 @@ export default function ManageEmployees() {
 
   useEffect(() => { fetchUsers(); fetchDepartments() }, [])
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('section') === 'departments') {
+      setActiveSection('departments')
+    }
+  }, [])
+
   const fetchUsers = async () => {
     try {
       const res = await apiFetch('/api/auth/users')
