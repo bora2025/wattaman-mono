@@ -8,7 +8,6 @@ import Sidebar from '../../components/Sidebar'
 import { teacherNav } from '../../lib/teacher-nav'
 import { apiFetch, getCurrentUser } from '../../lib/api'
 import { useLanguage } from '../../lib/i18n'
-import { IconBook, IconCamera, IconClipboard, IconChart, IconClock, IconSettings } from '../../components/Icons'
 
 interface Class {
   id: string
@@ -20,9 +19,24 @@ interface Class {
   }
 }
 
+interface ClassSummary {
+  classId: string
+  className: string
+  subject: string | null
+  totalStudents: number
+  present: number
+  absent: number
+  late: number
+  permission: number
+  attendanceRate: number
+}
+
 export default function TeacherDashboard() {
   const [classes, setClasses] = useState<Class[]>([])
   const [teacherId, setTeacherId] = useState<string | null>(null)
+  const [summaries, setSummaries] = useState<ClassSummary[]>([])
+  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [loadingSummary, setLoadingSummary] = useState(false)
   const { t } = useLanguage()
 
   useEffect(() => {
@@ -32,8 +46,12 @@ export default function TeacherDashboard() {
   }, [])
 
   useEffect(() => {
-    if (teacherId) fetchClasses()
-  }, [teacherId])
+    if (teacherId) {
+      fetchClasses()
+      fetchSummaries()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teacherId, selectedDate])
 
   const fetchClasses = async () => {
     try {
@@ -44,6 +62,33 @@ export default function TeacherDashboard() {
       console.error('Error fetching classes:', error)
     }
   }
+
+  const fetchSummaries = async () => {
+    if (!teacherId) return
+    setLoadingSummary(true)
+    try {
+      const res = await apiFetch(`/api/reports/class-summaries?teacherId=${teacherId}&date=${selectedDate}`)
+      if (res.ok) setSummaries(await res.json())
+    } catch { /* ignore */ }
+    setLoadingSummary(false)
+  }
+
+  const goDay = (offset: number) => {
+    const d = new Date(selectedDate)
+    d.setDate(d.getDate() + offset)
+    setSelectedDate(d.toISOString().split('T')[0])
+  }
+
+  const totals = summaries.reduce(
+    (acc, s) => ({
+      total: acc.total + s.totalStudents,
+      present: acc.present + s.present,
+      late: acc.late + s.late,
+      absent: acc.absent + s.absent,
+      permission: acc.permission + s.permission,
+    }),
+    { total: 0, present: 0, late: 0, absent: 0, permission: 0 },
+  )
 
   return (
     <AuthGuard requiredRole="TEACHER">
@@ -57,35 +102,75 @@ export default function TeacherDashboard() {
           </div>
 
           <div className="page-body space-y-4 sm:space-y-6">
-            {/* Mobile Quick Actions (matches mobile app teacher grid) */}
-            <div className="grid grid-cols-4 gap-3 lg:hidden">
-              <Link href="/teacher/classes" className="action-card-mobile">
-                <span className="action-icon" style={{ color: 'var(--color-icon)' }}><IconBook size={26} /></span>
-                <span className="action-label">{t('nav.myClasses')}</span>
-              </Link>
-              <Link href="/teacher/camera" className="action-card-mobile">
-                <span className="action-icon" style={{ color: 'var(--color-icon)' }}><IconCamera size={26} /></span>
-                <span className="action-label">{t('nav.takeAttendance')}</span>
-              </Link>
-              <Link href="/teacher/staff-attendance" className="action-card-mobile">
-                <span className="action-icon" style={{ color: 'var(--color-icon)' }}><IconClipboard size={26} /></span>
-                <span className="action-label">{t('nav.staffAttendance')}</span>
-              </Link>
-              <Link href="/teacher/reports" className="action-card-mobile">
-                <span className="action-icon" style={{ color: 'var(--color-icon)' }}><IconChart size={26} /></span>
-                <span className="action-label">{t('nav.reports')}</span>
-              </Link>
-              <Link href="/teacher/session-settings" className="action-card-mobile">
-                <span className="action-icon" style={{ color: 'var(--color-icon)' }}><IconClock size={26} /></span>
-                <span className="action-label">{t('nav.sessionSettings')}</span>
-              </Link>
-              <Link href="/teacher" className="action-card-mobile">
-                <span className="action-icon" style={{ color: 'var(--color-icon)' }}><IconSettings size={26} /></span>
-                <span className="action-label">{t('nav.settings')}</span>
-              </Link>
+            {/* Student Attendance Summary */}
+            <div className="card p-4 space-y-4">
+              {/* Date navigation */}
+              <div className="flex items-center gap-2">
+                <button onClick={() => goDay(-1)} className="px-3 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 active:bg-slate-100 text-sm transition-colors">◀</button>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={e => setSelectedDate(e.target.value)}
+                  className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none bg-white"
+                />
+                <button onClick={() => goDay(1)} className="px-3 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 active:bg-slate-100 text-sm transition-colors">▶</button>
+              </div>
+
+              {loadingSummary ? (
+                <div className="flex justify-center py-6">
+                  <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : (
+                <>
+                  {/* Aggregate stat cards */}
+                  <div className="grid grid-cols-4 gap-2 sm:gap-3">
+                    <div className="rounded-2xl bg-emerald-50 p-3 text-center">
+                      <p className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wide mb-1">{t('common.present')}</p>
+                      <p className="text-2xl font-extrabold text-emerald-700">{totals.present}</p>
+                    </div>
+                    <div className="rounded-2xl bg-amber-50 p-3 text-center">
+                      <p className="text-[10px] font-semibold text-amber-600 uppercase tracking-wide mb-1">{t('common.late')}</p>
+                      <p className="text-2xl font-extrabold text-amber-700">{totals.late}</p>
+                    </div>
+                    <div className="rounded-2xl bg-red-50 p-3 text-center">
+                      <p className="text-[10px] font-semibold text-red-600 uppercase tracking-wide mb-1">{t('common.absent')}</p>
+                      <p className="text-2xl font-extrabold text-red-700">{totals.absent}</p>
+                    </div>
+                    <div className="rounded-2xl bg-blue-50 p-3 text-center">
+                      <p className="text-[10px] font-semibold text-blue-600 uppercase tracking-wide mb-1">{t('common.dayOff')}</p>
+                      <p className="text-2xl font-extrabold text-blue-700">{totals.permission}</p>
+                    </div>
+                  </div>
+
+                  {/* Per-class breakdown */}
+                  {summaries.length > 0 ? (
+                    <div className="space-y-2 pt-1">
+                      {summaries.map(cls => (
+                        <div key={cls.classId} className="border border-slate-100 rounded-xl overflow-hidden">
+                          <div className="flex items-center justify-between px-3 py-2 bg-slate-50">
+                            <div>
+                              <span className="font-semibold text-slate-800 text-sm">{cls.className}</span>
+                              {cls.subject && <span className="text-xs text-slate-400 ml-2">{cls.subject}</span>}
+                            </div>
+                            <span className="text-xs text-slate-400">{cls.totalStudents} {t('teacher.students') || 'students'}</span>
+                          </div>
+                          <div className="px-3 py-2 flex gap-4 text-xs">
+                            <span className="text-emerald-600 font-semibold">✓ {cls.present}</span>
+                            <span className="text-amber-600 font-semibold">⏰ {cls.late}</span>
+                            <span className="text-red-600 font-semibold">✗ {cls.absent}</span>
+                            <span className="text-blue-600 font-semibold">📋 {cls.permission}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4 text-sm text-slate-400">{t('reports.noAttendanceData') || 'No attendance data'}</div>
+                  )}
+                </>
+              )}
             </div>
 
-            {/* Quick Action — Staff Attendance (desktop only, mobile has action grid) */}
+            {/* Quick Action — Staff Attendance (desktop only) */}
             <Link href="/teacher/staff-attendance" className="hidden lg:block">
               <div className="bg-gradient-to-r from-emerald-500 to-teal-500 rounded-2xl p-4 sm:p-5 shadow-lg shadow-emerald-200/50 active:scale-[0.98] transition-transform">
                 <div className="flex items-center gap-4">
