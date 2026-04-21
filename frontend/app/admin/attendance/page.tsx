@@ -750,6 +750,11 @@ function AdminTakeAttendance() {
             studentId: record.studentId,
             status: record.status,
             checkInTime: record.checkInTime,
+            ...(record.status === 'PERMISSION' ? {
+              permissionType: 'FULL_DAY',
+              permissionStartDate: date,
+              permissionEndDate: date,
+            } : {}),
           })),
           ...(locationRef.current ? { latitude: locationRef.current.latitude, longitude: locationRef.current.longitude } : {}),
         }),

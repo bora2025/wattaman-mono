@@ -10,15 +10,42 @@ export class AttendanceController {
   @Post('record')
   async recordAttendance(
     @Request() req,
-    @Body() body: { studentId: string; classId: string; status: string; date?: string; session?: number; checkInTime?: string; latitude?: number; longitude?: number; location?: string },
+    @Body() body: {
+      studentId: string;
+      classId: string;
+      status: string;
+      date?: string;
+      session?: number;
+      checkInTime?: string;
+      latitude?: number;
+      longitude?: number;
+      location?: string;
+      permissionType?: string;
+      permissionStartDate?: string;
+      permissionEndDate?: string;
+    },
   ) {
     try {
-      const { studentId, classId, status, date, session, checkInTime, latitude, longitude, location } = body;
+      const { studentId, classId, status, date, session, checkInTime, latitude, longitude, location, permissionType, permissionStartDate, permissionEndDate } = body;
       const teacherId = req.user.userId;
       console.log('[attendance/record] body:', JSON.stringify({ studentId, classId, status, date, session, checkInTime: !!checkInTime, latitude, longitude }));
       const attendanceDate = date ? new Date(date) : undefined;
       const parsedCheckIn = checkInTime ? new Date(checkInTime) : undefined;
-      return await this.attendanceService.recordAttendance(studentId, classId, status, teacherId, attendanceDate, session ?? 1, parsedCheckIn, latitude, longitude, location);
+      return await this.attendanceService.recordAttendance(
+        studentId,
+        classId,
+        status,
+        teacherId,
+        attendanceDate,
+        session ?? 1,
+        parsedCheckIn,
+        latitude,
+        longitude,
+        location,
+        permissionType,
+        permissionStartDate ? new Date(permissionStartDate) : undefined,
+        permissionEndDate ? new Date(permissionEndDate) : undefined,
+      );
     } catch (err) {
       console.error('[attendance/record] ERROR:', err?.message || err, err?.stack);
       throw err;
@@ -33,7 +60,7 @@ export class AttendanceController {
       classId: string;
       date?: string;
       session?: number;
-      records: Array<{ studentId: string; status: string; checkInTime?: string }>;
+      records: Array<{ studentId: string; status: string; checkInTime?: string; permissionType?: string; permissionStartDate?: string; permissionEndDate?: string }>;
       latitude?: number;
       longitude?: number;
       location?: string;
@@ -47,6 +74,9 @@ export class AttendanceController {
         studentId: r.studentId,
         status: r.status,
         checkInTime: r.checkInTime ? new Date(r.checkInTime) : undefined,
+        permissionType: r.permissionType,
+        permissionStartDate: r.permissionStartDate ? new Date(r.permissionStartDate) : undefined,
+        permissionEndDate: r.permissionEndDate ? new Date(r.permissionEndDate) : undefined,
       }));
       return await this.attendanceService.recordBulkAttendance(parsedRecords, classId, teacherId, attendanceDate, session ?? 1, latitude, longitude, location);
     } catch (err) {
@@ -70,13 +100,38 @@ export class AttendanceController {
   @Post('staff/record')
   async recordStaffAttendance(
     @Request() req,
-    @Body() body: { userId: string; status: string; session?: number; date?: string; checkInTime?: string; latitude?: number; longitude?: number; location?: string },
+    @Body() body: {
+      userId: string;
+      status: string;
+      session?: number;
+      date?: string;
+      checkInTime?: string;
+      latitude?: number;
+      longitude?: number;
+      location?: string;
+      permissionType?: string;
+      permissionStartDate?: string;
+      permissionEndDate?: string;
+    },
   ) {
-    const { userId, status, session, date, checkInTime, latitude, longitude, location } = body;
+    const { userId, status, session, date, checkInTime, latitude, longitude, location, permissionType, permissionStartDate, permissionEndDate } = body;
     const markedById = req.user.userId;
     const attendanceDate = date ? new Date(date) : undefined;
     const parsedCheckIn = checkInTime ? new Date(checkInTime) : undefined;
-    return this.attendanceService.recordStaffAttendance(userId, status, markedById, attendanceDate, session ?? 1, parsedCheckIn, latitude, longitude, location);
+    return this.attendanceService.recordStaffAttendance(
+      userId,
+      status,
+      markedById,
+      attendanceDate,
+      session ?? 1,
+      parsedCheckIn,
+      latitude,
+      longitude,
+      location,
+      permissionType,
+      permissionStartDate ? new Date(permissionStartDate) : undefined,
+      permissionEndDate ? new Date(permissionEndDate) : undefined,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
@@ -144,40 +199,102 @@ export class AttendanceController {
   @Patch('update')
   async updateAttendance(
     @Request() req,
-    @Body() body: { attendanceId: string; status: string },
+    @Body() body: {
+      attendanceId: string;
+      status: string;
+      permissionType?: string;
+      permissionStartDate?: string;
+      permissionEndDate?: string;
+    },
   ) {
     const adminId = req.user.userId;
-    return this.attendanceService.updateAttendance(body.attendanceId, body.status, adminId);
+    return this.attendanceService.updateAttendance(
+      body.attendanceId,
+      body.status,
+      adminId,
+      body.permissionType,
+      body.permissionStartDate ? new Date(body.permissionStartDate) : undefined,
+      body.permissionEndDate ? new Date(body.permissionEndDate) : undefined,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
   @Patch('staff/update')
   async updateStaffAttendance(
     @Request() req,
-    @Body() body: { staffAttendanceId: string; status: string },
+    @Body() body: {
+      staffAttendanceId: string;
+      status: string;
+      permissionType?: string;
+      permissionStartDate?: string;
+      permissionEndDate?: string;
+    },
   ) {
     const adminId = req.user.userId;
-    return this.attendanceService.updateStaffAttendance(body.staffAttendanceId, body.status, adminId);
+    return this.attendanceService.updateStaffAttendance(
+      body.staffAttendanceId,
+      body.status,
+      adminId,
+      body.permissionType,
+      body.permissionStartDate ? new Date(body.permissionStartDate) : undefined,
+      body.permissionEndDate ? new Date(body.permissionEndDate) : undefined,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
   @Post('create-record')
   async createAttendanceRecord(
     @Request() req,
-    @Body() body: { studentId: string; classId: string; session: number; status: string; date: string },
+    @Body() body: {
+      studentId: string;
+      classId: string;
+      session: number;
+      status: string;
+      date: string;
+      permissionType?: string;
+      permissionStartDate?: string;
+      permissionEndDate?: string;
+    },
   ) {
     const adminId = req.user.userId;
-    return this.attendanceService.createAttendanceRecord(body.studentId, body.classId, body.session, body.status, adminId, body.date);
+    return this.attendanceService.createAttendanceRecord(
+      body.studentId,
+      body.classId,
+      body.session,
+      body.status,
+      adminId,
+      body.date,
+      body.permissionType,
+      body.permissionStartDate ? new Date(body.permissionStartDate) : undefined,
+      body.permissionEndDate ? new Date(body.permissionEndDate) : undefined,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
   @Post('staff/create-record')
   async createStaffAttendanceRecord(
     @Request() req,
-    @Body() body: { userId: string; session: number; status: string; date: string },
+    @Body() body: {
+      userId: string;
+      session: number;
+      status: string;
+      date: string;
+      permissionType?: string;
+      permissionStartDate?: string;
+      permissionEndDate?: string;
+    },
   ) {
     const adminId = req.user.userId;
-    return this.attendanceService.createStaffAttendanceRecord(body.userId, body.session, body.status, adminId, body.date);
+    return this.attendanceService.createStaffAttendanceRecord(
+      body.userId,
+      body.session,
+      body.status,
+      adminId,
+      body.date,
+      body.permissionType,
+      body.permissionStartDate ? new Date(body.permissionStartDate) : undefined,
+      body.permissionEndDate ? new Date(body.permissionEndDate) : undefined,
+    );
   }
 
   @UseGuards(JwtAuthGuard)

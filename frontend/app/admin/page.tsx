@@ -8,7 +8,15 @@ import { adminNav } from '../../lib/admin-nav'
 import { apiFetch } from '../../lib/api'
 import { useLanguage } from '../../lib/i18n'
 
-interface GroupSummary { total: number; present: number; absent: number; late: number; permission: number }
+interface PermissionBreakdown { halfDayMorning: number; halfDayAfternoon: number; fullDay: number; multiDay: number; unknown: number }
+interface GroupSummary {
+  total: number
+  present: number
+  absent: number
+  late: number
+  permission: number
+  permissionBreakdown?: PermissionBreakdown
+}
 interface DetailRow { id: string; name: string; role: string; group: string; present: number; absent: number; late: number; permission: number }
 interface DashboardData {
   students: GroupSummary
@@ -247,6 +255,11 @@ function DashboardContent() {
                   <SummaryCard label={t('common.late')} value={stu.late} total={stuAtt} color="orange" onClick={() => handleCardClick('Student','late')}/>
                   <SummaryCard label={t('common.permission')} value={stu.permission} total={stuAtt} color="blue" onClick={() => handleCardClick('Student','permission')}/>
                 </div>
+                {stu.permissionBreakdown && (
+                  <div className="mt-2 text-xs text-slate-500">
+                    Permission Types: Morning Half={stu.permissionBreakdown.halfDayMorning} | Afternoon Half={stu.permissionBreakdown.halfDayAfternoon} | Full Day={stu.permissionBreakdown.fullDay} | Many Day={stu.permissionBreakdown.multiDay}
+                  </div>
+                )}
               </div>
               <div>
                 <div className="flex items-center gap-2 mb-3">
@@ -259,6 +272,11 @@ function DashboardContent() {
                   <SummaryCard label={t('common.late')} value={stf.late} total={stfAtt} color="orange" onClick={() => handleCardClick('Staff','late')}/>
                   <SummaryCard label={t('common.permission')} value={stf.permission} total={stfAtt} color="blue" onClick={() => handleCardClick('Staff','permission')}/>
                 </div>
+                {stf.permissionBreakdown && (
+                  <div className="mt-2 text-xs text-slate-500">
+                    Permission Types: Morning Half={stf.permissionBreakdown.halfDayMorning} | Afternoon Half={stf.permissionBreakdown.halfDayAfternoon} | Full Day={stf.permissionBreakdown.fullDay} | Many Day={stf.permissionBreakdown.multiDay}
+                  </div>
+                )}
               </div>
             </div>
           )}

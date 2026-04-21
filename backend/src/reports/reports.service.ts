@@ -55,6 +55,27 @@ function isDayOffStatus(status: string | null | undefined): boolean {
   return status === 'DAY_OFF' || status === 'PERMISSION';
 }
 
+function buildPermissionTypeBreakdown(records: Array<{ status: string; permissionType: string | null }>) {
+  const base = {
+    halfDayMorning: 0,
+    halfDayAfternoon: 0,
+    fullDay: 0,
+    multiDay: 0,
+    unknown: 0,
+  };
+
+  for (const r of records) {
+    if (!isDayOffStatus(r.status)) continue;
+    if (r.permissionType === 'HALF_DAY_MORNING') base.halfDayMorning += 1;
+    else if (r.permissionType === 'HALF_DAY_AFTERNOON') base.halfDayAfternoon += 1;
+    else if (r.permissionType === 'FULL_DAY') base.fullDay += 1;
+    else if (r.permissionType === 'MULTI_DAY') base.multiDay += 1;
+    else base.unknown += 1;
+  }
+
+  return base;
+}
+
 @Injectable()
 export class ReportsService {
   constructor(
@@ -246,6 +267,7 @@ export class ReportsService {
         absent: studentAbsent,
         late: studentLate,
         permission: studentPermission,
+        permissionBreakdown: buildPermissionTypeBreakdown(studentAttendances as any),
       },
       staff: {
         total: totalStaff,
@@ -253,6 +275,7 @@ export class ReportsService {
         absent: totalStaffAbsent,
         late: staffLate,
         permission: staffPermission,
+        permissionBreakdown: buildPermissionTypeBreakdown(staffAttendances as any),
       },
       details: [
         ...Array.from(studentMap.values()).map(s => ({ ...s, group: s.className })),
@@ -309,6 +332,9 @@ export class ReportsService {
     return attendances.map(a => ({
       date: a.date,
       status: a.status,
+      permissionType: a.permissionType,
+      permissionStartDate: a.permissionStartDate,
+      permissionEndDate: a.permissionEndDate,
       classId: a.classId,
       className: a.class.name,
       session: a.session,
@@ -456,6 +482,9 @@ export class ReportsService {
       session: a.session,
       sessionLabel: SESSION_LABELS[a.session] || `Session ${a.session}`,
       status: a.status,
+      permissionType: a.permissionType,
+      permissionStartDate: a.permissionStartDate?.toISOString() || null,
+      permissionEndDate: a.permissionEndDate?.toISOString() || null,
       checkInTime: toCambodiaTime(a.checkInTime),
       checkOutTime: toCambodiaTime(a.checkOutTime),
     }));
@@ -541,6 +570,10 @@ export class ReportsService {
         session2Status,
         session3Status,
         session4Status,
+        session1PermissionType: s1?.permissionType || null,
+        session2PermissionType: s2?.permissionType || null,
+        session3PermissionType: s3?.permissionType || null,
+        session4PermissionType: s4?.permissionType || null,
       };
     });
   }
@@ -636,11 +669,13 @@ export class ReportsService {
         dayOff: studentRecs.filter(r => isDayOffStatus(r.status)).length,
       };
       const totals = this.applyFormatRules(raw, formatRule as any);
+      const permissionBreakdown = buildPermissionTypeBreakdown(studentRecs as any);
       return {
         studentId: s.id,
         studentNumber: s.studentNumber || String(idx + 1).padStart(4, '0'),
         studentName: s.user.name,
         ...totals,
+        permissionBreakdown,
       };
     });
 
@@ -681,12 +716,14 @@ export class ReportsService {
         dayOff: userRecs.filter(r => isDayOffStatus(r.status)).length,
       };
       const totals = this.applyFormatRules(raw, formatRule as any);
+      const permissionBreakdown = buildPermissionTypeBreakdown(userRecs as any);
       return {
         userId: u.id,
         staffNumber: String(idx + 1).padStart(4, '0'),
         staffName: u.name,
         role: u.role,
         ...totals,
+        permissionBreakdown,
       };
     });
 
@@ -700,9 +737,9 @@ export class ReportsService {
   /** Export attendance data as CSV string for a class in a date range */
   async exportClassAttendance(classId: string, startDate: Date, endDate: Date): Promise<string> {
     const records = await this.getClassStudentDetail(classId, startDate, endDate);
-    const header = 'Student Name,Date,Session,Status,Check-In Time (GMT+7),Check-Out Time (GMT+7)';
+    const header = 'Student Name,Date,Session,Status,Permission Type,Permission Start Date,Permission End Date,Check-In Time (GMT+7),Check-Out Time (GMT+7)';
     const rows = records.map(r =>
-      `"${r.studentName}","${r.date}","${r.sessionLabel}","${r.status}","${r.checkInTime || ''}","${r.checkOutTime || ''}"`,
+      `"${r.studentName}","${r.date}","${r.sessionLabel}","${r.status}","${(r as any).permissionType || ''}","${(r as any).permissionStartDate || ''}","${(r as any).permissionEndDate || ''}","${r.checkInTime || ''}","${r.checkOutTime || ''}"`,
     );
     return [header, ...rows].join('\n');
   }
@@ -791,6 +828,9 @@ export class ReportsService {
       date: r.date,
       session: r.session,
       status: r.status,
+      permissionType: r.permissionType,
+      permissionStartDate: r.permissionStartDate?.toISOString() || null,
+      permissionEndDate: r.permissionEndDate?.toISOString() || null,
       checkInTime: r.checkInTime?.toISOString() || null,
       checkOutTime: r.checkOutTime?.toISOString() || null,
     }));
@@ -862,6 +902,10 @@ export class ReportsService {
         session2Status,
         session3Status,
         session4Status,
+        session1PermissionType: s1?.permissionType || null,
+        session2PermissionType: s2rec?.permissionType || null,
+        session3PermissionType: s3?.permissionType || null,
+        session4PermissionType: s4rec?.permissionType || null,
         isHoliday,
         scanLatitude: locRecord?.scanLatitude || null,
         scanLongitude: locRecord?.scanLongitude || null,
@@ -940,14 +984,14 @@ export class ReportsService {
       orderBy: [{ date: 'asc' }, { session: 'asc' }],
     });
 
-    const header = 'Staff Name,Role,Date,Session,Status,Check-In Time (GMT+7),Check-Out Time (GMT+7)';
+    const header = 'Staff Name,Role,Date,Session,Status,Permission Type,Permission Start Date,Permission End Date,Check-In Time (GMT+7),Check-Out Time (GMT+7)';
     const rows: string[] = [];
     for (const rec of records) {
       const u = staff.find(s => s.id === rec.userId);
       if (!u) continue;
       const sessionLabel = rec.session === 1 ? 'Morning' : rec.session === 3 ? 'Afternoon' : `Session ${rec.session}`;
       rows.push(
-        `"${u.name}","${u.role}","${rec.date.toISOString().split('T')[0]}","${sessionLabel}","${rec.status}","${toCambodiaTime(rec.checkInTime) || ''}","${toCambodiaTime(rec.checkOutTime) || ''}"`
+        `"${u.name}","${u.role}","${rec.date.toISOString().split('T')[0]}","${sessionLabel}","${rec.status}","${rec.permissionType || ''}","${rec.permissionStartDate?.toISOString().split('T')[0] || ''}","${rec.permissionEndDate?.toISOString().split('T')[0] || ''}","${toCambodiaTime(rec.checkInTime) || ''}","${toCambodiaTime(rec.checkOutTime) || ''}"`
       );
     }
     return [header, ...rows].join('\n');

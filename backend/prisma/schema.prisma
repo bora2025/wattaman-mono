@@ -84,6 +84,9 @@ model Attendance {
   date        DateTime
   session     Int      @default(1) // 1=Morning1, 2=Morning2, 3=Afternoon1, 4=Afternoon2
   status      String
+  permissionType String?
+  permissionStartDate DateTime?
+  permissionEndDate DateTime?
   checkInTime  DateTime?
   checkOutTime DateTime?
   markedById  String
@@ -113,6 +116,9 @@ model StaffAttendance {
   date         DateTime
   session      Int      @default(1)
   status       String   // PRESENT, LATE, ABSENT
+  permissionType String?
+  permissionStartDate DateTime?
+  permissionEndDate DateTime?
   checkInTime  DateTime?
   checkOutTime DateTime?
   markedById   String

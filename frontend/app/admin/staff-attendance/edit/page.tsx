@@ -12,6 +12,9 @@ interface SessionRecord {
   session: number
   attendanceId: string | null
   status: string | null
+  permissionType?: string | null
+  permissionStartDate?: string | null
+  permissionEndDate?: string | null
   checkInTime: string | null
   checkOutTime: string | null
 }
@@ -31,6 +34,9 @@ export default function EditStaffAttendance() {
   const [saving, setSaving] = useState<string | null>(null)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [permissionType, setPermissionType] = useState('FULL_DAY')
+  const [permissionStartDate, setPermissionStartDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [permissionEndDate, setPermissionEndDate] = useState(() => new Date().toISOString().split('T')[0])
 
 
   useEffect(() => {
@@ -68,7 +74,15 @@ export default function EditStaffAttendance() {
         const res = await apiFetch('/api/attendance/staff/update', {
           method: 'PATCH',
           headers,
-          body: JSON.stringify({ staffAttendanceId: sessionRec.attendanceId, status: newStatus }),
+          body: JSON.stringify({
+            staffAttendanceId: sessionRec.attendanceId,
+            status: newStatus,
+            ...(newStatus === 'PERMISSION' ? {
+              permissionType,
+              permissionStartDate,
+              permissionEndDate,
+            } : {}),
+          }),
         })
         if (!res.ok) throw new Error('Failed to update')
       } else {
@@ -81,6 +95,11 @@ export default function EditStaffAttendance() {
             session,
             status: newStatus,
             date: selectedDate,
+            ...(newStatus === 'PERMISSION' ? {
+              permissionType,
+              permissionStartDate,
+              permissionEndDate,
+            } : {}),
           }),
         })
         if (!res.ok) throw new Error('Failed to create')
@@ -168,6 +187,37 @@ export default function EditStaffAttendance() {
               <button onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])} className="btn-ghost btn-sm">
                 📅 Today
               </button>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Permission Type</label>
+                <select
+                  value={permissionType}
+                  onChange={(e) => setPermissionType(e.target.value)}
+                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                >
+                  <option value="HALF_DAY_MORNING">Half Day (Morning)</option>
+                  <option value="HALF_DAY_AFTERNOON">Half Day (Afternoon)</option>
+                  <option value="FULL_DAY">Full Day</option>
+                  <option value="MULTI_DAY">Many Day (From-To)</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Permission From</label>
+                <input
+                  type="date"
+                  value={permissionStartDate}
+                  onChange={(e) => setPermissionStartDate(e.target.value)}
+                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-500 mb-1">Permission To</label>
+                <input
+                  type="date"
+                  value={permissionEndDate}
+                  onChange={(e) => setPermissionEndDate(e.target.value)}
+                  className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                />
+              </div>
             </div>
             <p className="mt-2 text-sm font-medium text-slate-700">{dayLabel}</p>
           </div>

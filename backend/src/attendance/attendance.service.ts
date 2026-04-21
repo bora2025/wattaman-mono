@@ -39,6 +39,120 @@ export class AttendanceService {
     private sessionConfigService: SessionConfigService,
   ) {}
 
+  private async upsertStudentPermissionRange(
+    studentId: string,
+    classId: string,
+    markedById: string,
+    permissionTypeInput?: string,
+    startDateInput?: Date,
+    endDateInput?: Date,
+  ) {
+    const permissionType = normalizePermissionType(permissionTypeInput);
+    const startDate = toUTCMidnight(startDateInput || new Date());
+    const endDate = toUTCMidnight(endDateInput || startDate);
+    const from = startDate.getTime() <= endDate.getTime() ? startDate : endDate;
+    const to = startDate.getTime() <= endDate.getTime() ? endDate : startDate;
+
+    const sessions = permissionSessions(permissionType);
+    const days = dateRangeDays(from, to);
+    const writes = days.flatMap(day =>
+      sessions.map(session =>
+        this.prisma.attendance.upsert({
+          where: { studentId_classId_date_session: { studentId, classId, date: day, session } },
+          update: {
+            status: 'PERMISSION',
+            permissionType,
+            permissionStartDate: from,
+            permissionEndDate: to,
+            markedById,
+            checkInTime: null,
+            checkOutTime: null,
+          },
+          create: {
+            studentId,
+            classId,
+            date: day,
+            session,
+            status: 'PERMISSION',
+            permissionType,
+            permissionStartDate: from,
+            permissionEndDate: to,
+            markedById,
+            checkInTime: null,
+            checkOutTime: null,
+          },
+        }),
+      ),
+    );
+
+    await this.prisma.$transaction(writes);
+    return {
+      status: 'PERMISSION',
+      permissionType,
+      permissionStartDate: from,
+      permissionEndDate: to,
+      affectedDays: days.length,
+      affectedSessionsPerDay: sessions.length,
+      affectedRecords: writes.length,
+    };
+  }
+
+  private async upsertStaffPermissionRange(
+    userId: string,
+    markedById: string,
+    permissionTypeInput?: string,
+    startDateInput?: Date,
+    endDateInput?: Date,
+  ) {
+    const permissionType = normalizePermissionType(permissionTypeInput);
+    const startDate = toUTCMidnight(startDateInput || new Date());
+    const endDate = toUTCMidnight(endDateInput || startDate);
+    const from = startDate.getTime() <= endDate.getTime() ? startDate : endDate;
+    const to = startDate.getTime() <= endDate.getTime() ? endDate : startDate;
+
+    const sessions = permissionSessions(permissionType);
+    const days = dateRangeDays(from, to);
+    const writes = days.flatMap(day =>
+      sessions.map(session =>
+        this.prisma.staffAttendance.upsert({
+          where: { userId_date_session: { userId, date: day, session } },
+          update: {
+            status: 'PERMISSION',
+            permissionType,
+            permissionStartDate: from,
+            permissionEndDate: to,
+            markedById,
+            checkInTime: null,
+            checkOutTime: null,
+          },
+          create: {
+            userId,
+            date: day,
+            session,
+            status: 'PERMISSION',
+            permissionType,
+            permissionStartDate: from,
+            permissionEndDate: to,
+            markedById,
+            checkInTime: null,
+            checkOutTime: null,
+          },
+        }),
+      ),
+    );
+
+    await this.prisma.$transaction(writes);
+    return {
+      status: 'PERMISSION',
+      permissionType,
+      permissionStartDate: from,
+      permissionEndDate: to,
+      affectedDays: days.length,
+      affectedSessionsPerDay: sessions.length,
+      affectedRecords: writes.length,
+    };
+  }
+
   async recordAttendance(
     studentId: string,
     classId: string,
@@ -50,6 +164,9 @@ export class AttendanceService {
     latitude?: number,
     longitude?: number,
     location?: string,
+    permissionType?: string,
+    permissionStartDate?: Date,
+    permissionEndDate?: Date,
   ) {
     const raw = date || new Date();
     const attendanceDate = toUTCMidnight(raw);
@@ -64,6 +181,17 @@ export class AttendanceService {
 
     if (!student) {
       throw new NotFoundException(`Student with ID ${studentId} not found in class ${classId}`);
+    }
+
+    if (status === 'PERMISSION') {
+      return this.upsertStudentPermissionRange(
+        studentId,
+        classId,
+        teacherId,
+        permissionType,
+        permissionStartDate || attendanceDate,
+        permissionEndDate || permissionStartDate || attendanceDate,
+      );
     }
 
     // Auto-force DAY_OFF if today is a scheduled day-off for this class
@@ -113,6 +241,9 @@ export class AttendanceService {
       },
       update: {
         status: keepOriginal ? existingRecord.status : finalStatus as any,
+        permissionType: null,
+        permissionStartDate: null,
+        permissionEndDate: null,
         markedById: teacherId,
         checkInTime: keepOriginal ? existingRecord.checkInTime : (isAttending ? checkInTime : null),
         ...(latitude != null ? { scanLatitude: latitude } : {}),
@@ -125,6 +256,9 @@ export class AttendanceService {
         date: attendanceDate,
         session,
         status: finalStatus as any,
+        permissionType: null,
+        permissionStartDate: null,
+        permissionEndDate: null,
         markedById: teacherId,
         checkInTime: isAttending ? checkInTime : null,
         ...(latitude != null ? { scanLatitude: latitude } : {}),
@@ -156,7 +290,7 @@ export class AttendanceService {
   }
 
   async recordBulkAttendance(
-    records: Array<{ studentId: string; status: string; checkInTime?: Date }>,
+    records: Array<{ studentId: string; status: string; checkInTime?: Date; permissionType?: string; permissionStartDate?: Date; permissionEndDate?: Date }>,
     classId: string,
     teacherId: string,
     date?: Date,
@@ -210,6 +344,54 @@ export class AttendanceService {
           continue;
         }
 
+        if (record.status === 'PERMISSION') {
+          const pType = normalizePermissionType(record.permissionType);
+          const pStart = toUTCMidnight(record.permissionStartDate || attendanceDate);
+          const pEnd = toUTCMidnight(record.permissionEndDate || record.permissionStartDate || attendanceDate);
+          const from = pStart.getTime() <= pEnd.getTime() ? pStart : pEnd;
+          const to = pStart.getTime() <= pEnd.getTime() ? pEnd : pStart;
+          const days = dateRangeDays(from, to);
+          const sessions = permissionSessions(pType);
+          for (const day of days) {
+            for (const permSession of sessions) {
+              await tx.attendance.upsert({
+                where: { studentId_classId_date_session: { studentId: record.studentId, classId, date: day, session: permSession } },
+                update: {
+                  status: 'PERMISSION',
+                  permissionType: pType,
+                  permissionStartDate: from,
+                  permissionEndDate: to,
+                  markedById: teacherId,
+                  checkInTime: null,
+                  checkOutTime: null,
+                },
+                create: {
+                  studentId: record.studentId,
+                  classId,
+                  date: day,
+                  session: permSession,
+                  status: 'PERMISSION',
+                  permissionType: pType,
+                  permissionStartDate: from,
+                  permissionEndDate: to,
+                  markedById: teacherId,
+                  checkInTime: null,
+                  checkOutTime: null,
+                },
+              });
+            }
+          }
+          results.push({ studentId: record.studentId, success: true });
+          this.attendanceGateway.notifyAttendanceUpdate(classId, {
+            studentId: record.studentId,
+            studentName: student.user?.name ?? student.id,
+            status: 'PERMISSION',
+            session,
+            timestamp: new Date(),
+          });
+          continue;
+        }
+
         let finalStatus = record.status;
         const checkInTime = record.checkInTime || new Date();
 
@@ -246,6 +428,9 @@ export class AttendanceService {
           },
           update: {
             status: keepOriginalBulk ? existingBulk.status : finalStatus as any,
+            permissionType: null,
+            permissionStartDate: null,
+            permissionEndDate: null,
             markedById: teacherId,
             checkInTime: keepOriginalBulk ? existingBulk.checkInTime : (isAttending ? checkInTime : null),
             ...locData,
@@ -256,6 +441,9 @@ export class AttendanceService {
             date: attendanceDate,
             session,
             status: finalStatus as any,
+            permissionType: null,
+            permissionStartDate: null,
+            permissionEndDate: null,
             markedById: teacherId,
             checkInTime: isAttending ? checkInTime : null,
             ...locData,
@@ -324,7 +512,13 @@ export class AttendanceService {
 
     return this.prisma.attendance.update({
       where: { id: existing.id },
-      data: { checkOutTime },
+      data: {
+        status: existing.status === 'PERMISSION' ? 'PRESENT' : existing.status,
+        permissionType: null,
+        permissionStartDate: null,
+        permissionEndDate: null,
+        checkOutTime,
+      },
     });
   }
 
@@ -338,6 +532,9 @@ export class AttendanceService {
     latitude?: number,
     longitude?: number,
     location?: string,
+    permissionType?: string,
+    permissionStartDate?: Date,
+    permissionEndDate?: Date,
   ) {
     try {
       const raw = date || new Date();
@@ -349,6 +546,16 @@ export class AttendanceService {
       const user = await this.prisma.user.findUnique({ where: { id: userId } });
       if (!user || (user.role !== 'TEACHER' && user.role !== 'ADMIN')) {
         throw new NotFoundException(`Staff member not found for userId: ${userId}`);
+      }
+
+      if (status === 'PERMISSION') {
+        return this.upsertStaffPermissionRange(
+          userId,
+          markedById,
+          permissionType,
+          permissionStartDate || attendanceDate,
+          permissionEndDate || permissionStartDate || attendanceDate,
+        );
       }
 
       // Auto-detect LATE if check-in >20 min after session start time
@@ -385,6 +592,9 @@ export class AttendanceService {
         },
         update: {
           status: keepOriginalStaff ? existingStaff.status : finalStatus,
+          permissionType: null,
+          permissionStartDate: null,
+          permissionEndDate: null,
           markedById,
           checkInTime: keepOriginalStaff ? existingStaff.checkInTime : (isAttending ? checkInTime : null),
           ...(latitude != null ? { scanLatitude: latitude } : {}),
@@ -396,6 +606,9 @@ export class AttendanceService {
           date: attendanceDate,
           session,
           status: finalStatus,
+          permissionType: null,
+          permissionStartDate: null,
+          permissionEndDate: null,
           markedById,
           checkInTime: isAttending ? checkInTime : null,
           ...(latitude != null ? { scanLatitude: latitude } : {}),
@@ -447,7 +660,13 @@ export class AttendanceService {
 
       return this.prisma.staffAttendance.update({
         where: { id: existing.id },
-        data: { checkOutTime },
+        data: {
+          status: existing.status === 'PERMISSION' ? 'PRESENT' : existing.status,
+          permissionType: null,
+          permissionStartDate: null,
+          permissionEndDate: null,
+          checkOutTime,
+        },
       });
     } catch (err) {
       console.error('[staff-attendance/check-out] ERROR:', err?.message || err, err?.stack);
@@ -459,14 +678,31 @@ export class AttendanceService {
     attendanceId: string,
     status: string,
     adminId: string,
+    permissionType?: string,
+    permissionStartDate?: Date,
+    permissionEndDate?: Date,
   ) {
     const record = await this.prisma.attendance.findUnique({ where: { id: attendanceId } });
     if (!record) throw new NotFoundException('Attendance record not found');
+
+    if (status === 'PERMISSION') {
+      return this.upsertStudentPermissionRange(
+        record.studentId,
+        record.classId,
+        adminId,
+        permissionType,
+        permissionStartDate || record.date,
+        permissionEndDate || permissionStartDate || record.date,
+      );
+    }
 
     return this.prisma.attendance.update({
       where: { id: attendanceId },
       data: {
         status,
+        permissionType: null,
+        permissionStartDate: null,
+        permissionEndDate: null,
         markedById: adminId,
       },
     });
@@ -476,14 +712,30 @@ export class AttendanceService {
     staffAttendanceId: string,
     status: string,
     adminId: string,
+    permissionType?: string,
+    permissionStartDate?: Date,
+    permissionEndDate?: Date,
   ) {
     const record = await this.prisma.staffAttendance.findUnique({ where: { id: staffAttendanceId } });
     if (!record) throw new NotFoundException('Staff attendance record not found');
+
+    if (status === 'PERMISSION') {
+      return this.upsertStaffPermissionRange(
+        record.userId,
+        adminId,
+        permissionType,
+        permissionStartDate || record.date,
+        permissionEndDate || permissionStartDate || record.date,
+      );
+    }
 
     return this.prisma.staffAttendance.update({
       where: { id: staffAttendanceId },
       data: {
         status,
+        permissionType: null,
+        permissionStartDate: null,
+        permissionEndDate: null,
         markedById: adminId,
       },
     });
@@ -515,6 +767,9 @@ export class AttendanceService {
             session,
             attendanceId: rec?.id || null,
             status: rec?.status || null,
+            permissionType: rec?.permissionType || null,
+            permissionStartDate: rec?.permissionStartDate?.toISOString() || null,
+            permissionEndDate: rec?.permissionEndDate?.toISOString() || null,
             checkInTime: rec?.checkInTime?.toISOString() || null,
             checkOutTime: rec?.checkOutTime?.toISOString() || null,
           };
@@ -548,6 +803,9 @@ export class AttendanceService {
             session,
             attendanceId: rec?.id || null,
             status: rec?.status || null,
+            permissionType: rec?.permissionType || null,
+            permissionStartDate: rec?.permissionStartDate?.toISOString() || null,
+            permissionEndDate: rec?.permissionEndDate?.toISOString() || null,
             checkInTime: rec?.checkInTime?.toISOString() || null,
             checkOutTime: rec?.checkOutTime?.toISOString() || null,
           };
@@ -563,21 +821,45 @@ export class AttendanceService {
     status: string,
     adminId: string,
     date: string,
+    permissionType?: string,
+    permissionStartDate?: Date,
+    permissionEndDate?: Date,
   ) {
     const attendanceDate = toUTCMidnight(new Date(date));
+
+    if (status === 'PERMISSION') {
+      return this.upsertStudentPermissionRange(
+        studentId,
+        classId,
+        adminId,
+        permissionType,
+        permissionStartDate || attendanceDate,
+        permissionEndDate || permissionStartDate || attendanceDate,
+      );
+    }
+
     const isAttending = status === 'PRESENT' || status === 'LATE';
 
     return this.prisma.attendance.upsert({
       where: {
         studentId_classId_date_session: { studentId, classId, date: attendanceDate, session },
       },
-      update: { status, markedById: adminId },
+      update: {
+        status,
+        permissionType: null,
+        permissionStartDate: null,
+        permissionEndDate: null,
+        markedById: adminId,
+      },
       create: {
         studentId,
         classId,
         date: attendanceDate,
         session,
         status,
+        permissionType: null,
+        permissionStartDate: null,
+        permissionEndDate: null,
         markedById: adminId,
         checkInTime: isAttending ? new Date() : null,
       },
@@ -590,20 +872,43 @@ export class AttendanceService {
     status: string,
     adminId: string,
     date: string,
+    permissionType?: string,
+    permissionStartDate?: Date,
+    permissionEndDate?: Date,
   ) {
     const attendanceDate = toUTCMidnight(new Date(date));
+
+    if (status === 'PERMISSION') {
+      return this.upsertStaffPermissionRange(
+        userId,
+        adminId,
+        permissionType,
+        permissionStartDate || attendanceDate,
+        permissionEndDate || permissionStartDate || attendanceDate,
+      );
+    }
+
     const isAttending = status === 'PRESENT' || status === 'LATE';
 
     return this.prisma.staffAttendance.upsert({
       where: {
         userId_date_session: { userId, date: attendanceDate, session },
       },
-      update: { status, markedById: adminId },
+      update: {
+        status,
+        permissionType: null,
+        permissionStartDate: null,
+        permissionEndDate: null,
+        markedById: adminId,
+      },
       create: {
         userId,
         date: attendanceDate,
         session,
         status,
+        permissionType: null,
+        permissionStartDate: null,
+        permissionEndDate: null,
         markedById: adminId,
         checkInTime: isAttending ? new Date() : null,
       },
@@ -698,11 +1003,25 @@ export class AttendanceService {
           where: { userId_date_session: { userId, date: attendanceDate, session: matched.session } },
           update: {
             status: keepOriginalAutoScan ? existingAutoScan.status : status,
+            permissionType: null,
+            permissionStartDate: null,
+            permissionEndDate: null,
             markedById,
             checkInTime: keepOriginalAutoScan ? existingAutoScan.checkInTime : checkInTime,
             ...locData,
           },
-          create: { userId, date: attendanceDate, session: matched.session, status, markedById, checkInTime, ...locData },
+          create: {
+            userId,
+            date: attendanceDate,
+            session: matched.session,
+            status,
+            permissionType: null,
+            permissionStartDate: null,
+            permissionEndDate: null,
+            markedById,
+            checkInTime,
+            ...locData,
+          },
         });
         return { ...record, action: 'CHECK_IN', sessionName: `Session ${matched.session}`, ...userInfo };
       } else {
@@ -720,13 +1039,31 @@ export class AttendanceService {
         if (existing) {
           const record = await this.prisma.staffAttendance.update({
             where: { id: existing.id },
-            data: { checkOutTime: new Date(), ...locData },
+            data: {
+              status: existing.status === 'PERMISSION' ? 'PRESENT' : existing.status,
+              permissionType: null,
+              permissionStartDate: null,
+              permissionEndDate: null,
+              checkOutTime: new Date(),
+              ...locData,
+            },
           });
           return { ...record, action: 'CHECK_OUT', sessionName: `Session ${matched.session}`, ...userInfo };
         } else {
           // No prior check-in — create a record with both check-in (null) and check-out
           const record = await this.prisma.staffAttendance.create({
-            data: { userId, date: attendanceDate, session: targetSession, status: 'PRESENT', markedById, checkOutTime: new Date(), ...locData },
+            data: {
+              userId,
+              date: attendanceDate,
+              session: targetSession,
+              status: 'PRESENT',
+              permissionType: null,
+              permissionStartDate: null,
+              permissionEndDate: null,
+              markedById,
+              checkOutTime: new Date(),
+              ...locData,
+            },
           });
           return { ...record, action: 'CHECK_OUT', sessionName: `Session ${matched.session}`, ...userInfo };
         }
@@ -834,4 +1171,30 @@ export class AttendanceService {
       }),
     };
   }
+}
+
+type PermissionType = 'HALF_DAY_MORNING' | 'HALF_DAY_AFTERNOON' | 'FULL_DAY' | 'MULTI_DAY';
+
+function normalizePermissionType(value?: string | null): PermissionType {
+  const v = (value || '').toUpperCase();
+  if (v === 'HALF_DAY_MORNING' || v === 'HALF_DAY_AFTERNOON' || v === 'MULTI_DAY') return v;
+  return 'FULL_DAY';
+}
+
+function permissionSessions(permissionType: PermissionType): number[] {
+  if (permissionType === 'HALF_DAY_MORNING') return [1, 2];
+  if (permissionType === 'HALF_DAY_AFTERNOON') return [3, 4];
+  return [1, 2, 3, 4];
+}
+
+function dateRangeDays(start: Date, end: Date): Date[] {
+  const s = toUTCMidnight(start);
+  const e = toUTCMidnight(end);
+  const out: Date[] = [];
+  const cursor = new Date(s);
+  while (cursor.getTime() <= e.getTime()) {
+    out.push(new Date(cursor));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return out;
 }
