@@ -263,16 +263,16 @@ function PrintReportContent() {
                 {t('common.name')}
               </th>
               <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-emerald-700 w-20">
-                {t('reports.totalPresent')}
+                {t('reports.colPresent')}
               </th>
               <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-amber-700 w-20">
-                {t('reports.totalLate')}
+                {t('reports.colLate')}
               </th>
               <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-red-700 w-20">
-                {t('reports.totalAbsent')}
+                {t('reports.colAbsent')}
               </th>
               <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-purple-700 w-24">
-                {t('reports.totalPermission')}
+                {t('reports.colPermission')}
               </th>
             </tr>
           </thead>

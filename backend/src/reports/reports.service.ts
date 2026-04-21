@@ -170,6 +170,46 @@ function countHalfDayBlocks<T extends { status: string; date: Date; session: num
 }
 
 /**
+ * Count whole-day attendance totals per person over a date range.
+ * Groups by person+date, determines dominant status per day (same block precedence),
+ * and sums 1 whole day per status. Works correctly for daily, weekly, monthly, yearly.
+ */
+function countWholeDayRangeTotals<T extends { status: string; date: Date; session: number }>(
+  records: T[],
+  entityKey: (r: T) => string,
+  preferPermissionOverAbsent: boolean,
+): { present: number; late: number; absent: number; permission: number } {
+  const grouped = new Map<string, T[]>();
+  for (const rec of records) {
+    const key = `${entityKey(rec)}|${rec.date.toISOString().split('T')[0]}`;
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key)!.push(rec);
+  }
+
+  const total = { present: 0, late: 0, absent: 0, permission: 0 };
+  for (const dayRecords of grouped.values()) {
+    const am = blockContribution(
+      dayRecords.filter(r => r.session === 1 || r.session === 2).map(r => r.status),
+      preferPermissionOverAbsent,
+    );
+    const pm = blockContribution(
+      dayRecords.filter(r => r.session === 3 || r.session === 4).map(r => r.status),
+      preferPermissionOverAbsent,
+    );
+    const hasPresent = am.present > 0 || pm.present > 0;
+    const hasLate = am.late > 0 || pm.late > 0;
+    const hasPerm = am.permission > 0 || pm.permission > 0;
+    const hasAbsent = am.absent > 0 || pm.absent > 0;
+
+    if (hasPresent) total.present += 1;
+    else if (hasLate) total.late += 1;
+    else if (hasPerm) total.permission += 1;
+    else if (hasAbsent) total.absent += 1;
+  }
+  return total;
+}
+
+/**
  * Count unique entities by their dominant attendance status for the day (headcount).
  * Returns whole numbers (1 per person) — intended for the daily dashboard summary.
  * AM block + PM block are evaluated with blockContribution, then priority wins:
@@ -860,7 +900,7 @@ export class ReportsService {
 
     const students = cls.students.map((s, idx) => {
       const studentRecs = records.filter(r => r.studentId === s.id);
-      const halfDayTotals = countHalfDayBlocks(
+      const halfDayTotals = countWholeDayRangeTotals(
         studentRecs as any,
         (r: any) => r.studentId,
         formatRule.caseStudyABEnabled ?? true,
@@ -911,7 +951,7 @@ export class ReportsService {
 
     const staffData = staff.map((u, idx) => {
       const userRecs = records.filter(r => r.userId === u.id);
-      const halfDayTotals = countHalfDayBlocks(
+      const halfDayTotals = countWholeDayRangeTotals(
         userRecs as any,
         (r: any) => r.userId,
         formatRule.caseStudyABEnabled ?? true,
