@@ -161,6 +161,15 @@ const en: Record<string, string> = {
   'teacher.noClasses': 'No classes assigned',
   'teacher.noClassesHint': 'Ask your admin to assign classes to you.',
   'teacher.takeAttendance': 'Take Attendance',
+  'camera.chooseWhereToScan': 'Choose where to scan attendance',
+  'camera.chooseAttendanceMode': 'Choose attendance mode',
+  'camera.classAttendanceTitle': 'Class Attendance',
+  'camera.classAttendanceDesc': 'Scan student QR for class attendance.',
+  'camera.staffAttendanceTitle': 'Staff Attendance',
+  'camera.staffAttendanceDesc': 'Scan staff/officer QR attendance.',
+  'camera.selfAttendanceTitle': 'Self Attendance',
+  'camera.selfAttendanceDesc': 'Scan for your own teacher attendance.',
+  'camera.classAttendanceTeacherDesc': 'Scan student QR for your classes.',
 
   // Student Portal
   'student.title': 'Student Portal',
@@ -693,6 +702,15 @@ const kh: Record<string, string> = {
   'teacher.noClasses': 'មិនទាន់មានថ្នាក់',
   'teacher.noClassesHint': 'សូមស្នើសុំអ្នកគ្រប់គ្រងកំណត់ថ្នាក់ឱ្យអ្នក។',
   'teacher.takeAttendance': 'ចុះវត្តមាន',
+  'camera.chooseWhereToScan': 'ជ្រើសរើសកន្លែងស្កេនវត្តមាន',
+  'camera.chooseAttendanceMode': 'ជ្រើសរើសរបៀបចុះវត្តមាន',
+  'camera.classAttendanceTitle': 'វត្តមានថ្នាក់',
+  'camera.classAttendanceDesc': 'ស្កេន QR សិស្សសម្រាប់ចុះវត្តមានថ្នាក់។',
+  'camera.staffAttendanceTitle': 'វត្តមានបុគ្គលិក',
+  'camera.staffAttendanceDesc': 'ស្កេន QR បុគ្គលិក/មន្ត្រីសម្រាប់ចុះវត្តមាន។',
+  'camera.selfAttendanceTitle': 'វត្តមានខ្លួនឯង',
+  'camera.selfAttendanceDesc': 'ស្កេនសម្រាប់ចុះវត្តមានរបស់គ្រូដោយខ្លួនឯង។',
+  'camera.classAttendanceTeacherDesc': 'ស្កេន QR សិស្សសម្រាប់ថ្នាក់របស់អ្នក។',
 
   // Student Portal
   'student.title': 'ផ្ទាំងសិស្ស',
