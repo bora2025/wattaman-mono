@@ -149,15 +149,12 @@ function StaffPrintReportContent() {
     )
   }
 
-  const totals = data.staff.reduce(
-    (acc, s) => ({
-      present: acc.present + s.present,
-      late: acc.late + s.late,
-      absent: acc.absent + s.absent,
-      dayOff: acc.dayOff + s.dayOff,
-    }),
-    { present: 0, late: 0, absent: 0, dayOff: 0 }
-  )
+  const totals = {
+    present: data.staff.filter(s => s.present > 0).length,
+    late: data.staff.filter(s => s.late > 0).length,
+    absent: data.staff.filter(s => s.absent > 0).length,
+    dayOff: data.staff.filter(s => s.dayOff > 0).length,
+  }
 
   return (
     <>
