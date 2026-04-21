@@ -360,19 +360,28 @@ export default function AdminReports() {
 
   const isHolidayDate = grid.length > 0 && grid[0].isHoliday === true
   const totalStudents = grid.length
-  const hasAttendance = (r: GridRow) => {
-    const ss = [r.session1Status, r.session2Status, r.session3Status, r.session4Status]
-    const hasPresent = ss.some(s => s === 'PRESENT')
-    const hasLate = ss.some(s => s === 'LATE')
-    const absentCount = ss.filter(s => s === 'ABSENT').length
-    // LATE + 3 ABSENT = absent: only count as attended if has PRESENT, or LATE with < 3 absent
-    return hasPresent || (hasLate && absentCount < 3)
-  }
-  const isLateStudent = (r: GridRow) => [r.session1Status, r.session2Status, r.session3Status, r.session4Status].some(s => s === 'LATE')
-  const dailyLate = grid.filter(r => hasAttendance(r) && isLateStudent(r)).length
-  const dailyPresent = grid.filter(r => hasAttendance(r) && !isLateStudent(r)).length
-  const dailyPermission = grid.filter(r => !hasAttendance(r) && [r.session1Status, r.session2Status, r.session3Status, r.session4Status].some(s => s === 'DAY_OFF' || s === 'PERMISSION')).length
-  const dailyAbsent = isHolidayDate ? 0 : totalStudents - dailyPresent - dailyLate - dailyPermission
+  const getStatus = (r: GridRow, field: typeof activeSessions[number]['statusField']) => (r as any)[field] as string | null
+  const activeStatuses = grid.flatMap(r => activeSessions.map(sd => getStatus(r, sd.statusField)).filter(Boolean) as string[])
+  const dailyPresent = activeStatuses.filter(s => s === 'PRESENT').length
+  const dailyLate = activeStatuses.filter(s => s === 'LATE').length
+  const dailyAbsent = isHolidayDate ? 0 : activeStatuses.filter(s => s === 'ABSENT').length
+
+  // Permission count is block-based (AM block + PM block), not raw session count.
+  // A block counts as permission only when it contains permission/day-off and no present/late/absent.
+  const permissionBlocks = [{ sessions: [1, 2] }, { sessions: [3, 4] }]
+  const dailyPermission = grid.reduce((sum, row) => {
+    let rowPermission = 0
+    for (const block of permissionBlocks) {
+      const blockDefs = activeSessions.filter(sd => block.sessions.includes(sd.session))
+      if (blockDefs.length === 0) continue
+      const statuses = blockDefs.map(sd => getStatus(row, sd.statusField)).filter(Boolean) as string[]
+      if (statuses.length === 0) continue
+      const hasPermission = statuses.some(s => s === 'PERMISSION' || s === 'DAY_OFF')
+      const hasOther = statuses.some(s => s === 'PRESENT' || s === 'LATE' || s === 'ABSENT')
+      if (hasPermission && !hasOther) rowPermission += 1
+    }
+    return sum + rowPermission
+  }, 0)
 
   return (
     <div className="page-shell">

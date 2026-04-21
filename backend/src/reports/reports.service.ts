@@ -112,6 +112,24 @@ function countPermissionDayEquivalents<T extends { status: string; permissionTyp
   return total;
 }
 
+function countPermissionPresence<T extends { status: string; date: Date }>(
+  records: T[],
+  entityKey: (r: T) => string,
+): number {
+  const groups = new Map<string, boolean>();
+  for (const rec of records) {
+    const key = `${entityKey(rec)}|${rec.date.toISOString().split('T')[0]}`;
+    const hasPermission = isDayOffStatus(rec.status);
+    groups.set(key, (groups.get(key) || false) || hasPermission);
+  }
+
+  let total = 0;
+  for (const hasPerm of groups.values()) {
+    if (hasPerm) total += 1;
+  }
+  return total;
+}
+
 @Injectable()
 export class ReportsService {
   constructor(
@@ -225,13 +243,13 @@ export class ReportsService {
     const studentPresent = studentAttendances.filter(a => a.status === 'PRESENT').length;
     const studentAbsent = studentAttendances.filter(a => a.status === 'ABSENT').length;
     const studentLate = studentAttendances.filter(a => a.status === 'LATE').length;
-    const studentPermission = countPermissionDayEquivalents(studentAttendances as any, (a: any) => a.studentId);
+    const studentPermission = countPermissionPresence(studentAttendances as any, (a: any) => a.studentId);
 
     // Staff summary — count from actual records
     const staffPresent = staffAttendances.filter(a => a.status === 'PRESENT').length;
     const staffRecordedAbsent = staffAttendances.filter(a => a.status === 'ABSENT').length;
     const staffLate = staffAttendances.filter(a => a.status === 'LATE').length;
-    const staffPermission = countPermissionDayEquivalents(staffAttendances as any, (a: any) => a.userId);
+    const staffPermission = countPermissionPresence(staffAttendances as any, (a: any) => a.userId);
     // Staff with no attendance record = absent (not recorded)
     const staffWithRecords = new Set(staffAttendances.map(a => a.userId));
     const allStaffUsers = await this.prisma.user.findMany({
@@ -292,13 +310,13 @@ export class ReportsService {
 
     // Permission day-equivalent per person: half + half = full day.
     for (const [studentId, row] of studentMap.entries()) {
-      row.permission = countPermissionDayEquivalents(
+      row.permission = countPermissionPresence(
         studentAttendances.filter((a: any) => a.studentId === studentId) as any,
         (a: any) => a.studentId,
       );
     }
     for (const [userId, row] of staffMap.entries()) {
-      row.permission = countPermissionDayEquivalents(
+      row.permission = countPermissionPresence(
         staffAttendances.filter((a: any) => a.userId === userId) as any,
         (a: any) => a.userId,
       );
