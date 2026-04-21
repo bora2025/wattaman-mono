@@ -604,10 +604,16 @@ export class ReportsService {
       });
 
       const totalStudents = cls.students.length;
-      const present = attendances.filter(a => a.status === 'PRESENT').length;
-      const absent = attendances.filter(a => a.status === 'ABSENT').length;
-      const late = attendances.filter(a => a.status === 'LATE').length;
-      const permission = countPermissionDayEquivalents(attendances as any, (a: any) => a.studentId);
+      const rule = await this.sessionConfigService.getFormatRules('CLASS', null);
+      const headcount = countDailyHeadcount(
+        attendances as any,
+        (a: any) => a.studentId,
+        rule.caseStudyABEnabled ?? true,
+      );
+      const present = headcount.present;
+      const absent = headcount.absent;
+      const late = headcount.late;
+      const permission = headcount.permission;
 
       results.push({
         classId: cls.id,
