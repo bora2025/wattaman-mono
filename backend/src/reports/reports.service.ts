@@ -773,16 +773,15 @@ export class ReportsService {
       const hasDayOff = recs.some(a => isDayOffStatus(a.status));
 
       // Compute session statuses
-      // For CHECK_OUT paired sessions, PERMISSION/DAY_OFF status on the record must override checkout logic
+      // For CHECK_OUT paired sessions: if a record exists with an explicit status, always
+      // respect it (handles admin edits). Only derive from checkOutTime when no record exists.
       let session1Status = s1?.status || null;
       let session2Status = s2IsCheckOut
-        ? (s2 && isDayOffStatus(s2.status)) ? s2.status
-          : (s1?.checkOutTime ? (s1.status || 'PRESENT') : null)
+        ? s2?.status ?? (s1?.checkOutTime ? (s1.status || 'PRESENT') : null)
         : (s2?.status || null);
       let session3Status = s3?.status || null;
       let session4Status = s4IsCheckOut
-        ? (s4 && isDayOffStatus(s4.status)) ? s4.status
-          : (s3?.checkOutTime ? (s3.status || 'PRESENT') : null)
+        ? s4?.status ?? (s3?.checkOutTime ? (s3.status || 'PRESENT') : null)
         : (s4?.status || null);
 
       // Mark overtime sessions as ABSENT (past sessions with no record)
@@ -799,11 +798,15 @@ export class ReportsService {
         studentName: s.user.name,
         checkInMorning: s1 && s1.status !== 'ABSENT' && !isDayOffStatus(s1.status) ? toCambodiaTimeShort(s1.checkInTime) : null,
         checkOutMorning: s2IsCheckOut
-          ? (s1?.checkOutTime ? toCambodiaTimeShort(s1.checkOutTime) : null)
+          ? (s2 && s2.status && !isDayOffStatus(s2.status) && s2.status !== 'ABSENT'
+              ? toCambodiaTimeShort(s2.checkInTime || s1?.checkOutTime)
+              : (s1?.checkOutTime ? toCambodiaTimeShort(s1.checkOutTime) : null))
           : (s2 && s2.status !== 'ABSENT' && !isDayOffStatus(s2.status) ? toCambodiaTimeShort(s2.checkOutTime || s2.checkInTime) : null),
         checkInAfternoon: s3 && s3.status !== 'ABSENT' && !isDayOffStatus(s3.status) ? toCambodiaTimeShort(s3.checkInTime) : null,
         checkOutAfternoon: s4IsCheckOut
-          ? (s3?.checkOutTime ? toCambodiaTimeShort(s3.checkOutTime) : null)
+          ? (s4 && s4.status && !isDayOffStatus(s4.status) && s4.status !== 'ABSENT'
+              ? toCambodiaTimeShort(s4.checkInTime || s3?.checkOutTime)
+              : (s3?.checkOutTime ? toCambodiaTimeShort(s3.checkOutTime) : null))
           : (s4 && s4.status !== 'ABSENT' && !isDayOffStatus(s4.status) ? toCambodiaTimeShort(s4.checkOutTime || s4.checkInTime) : null),
         dayOff: hasDayOff || allAbsent,
         isHoliday,
