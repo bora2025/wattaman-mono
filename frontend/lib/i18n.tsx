@@ -103,7 +103,7 @@ const en: Record<string, string> = {
   'home.employeePortal': 'Employee Portal',
   'home.employeeDesc': 'Scan QR code to check in, view attendance and reports.',
   'home.wattamanPortal': 'Wattaman Portal',
-  'home.wattamanDesc': 'Scan any student ID card QR code to record attendance instantly.',,
+  'home.wattamanDesc': 'Scan any student ID card QR code to record attendance instantly.',
   'home.qrScan': 'QR Scan',
   'home.instantCheckIn': 'Instant check-in',
   'home.realTime': 'Real-time',
