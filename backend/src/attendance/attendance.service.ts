@@ -707,14 +707,24 @@ export class AttendanceService {
     if (!record) throw new NotFoundException('Attendance record not found');
 
     if (status === 'PERMISSION') {
-      return this.upsertStudentPermissionRange(
-        record.studentId,
-        record.classId,
-        adminId,
-        permissionType,
-        permissionStartDate || record.date,
-        permissionEndDate || permissionStartDate || record.date,
-      );
+      // Single-record update: do NOT call upsertStudentPermissionRange in the edit
+      // context — that would bulk-overwrite sessions the admin already changed.
+      // Use editPermissionType endpoint to restructure sessions by type.
+      const pType = normalizePermissionType(permissionType);
+      const pStart = toUTCMidnight(permissionStartDate || record.date);
+      const pEnd = toUTCMidnight(permissionEndDate || permissionStartDate || record.date);
+      return this.prisma.attendance.update({
+        where: { id: attendanceId },
+        data: {
+          status: 'PERMISSION',
+          permissionType: pType,
+          permissionStartDate: pStart,
+          permissionEndDate: pEnd,
+          markedById: adminId,
+          checkInTime: null,
+          checkOutTime: null,
+        },
+      });
     }
 
     return this.prisma.attendance.update({
@@ -749,51 +759,65 @@ export class AttendanceService {
     const allSessions = [1, 2, 3, 4];
     const outOfScopeSessions = allSessions.filter(s => !inScopeSessions.includes(s));
 
-    // Upsert in-scope sessions as PERMISSION/new-type
-    const inScopeWrites = inScopeSessions.map(session =>
-      this.prisma.attendance.upsert({
-        where: { studentId_classId_date_session: { studentId, classId, date: attendanceDate, session } },
-        update: {
-          status: 'PERMISSION',
-          permissionType: newType,
-          permissionStartDate: attendanceDate,
-          permissionEndDate: attendanceDate,
-          markedById: adminId,
-          checkInTime: null,
-          checkOutTime: null,
-        },
-        create: {
-          studentId,
-          classId,
-          date: attendanceDate,
-          session,
-          status: 'PERMISSION',
-          permissionType: newType,
-          permissionStartDate: attendanceDate,
-          permissionEndDate: attendanceDate,
-          markedById: adminId,
-          checkInTime: null,
-          checkOutTime: null,
-        },
-      }),
-    );
+    // Fetch existing records to avoid overwriting PRESENT/LATE sessions
+    const existing = await this.prisma.attendance.findMany({
+      where: { studentId, classId, date: attendanceDate },
+    });
+    const existingMap = new Map(existing.map(r => [r.session, r]));
 
-    // Convert out-of-scope PERMISSION sessions to ABSENT so they remain visible
-    // (sessions already PRESENT/LATE/ABSENT are not touched)
-    const outOfScopeUpdates = outOfScopeSessions.map(session =>
-      this.prisma.attendance.updateMany({
-        where: { studentId, classId, date: attendanceDate, session, status: 'PERMISSION' },
-        data: {
-          status: 'ABSENT',
-          permissionType: null,
-          permissionStartDate: null,
-          permissionEndDate: null,
-          markedById: adminId,
-        },
-      }),
-    );
+    const ops: any[] = [];
 
-    await this.prisma.$transaction([...inScopeWrites, ...outOfScopeUpdates]);
+    // In-scope sessions: upsert to PERMISSION/new-type, but SKIP sessions already
+    // set to PRESENT or LATE by the admin (don't overwrite their deliberate edits).
+    for (const session of inScopeSessions) {
+      const rec = existingMap.get(session);
+      if (rec && (rec.status === 'PRESENT' || rec.status === 'LATE')) continue;
+      ops.push(
+        this.prisma.attendance.upsert({
+          where: { studentId_classId_date_session: { studentId, classId, date: attendanceDate, session } },
+          update: {
+            status: 'PERMISSION',
+            permissionType: newType,
+            permissionStartDate: attendanceDate,
+            permissionEndDate: attendanceDate,
+            markedById: adminId,
+            checkInTime: null,
+            checkOutTime: null,
+          },
+          create: {
+            studentId,
+            classId,
+            date: attendanceDate,
+            session,
+            status: 'PERMISSION',
+            permissionType: newType,
+            permissionStartDate: attendanceDate,
+            permissionEndDate: attendanceDate,
+            markedById: adminId,
+            checkInTime: null,
+            checkOutTime: null,
+          },
+        }),
+      );
+    }
+
+    // Out-of-scope sessions that are still PERMISSION → set to ABSENT (visible + editable)
+    for (const session of outOfScopeSessions) {
+      ops.push(
+        this.prisma.attendance.updateMany({
+          where: { studentId, classId, date: attendanceDate, session, status: 'PERMISSION' },
+          data: {
+            status: 'ABSENT',
+            permissionType: null,
+            permissionStartDate: null,
+            permissionEndDate: null,
+            markedById: adminId,
+          },
+        }),
+      );
+    }
+
+    if (ops.length > 0) await this.prisma.$transaction(ops);
     return { success: true, permissionType: newType };
   }
 
@@ -809,13 +833,21 @@ export class AttendanceService {
     if (!record) throw new NotFoundException('Staff attendance record not found');
 
     if (status === 'PERMISSION') {
-      return this.upsertStaffPermissionRange(
-        record.userId,
-        adminId,
-        permissionType,
-        permissionStartDate || record.date,
-        permissionEndDate || permissionStartDate || record.date,
-      );
+      const pType = normalizePermissionType(permissionType);
+      const pStart = toUTCMidnight(permissionStartDate || record.date);
+      const pEnd = toUTCMidnight(permissionEndDate || permissionStartDate || record.date);
+      return this.prisma.staffAttendance.update({
+        where: { id: staffAttendanceId },
+        data: {
+          status: 'PERMISSION',
+          permissionType: pType,
+          permissionStartDate: pStart,
+          permissionEndDate: pEnd,
+          markedById: adminId,
+          checkInTime: null,
+          checkOutTime: null,
+        },
+      });
     }
 
     return this.prisma.staffAttendance.update({
@@ -917,14 +949,34 @@ export class AttendanceService {
     const attendanceDate = toUTCMidnight(new Date(date));
 
     if (status === 'PERMISSION') {
-      return this.upsertStudentPermissionRange(
-        studentId,
-        classId,
-        adminId,
-        permissionType,
-        permissionStartDate || attendanceDate,
-        permissionEndDate || permissionStartDate || attendanceDate,
-      );
+      const pType = normalizePermissionType(permissionType);
+      const pStart = toUTCMidnight(permissionStartDate || attendanceDate);
+      const pEnd = toUTCMidnight(permissionEndDate || permissionStartDate || attendanceDate);
+      return this.prisma.attendance.upsert({
+        where: { studentId_classId_date_session: { studentId, classId, date: attendanceDate, session } },
+        update: {
+          status: 'PERMISSION',
+          permissionType: pType,
+          permissionStartDate: pStart,
+          permissionEndDate: pEnd,
+          markedById: adminId,
+          checkInTime: null,
+          checkOutTime: null,
+        },
+        create: {
+          studentId,
+          classId,
+          date: attendanceDate,
+          session,
+          status: 'PERMISSION',
+          permissionType: pType,
+          permissionStartDate: pStart,
+          permissionEndDate: pEnd,
+          markedById: adminId,
+          checkInTime: null,
+          checkOutTime: null,
+        },
+      });
     }
 
     const isAttending = status === 'PRESENT' || status === 'LATE';
@@ -968,13 +1020,33 @@ export class AttendanceService {
     const attendanceDate = toUTCMidnight(new Date(date));
 
     if (status === 'PERMISSION') {
-      return this.upsertStaffPermissionRange(
-        userId,
-        adminId,
-        permissionType,
-        permissionStartDate || attendanceDate,
-        permissionEndDate || permissionStartDate || attendanceDate,
-      );
+      const pType = normalizePermissionType(permissionType);
+      const pStart = toUTCMidnight(permissionStartDate || attendanceDate);
+      const pEnd = toUTCMidnight(permissionEndDate || permissionStartDate || attendanceDate);
+      return this.prisma.staffAttendance.upsert({
+        where: { userId_date_session: { userId, date: attendanceDate, session } },
+        update: {
+          status: 'PERMISSION',
+          permissionType: pType,
+          permissionStartDate: pStart,
+          permissionEndDate: pEnd,
+          markedById: adminId,
+          checkInTime: null,
+          checkOutTime: null,
+        },
+        create: {
+          userId,
+          date: attendanceDate,
+          session,
+          status: 'PERMISSION',
+          permissionType: pType,
+          permissionStartDate: pStart,
+          permissionEndDate: pEnd,
+          markedById: adminId,
+          checkInTime: null,
+          checkOutTime: null,
+        },
+      });
     }
 
     const isAttending = status === 'PRESENT' || status === 'LATE';
