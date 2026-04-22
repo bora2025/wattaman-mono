@@ -27,7 +27,8 @@ function WattamanScanContent() {
   const [currentCamIdx, setCurrentCamIdx] = useState(0)
   const [cameraLabel, setCameraLabel] = useState('')
   const [scanHistory, setScanHistory] = useState<ScanResult[]>([])
-  const [flashSuccess, setFlashSuccess] = useState(false)
+  const [flashColor, setFlashColor] = useState<'green' | 'blue' | 'amber' | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
   const [hasTorch, setHasTorch] = useState(false)
   const [torchOn, setTorchOn] = useState(false)
   const [scanCount, setScanCount] = useState(0)
@@ -58,27 +59,27 @@ function WattamanScanContent() {
     setMessage('Initializing camera...')
   }, [])
 
-  const playSound = useCallback((type: 'success' | 'error') => {
+  const playSound = useCallback((type: 'success' | 'error' | 'already') => {
     try {
       if (!audioCtxRef.current) audioCtxRef.current = new AudioContext()
       const ctx = audioCtxRef.current
-      const osc = ctx.createOscillator()
-      const gain = ctx.createGain()
-      osc.connect(gain)
-      gain.connect(ctx.destination)
-      gain.gain.setValueAtTime(0.3, ctx.currentTime)
+      const playTone = (freq: number, start: number, duration: number, vol = 0.25) => {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.connect(gain); gain.connect(ctx.destination)
+        osc.frequency.setValueAtTime(freq, ctx.currentTime + start)
+        gain.gain.setValueAtTime(vol, ctx.currentTime + start)
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration)
+        osc.start(ctx.currentTime + start)
+        osc.stop(ctx.currentTime + start + duration)
+      }
       if (type === 'success') {
-        osc.frequency.setValueAtTime(880, ctx.currentTime)
-        osc.frequency.setValueAtTime(1108, ctx.currentTime + 0.1)
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3)
-        osc.start(ctx.currentTime)
-        osc.stop(ctx.currentTime + 0.3)
+        playTone(880, 0, 0.12, 0.3); playTone(1108, 0.1, 0.2, 0.3)
+      } else if (type === 'already') {
+        // Two soft short beeps — informational
+        playTone(660, 0, 0.1, 0.15); playTone(660, 0.15, 0.1, 0.15)
       } else {
-        osc.frequency.setValueAtTime(330, ctx.currentTime)
-        osc.frequency.setValueAtTime(220, ctx.currentTime + 0.15)
-        gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.4)
-        osc.start(ctx.currentTime)
-        osc.stop(ctx.currentTime + 0.4)
+        playTone(330, 0, 0.15); playTone(220, 0.15, 0.25)
       }
     } catch { /* audio not supported */ }
   }, [])
@@ -86,13 +87,14 @@ function WattamanScanContent() {
   const handleQrScanned = useCallback(async (qrData: string) => {
     if (lockRef.current) return
     lockRef.current = true
+    setIsLoading(true)
 
     // Extract studentId/userId from JSON QR if needed
     let resolvedQr = qrData
     try {
       const parsed = JSON.parse(qrData)
       if (parsed.staffId) {
-        // Staff/officer card — not supported in Wattaman student scan
+        setIsLoading(false)
         playSound('error')
         setMessage('⚠️ Staff card detected — please scan a student ID card')
         if ('vibrate' in navigator) navigator.vibrate([100, 100, 100])
@@ -113,22 +115,32 @@ function WattamanScanContent() {
           ...(loc ? { latitude: loc.latitude, longitude: loc.longitude, location: `${loc.latitude.toFixed(6)}, ${loc.longitude.toFixed(6)}` } : {}),
         }),
       })
+      setIsLoading(false)
       if (res.ok) {
         const result: ScanResult = await res.json()
-        playSound(result.action === 'DAY_OFF' ? 'error' : 'success')
-        if (result.action !== 'DAY_OFF') {
-          setFlashSuccess(true)
-          setScanCount(c => c + 1)
-          setTimeout(() => setFlashSuccess(false), 400)
+        const isAlready = result.action === 'ALREADY_RECORDED'
+        const isDayOff = result.action === 'DAY_OFF'
+        const isLate = result.status === 'LATE'
+        // Sound
+        if (isDayOff) playSound('error')
+        else if (isAlready) playSound('already')
+        else playSound('success')
+        // Flash color
+        const fc: 'green' | 'blue' | 'amber' = isAlready ? 'blue' : isLate ? 'amber' : 'green'
+        if (!isDayOff) {
+          setFlashColor(fc)
+          if (!isAlready) setScanCount(c => c + 1)
+          setTimeout(() => setFlashColor(null), 500)
         }
         setLastResult(result)
         setScanHistory(prev => [result, ...prev].slice(0, 20))
-        if ('vibrate' in navigator) navigator.vibrate(200)
+        if ('vibrate' in navigator) navigator.vibrate(isAlready ? [80] : 200)
+        const displayTime = isAlready ? 2000 : 2500
         setTimeout(() => {
           setLastResult(null)
           setMessage('')
           lockRef.current = false
-        }, 2500)
+        }, displayTime)
       } else {
         playSound('error')
         const err = await res.json().catch(() => ({}))
@@ -137,6 +149,7 @@ function WattamanScanContent() {
         setTimeout(() => { setMessage(''); lockRef.current = false }, 2000)
       }
     } catch {
+      setIsLoading(false)
       playSound('error')
       setMessage('Network error — check connection')
       setTimeout(() => { setMessage(''); lockRef.current = false }, 2000)
@@ -255,8 +268,8 @@ function WattamanScanContent() {
           0%, 100% { top: 0%; }
           50% { top: 100%; }
         }
-        @keyframes flashSuccess {
-          0% { opacity: 0.5; }
+        @keyframes flashOverlay {
+          0% { opacity: 0.55; }
           100% { opacity: 0; }
         }
         @keyframes slideDown {
@@ -273,9 +286,22 @@ function WattamanScanContent() {
           <div className="fixed inset-0 z-50 bg-black flex flex-col">
             <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover" autoPlay playsInline muted />
 
-            {/* Success flash */}
-            {flashSuccess && (
-              <div className="absolute inset-0 z-20 bg-emerald-400/40 pointer-events-none" style={{ animation: 'flashSuccess 0.4s ease-out forwards' }} />
+            {/* Color flash overlay */}
+            {flashColor && (
+              <div
+                className="absolute inset-0 z-20 pointer-events-none"
+                style={{
+                  background: flashColor === 'blue' ? 'rgba(99,102,241,0.4)' : flashColor === 'amber' ? 'rgba(251,191,36,0.35)' : 'rgba(52,211,153,0.4)',
+                  animation: 'flashOverlay 0.5s ease-out forwards',
+                }}
+              />
+            )}
+
+            {/* Loading spinner on scan zone */}
+            {isLoading && (
+              <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
+                <div className="w-20 h-20 rounded-full border-4 border-white/20 border-t-white animate-spin" />
+              </div>
             )}
 
             {/* Scanning overlay */}
@@ -313,30 +339,58 @@ function WattamanScanContent() {
             </div>
 
             {/* Result card */}
-            {lastResult && (
-              <div className="relative z-20 mx-4 mt-2" style={{ animation: 'slideDown 0.25s ease-out' }}>
-                <div className={`rounded-2xl p-4 shadow-xl flex items-center gap-3 backdrop-blur ${lastResult.status === 'LATE' ? 'bg-amber-50/95' : lastResult.status === 'DAY_OFF' ? 'bg-slate-100/95' : 'bg-emerald-50/95'}`}>
-                  {lastResult.studentPhoto ? (
-                    <img src={lastResult.studentPhoto} alt={lastResult.studentName} className="w-16 h-16 rounded-xl object-cover flex-shrink-0 ring-2 ring-white shadow-md" />
-                  ) : (
-                    <div className="w-16 h-16 rounded-xl bg-white flex items-center justify-center text-3xl flex-shrink-0 shadow-md">👤</div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-slate-800 text-base truncate">{lastResult.studentName}</p>
-                    <p className="text-xs text-slate-500 truncate mt-0.5">{lastResult.className}</p>
-                    {lastResult.session > 0 && <p className="text-xs text-slate-400">Session {lastResult.session}</p>}
-                    <div className="flex items-center gap-1.5 mt-1.5">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold text-white ${statusColor(lastResult.status)}`}>
-                        {lastResult.status === 'LATE' ? '⚠️ LATE' : lastResult.status === 'DAY_OFF' ? '🌙 DAY OFF' : lastResult.action === 'ALREADY_RECORDED' ? '↩ ALREADY IN' : '✓ PRESENT'}
-                      </span>
-                      {lastResult.checkInTime && (
-                        <span className="text-xs text-slate-400">{new Date(lastResult.checkInTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+            {lastResult && (() => {
+              const isAlready = lastResult.action === 'ALREADY_RECORDED'
+              const isLate = lastResult.status === 'LATE'
+              const isDayOff = lastResult.status === 'DAY_OFF'
+              const checkInDisplay = lastResult.checkInTime
+                ? new Date(lastResult.checkInTime).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                : null
+              const cardBg = isAlready ? 'bg-indigo-50/97' : isLate ? 'bg-amber-50/97' : isDayOff ? 'bg-slate-100/97' : 'bg-emerald-50/97'
+              const ringColor = isAlready ? 'ring-indigo-300' : isLate ? 'ring-amber-300' : isDayOff ? 'ring-slate-300' : 'ring-emerald-300'
+              const accentBg = isAlready ? 'bg-indigo-500' : isLate ? 'bg-amber-500' : isDayOff ? 'bg-slate-400' : 'bg-emerald-500'
+              const accentText = isAlready ? '↩ Already Checked In' : isLate ? '⚠️ Late' : isDayOff ? '🌙 Day Off' : '✓ Present'
+              return (
+                <div className="relative z-20 mx-3 mt-2" style={{ animation: 'slideDown 0.2s ease-out' }}>
+                  <div className={`rounded-2xl shadow-2xl overflow-hidden ${cardBg} backdrop-blur-sm`}>
+                    {/* Accent banner */}
+                    <div className={`${accentBg} px-4 py-1.5 flex items-center justify-between`}>
+                      <span className="text-white text-xs font-bold tracking-wide">{accentText}</span>
+                      {isAlready && checkInDisplay && (
+                        <span className="text-white/90 text-xs">First in at {checkInDisplay}</span>
                       )}
+                    </div>
+                    {/* Body */}
+                    <div className="flex items-center gap-3 p-4">
+                      {lastResult.studentPhoto ? (
+                        <img
+                          src={lastResult.studentPhoto}
+                          alt={lastResult.studentName}
+                          className={`w-16 h-16 rounded-xl object-cover flex-shrink-0 ring-2 shadow-md ${ringColor}`}
+                        />
+                      ) : (
+                        <div className={`w-16 h-16 rounded-xl bg-white flex items-center justify-center text-3xl flex-shrink-0 ring-2 shadow-md ${ringColor}`}>👤</div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-slate-800 text-base leading-tight truncate">{lastResult.studentName}</p>
+                        <p className="text-xs text-slate-500 truncate mt-0.5">{lastResult.className}</p>
+                        {lastResult.session > 0 && (
+                          <p className="text-xs text-slate-400 mt-0.5">Session {lastResult.session}</p>
+                        )}
+                        {!isAlready && checkInDisplay && (
+                          <p className="text-xs font-semibold mt-1" style={{ color: isLate ? '#d97706' : '#059669' }}>
+                            Checked in at {checkInDisplay}
+                          </p>
+                        )}
+                        {isAlready && (
+                          <p className="text-xs text-indigo-600 font-medium mt-1">Already recorded — no duplicate</p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )
+            })()}
 
             {/* Bottom info */}
             <div className="relative z-20 mt-auto bg-gradient-to-t from-black/85 to-transparent px-4 pb-8 pt-12">
@@ -390,8 +444,10 @@ function WattamanScanContent() {
                       <p className="text-sm font-medium text-slate-800 truncate">{r.studentName}</p>
                       <p className="text-xs text-slate-400 truncate">{r.className}</p>
                     </div>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold text-white flex-shrink-0 ${statusColor(r.status)}`}>
-                      {r.status === 'LATE' ? '⚠️' : r.action === 'ALREADY_RECORDED' ? '↩' : '✓'} {r.status}
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold text-white flex-shrink-0 ${
+                      r.action === 'ALREADY_RECORDED' ? 'bg-indigo-500' : statusColor(r.status)
+                    }`}>
+                      {r.action === 'ALREADY_RECORDED' ? '↩ Again' : r.status === 'LATE' ? '⚠️ Late' : '✓ Present'}
                     </span>
                   </div>
                 ))}
