@@ -298,26 +298,6 @@ function PrintReportContent() {
                 </td>
               </tr>
             ))}
-            {/* Totals Row — daily only */}
-            {period === 'daily' && (
-            <tr className="bg-slate-200 font-bold">
-              <td className="border border-slate-400 px-2 py-2 text-center" colSpan={2}>
-                {t('common.total')} ({data.students.length} {t('common.students')})
-              </td>
-              <td className="border border-slate-400 px-2 py-2 text-center text-emerald-700">
-                {totals.present}
-              </td>
-              <td className="border border-slate-400 px-2 py-2 text-center text-amber-600">
-                {totals.late}
-              </td>
-              <td className="border border-slate-400 px-2 py-2 text-center text-red-600">
-                {totals.absent}
-              </td>
-              <td className="border border-slate-400 px-2 py-2 text-center text-purple-600">
-                {totals.dayOff}
-              </td>
-            </tr>
-            )}
           </tbody>
         </table>
 

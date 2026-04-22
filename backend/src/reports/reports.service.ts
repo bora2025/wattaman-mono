@@ -170,6 +170,67 @@ function countHalfDayBlocks<T extends { status: string; date: Date; session: num
 }
 
 /**
+ * Count attendance totals for the print report.
+ * - Missing half-day blocks (when the other half has records) are filled as ABSENT.
+ * - If a day has both PERMISSION sessions and non-PERMISSION sessions (genuine half-day
+ *   split), score each block at 0.5 independently.
+ * - Otherwise (uniform day): combine AM+PM into 1 whole day with precedence
+ *   PRESENT > ABSENT > LATE > PERMISSION (ABSENT absorbs LATE per school policy:
+ *   missing morning + late afternoon = 1 absent).
+ */
+function countPrintReportTotals<T extends { status: string; date: Date; session: number }>(
+  records: T[],
+  entityKey: (r: T) => string,
+  preferPermissionOverAbsent: boolean,
+): { present: number; late: number; absent: number; permission: number } {
+  const grouped = new Map<string, T[]>();
+  for (const rec of records) {
+    const key = `${entityKey(rec)}|${rec.date.toISOString().split('T')[0]}`;
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key)!.push(rec);
+  }
+
+  const total = { present: 0, late: 0, absent: 0, permission: 0 };
+  for (const dayRecords of grouped.values()) {
+    const amRecs = dayRecords.filter(r => r.session === 1 || r.session === 2);
+    const pmRecs = dayRecords.filter(r => r.session === 3 || r.session === 4);
+
+    // Fill missing blocks as ABSENT when the student has other records that day
+    const amStatuses = amRecs.length > 0 ? amRecs.map(r => r.status) : ['ABSENT'];
+    const pmStatuses = pmRecs.length > 0 ? pmRecs.map(r => r.status) : ['ABSENT'];
+
+    const hasPermission = [...amStatuses, ...pmStatuses].some(s => isDayOffStatus(s));
+    const hasNonPermission = [...amStatuses, ...pmStatuses].some(s => !isDayOffStatus(s));
+
+    if (hasPermission && hasNonPermission) {
+      // Genuine half-day split: score each block at 0.5 independently
+      const am = blockContribution(amStatuses, preferPermissionOverAbsent);
+      const pm = blockContribution(pmStatuses, preferPermissionOverAbsent);
+      total.present += am.present + pm.present;
+      total.late += am.late + pm.late;
+      total.absent += am.absent + pm.absent;
+      total.permission += am.permission + pm.permission;
+    } else {
+      // Uniform day: combine both blocks into 1 whole-day result.
+      // Precedence: PRESENT > ABSENT > LATE > PERMISSION
+      // (ABSENT absorbs LATE: missing morning + late afternoon = 1 absent)
+      const am = blockContribution(amStatuses, preferPermissionOverAbsent);
+      const pm = blockContribution(pmStatuses, preferPermissionOverAbsent);
+      const hasPresent = am.present > 0 || pm.present > 0;
+      const hasAbsent = am.absent > 0 || pm.absent > 0;
+      const hasLate = am.late > 0 || pm.late > 0;
+      const hasPerm = am.permission > 0 || pm.permission > 0;
+
+      if (hasPresent) total.present += 1;
+      else if (hasAbsent) total.absent += 1;
+      else if (hasLate) total.late += 1;
+      else if (hasPerm) total.permission += 1;
+    }
+  }
+  return total;
+}
+
+/**
  * Count whole-day attendance totals per person over a date range.
  * Groups by person+date, determines dominant status per day (same block precedence),
  * and sums 1 whole day per status. Works correctly for daily, weekly, monthly, yearly.
@@ -909,7 +970,7 @@ export class ReportsService {
 
     const students = cls.students.map((s, idx) => {
       const studentRecs = records.filter(r => r.studentId === s.id);
-      const halfDayTotals = countHalfDayBlocks(
+      const halfDayTotals = countPrintReportTotals(
         studentRecs as any,
         (r: any) => r.studentId,
         formatRule.caseStudyABEnabled ?? true,
@@ -960,7 +1021,7 @@ export class ReportsService {
 
     const staffData = staff.map((u, idx) => {
       const userRecs = records.filter(r => r.userId === u.id);
-      const halfDayTotals = countHalfDayBlocks(
+      const halfDayTotals = countPrintReportTotals(
         userRecs as any,
         (r: any) => r.userId,
         formatRule.caseStudyABEnabled ?? true,
