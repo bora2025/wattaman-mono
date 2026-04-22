@@ -1,30 +1,134 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import AuthGuard from '../../components/AuthGuard'
 import Sidebar from '../../components/Sidebar'
 import { wattamanNav } from '../../lib/wattaman-nav'
 import Link from 'next/link'
+import { apiFetch, getCurrentUser } from '../../lib/api'
+
+interface TodayStat { total: number; present: number; late: number }
 
 function WattamanDashboardContent() {
+  const [userName, setUserName] = useState('')
+  const [stats, setStats] = useState<TodayStat>({ total: 0, present: 0, late: 0 })
+  const [loadingStats, setLoadingStats] = useState(true)
+
+  const now = new Date()
+  const cambodiaNow = new Date(now.getTime() + 7 * 60 * 60 * 1000)
+  const hour = cambodiaNow.getUTCHours()
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+  const todayLabel = cambodiaNow.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+
+  useEffect(() => {
+    getCurrentUser().then(u => { if (u) setUserName(u.email.split('@')[0]) })
+    loadStats()
+  }, [])
+
+  const loadStats = async () => {
+    setLoadingStats(true)
+    try {
+      const today = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().split('T')[0]
+      const classRes = await apiFetch('/api/classes')
+      if (classRes.ok) {
+        const classes = await classRes.json()
+        let total = 0, present = 0, late = 0
+        await Promise.all(
+          classes.slice(0, 10).map(async (cls: { id: string }) => {
+            const r = await apiFetch(`/api/attendance/records?classId=${cls.id}&date=${today}`)
+            if (r.ok) {
+              const rows: Array<{ sessions: Array<{ status: string | null }> }> = await r.json()
+              rows.forEach(row => row.sessions.forEach(s => {
+                if (s.status) { total++; if (s.status === 'PRESENT') present++; if (s.status === 'LATE') late++ }
+              }))
+            }
+          })
+        )
+        setStats({ total, present, late })
+      }
+    } catch { /* non-critical */ }
+    setLoadingStats(false)
+  }
+
   return (
     <div className="page-shell">
       <Sidebar title="Wattaman" subtitle="QR Attendance" navItems={wattamanNav} accentColor="emerald" bottomTabs={['/wattaman', '/wattaman/scan']} />
       <div className="page-content">
         <div className="h-14 lg:hidden" />
 
-        <div className="page-header">
-          <h1 className="text-xl sm:text-2xl font-bold text-slate-800">Wattaman Dashboard</h1>
-          <p className="text-sm text-slate-500 mt-1">Scan any student QR code to record attendance instantly</p>
+        {/* Greeting */}
+        <div className="page-header pb-0">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-emerald-600">{greeting} 👋</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-slate-800 mt-0.5">
+                {userName ? userName.charAt(0).toUpperCase() + userName.slice(1) : 'Wattaman'}
+              </h1>
+              <p className="text-xs text-slate-400 mt-0.5">{todayLabel}</p>
+            </div>
+            <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shadow-lg" style={{ background: 'linear-gradient(135deg,#00C9A7,#00a88a)' }}>
+              📷
+            </div>
+          </div>
         </div>
 
-        <div className="page-body">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Link href="/wattaman/scan" className="card-hover p-5 rounded-2xl border border-slate-200 bg-white">
-              <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl">📷</div>
-              <h2 className="mt-4 text-lg font-semibold text-slate-800">Scan Student QR</h2>
-              <p className="mt-1 text-sm text-slate-500">Open camera and scan any student ID card QR code. No class selection needed.</p>
-            </Link>
+        <div className="page-body space-y-5">
+
+          {/* Big scan CTA */}
+          <Link href="/wattaman/scan" className="block active:scale-[0.98] transition-transform">
+            <div className="relative overflow-hidden rounded-2xl shadow-lg p-6 text-white" style={{ background: 'linear-gradient(135deg,#00C9A7 0%,#00a88a 50%,#008f75 100%)' }}>
+              <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-white/10" />
+              <div className="absolute -right-2 top-8 w-20 h-20 rounded-full bg-white/10" />
+              <div className="relative z-10 flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-white/80 text-sm font-medium">Ready to scan</p>
+                  <h2 className="text-2xl font-bold mt-0.5">Open Scanner</h2>
+                  <p className="text-white/70 text-xs mt-1">No class selection needed</p>
+                  <div className="mt-4 inline-flex items-center gap-1.5 bg-white/20 rounded-full px-3 py-1.5 text-sm font-semibold">
+                    <span>Start Scanning</span>
+                    <span>→</span>
+                  </div>
+                </div>
+                <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center text-4xl flex-shrink-0">📷</div>
+              </div>
+            </div>
+          </Link>
+
+          {/* Today's stats */}
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { label: 'Scanned', value: stats.total, gradient: 'from-teal-400 to-emerald-500', icon: '📊' },
+              { label: 'Present', value: stats.present, gradient: 'from-green-400 to-emerald-500', icon: '✅' },
+              { label: 'Late', value: stats.late, gradient: 'from-amber-400 to-orange-500', icon: '⚠️' },
+            ].map(c => (
+              <div key={c.label} className={`rounded-2xl p-3 sm:p-4 text-white bg-gradient-to-br ${c.gradient} shadow-sm`}>
+                <div className="text-xl mb-1">{c.icon}</div>
+                <div className="text-2xl font-bold leading-none">{loadingStats ? '—' : c.value}</div>
+                <div className="text-xs text-white/80 mt-0.5">{c.label}</div>
+              </div>
+            ))}
           </div>
+
+          {/* Guide */}
+          <div className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm">
+            <h3 className="font-semibold text-slate-700 text-sm mb-3">How it works</h3>
+            <div className="space-y-3">
+              {[
+                { icon: '📷', title: 'Open Scanner', desc: 'Tap the button above' },
+                { icon: '🪪', title: 'Point at Student Card', desc: 'Aim at the QR code on the student ID card' },
+                { icon: '✅', title: 'Instant Record', desc: 'Attendance recorded automatically — session & status included' },
+              ].map((step, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-50 flex items-center justify-center text-lg flex-shrink-0">{step.icon}</div>
+                  <div>
+                    <p className="text-sm font-medium text-slate-700">{step.title}</p>
+                    <p className="text-xs text-slate-400">{step.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
