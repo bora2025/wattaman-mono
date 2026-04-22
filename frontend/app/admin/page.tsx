@@ -39,6 +39,7 @@ const roleLabels: Record<string, string> = {
   EXECUTIVE_DIRECTOR:'Executive Director',HR_MANAGER:'HR Manager',
   ATHLETE_MALE:'Athlete (M)',ATHLETE_FEMALE:'Athlete (F)',TRAINER:'Trainer',
   BARISTA:'Barista',CASHIER:'Cashier',RECEPTIONIST:'Receptionist',GENERAL_MANAGER:'General Manager',
+  WATTAMAN:'Wattaman',
 }
 function getRoleLabel(role: string): string {
   if (role === 'Student') return 'Student'

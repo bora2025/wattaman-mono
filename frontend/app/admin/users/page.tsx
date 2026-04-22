@@ -47,6 +47,7 @@ const roleLabels: Record<string, string> = {
   CASHIER: 'អ្នកគិតលុយ',
   RECEPTIONIST: 'អ្នកទទួលភ្ញៀវ',
   GENERAL_MANAGER: 'អ្នកគ្រប់គ្រងទូទៅ',
+  WATTAMAN: 'Wattaman',
 }
 
 const roleBadge: Record<string, string> = {
