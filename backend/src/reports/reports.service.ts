@@ -924,13 +924,15 @@ export class ReportsService {
 
     const countFor = (recs: any[], studentId: string) => {
       const studentRecs = recs.filter(r => r.studentId === studentId);
-      const raw = {
-        present: studentRecs.filter(r => r.status === 'PRESENT').length,
-        late: studentRecs.filter(r => r.status === 'LATE').length,
-        absent: studentRecs.filter(r => r.status === 'ABSENT' && !holidayDateSet.has(r.date.toISOString().split('T')[0])).length,
-        dayOff: countPermissionDayEquivalents(studentRecs as any, (r: any) => r.studentId),
-      };
-      return this.applyFormatRules(raw, formatRule as any);
+      const raw = countPrintReportTotals(
+        studentRecs as any,
+        (r: any) => r.studentId,
+        formatRule.caseStudyABEnabled ?? true,
+      );
+      return this.applyFormatRules(
+        { present: raw.present, late: raw.late, absent: raw.absent, dayOff: raw.permission },
+        formatRule as any,
+      );
     };
 
     return cls.students.map((s, idx) => ({
