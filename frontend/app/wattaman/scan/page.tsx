@@ -80,6 +80,14 @@ function WattamanScanContent() {
     let resolvedQr = qrData
     try {
       const parsed = JSON.parse(qrData)
+      if (parsed.staffId) {
+        // Staff/officer card — not supported in Wattaman student scan
+        playSound('error')
+        setMessage('⚠️ Staff card detected — please scan a student ID card')
+        if ('vibrate' in navigator) navigator.vibrate([100, 100, 100])
+        setTimeout(() => { setMessage(''); lockRef.current = false }, 3000)
+        return
+      }
       if (parsed.studentId) resolvedQr = parsed.studentId
       else if (parsed.userId) resolvedQr = parsed.userId
     } catch { /* raw string QR */ }
