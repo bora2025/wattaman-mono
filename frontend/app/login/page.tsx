@@ -43,10 +43,12 @@ function LoginContent() {
           const adminRoles = ['ADMIN'];
           const teacherRoles = ['TEACHER'];
           const studentRoles = ['STUDENT'];
+          const wattamanRoles = ['WATTAMAN'];
           let dest = '/employee';
           if (adminRoles.includes(role)) dest = '/admin';
           else if (teacherRoles.includes(role)) dest = '/teacher';
           else if (studentRoles.includes(role)) dest = '/student';
+          else if (wattamanRoles.includes(role)) dest = '/wattaman';
           router.push(dest);
         }
       } else {
