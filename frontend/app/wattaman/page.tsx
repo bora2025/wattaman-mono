@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import AuthGuard from '../../components/AuthGuard'
 import Sidebar from '../../components/Sidebar'
 import { wattamanNav } from '../../lib/wattaman-nav'
@@ -19,20 +19,12 @@ function WattamanDashboardContent() {
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
   const todayLabel = cambodiaNow.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
 
-  useEffect(() => {
-    getCurrentUser().then(u => { if (u) setUserName(u.email.split('@')[0]) })
-    loadStats()
-    // Refresh stats when tab becomes visible (user comes back from scan page)
-    const onVisible = () => { if (document.visibilityState === 'visible') loadStats() }
-    document.addEventListener('visibilitychange', onVisible)
-    return () => document.removeEventListener('visibilitychange', onVisible)
-  }, [])
-
-  const loadStats = () => {
+  const loadStats = useCallback(() => {
     try {
       const today = new Date().toISOString().split('T')[0]
-      const todayKey = `wattaman_scans_${today}`
-      const saved: Array<{ action: string; status: string }> = JSON.parse(localStorage.getItem(todayKey) || '[]')
+      const saved: Array<{ action: string; status: string }> = JSON.parse(
+        localStorage.getItem(`wattaman_scans_${today}`) || '[]'
+      )
       let total = 0, present = 0, late = 0, already = 0
       saved.forEach(r => {
         total++
@@ -42,7 +34,26 @@ function WattamanDashboardContent() {
       })
       setStats({ total, present, late, already })
     } catch { /* storage unavailable */ }
-  }
+  }, [])
+
+  useEffect(() => {
+    getCurrentUser().then(u => { if (u) setUserName(u.email.split('@')[0]) })
+    loadStats()
+    // Poll every 3s so stats update even if Next.js router cache prevents remount
+    const interval = setInterval(loadStats, 3000)
+    const onFocus = () => loadStats()
+    const onVisible = () => { if (document.visibilityState === 'visible') loadStats() }
+    const onStorage = (e: StorageEvent) => { if (e.key?.startsWith('wattaman_scans_')) loadStats() }
+    window.addEventListener('focus', onFocus)
+    window.addEventListener('storage', onStorage)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('focus', onFocus)
+      window.removeEventListener('storage', onStorage)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [loadStats])
 
   return (
     <div className="page-shell">
@@ -89,7 +100,12 @@ function WattamanDashboardContent() {
           </Link>
 
           {/* Today's stats */}
-          <div className="grid grid-cols-4 gap-2 sm:gap-3">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Today's scans</p>
+              <button onClick={loadStats} className="text-xs text-emerald-600 font-medium active:scale-95 transition-transform">↻ Refresh</button>
+            </div>
+            <div className="grid grid-cols-4 gap-2 sm:gap-3">
             {[
               { label: 'Scanned', value: stats.total, gradient: 'from-teal-400 to-emerald-500', icon: '📊' },
               { label: 'Present', value: stats.present, gradient: 'from-green-400 to-emerald-500', icon: '✅' },
@@ -102,6 +118,7 @@ function WattamanDashboardContent() {
                 <div className="text-xs text-white/80 mt-0.5">{c.label}</div>
               </div>
             ))}
+            </div>
           </div>
 
           {/* Guide */}

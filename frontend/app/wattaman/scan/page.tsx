@@ -139,6 +139,8 @@ function WattamanScanContent() {
           const saved = JSON.parse(localStorage.getItem(todayKey) || '[]')
           saved.unshift({ action: result.action, status: result.status, studentName: result.studentName, className: result.className, time: new Date().toISOString() })
           localStorage.setItem(todayKey, JSON.stringify(saved.slice(0, 200)))
+          // Notify dashboard in same tab (storage event only fires cross-tab by default)
+          window.dispatchEvent(new StorageEvent('storage', { key: todayKey }))
         } catch { /* storage unavailable */ }
         setScanHistory(prev => [result, ...prev].slice(0, 20))
         if ('vibrate' in navigator) navigator.vibrate(isAlready ? [80] : 200)
