@@ -909,7 +909,7 @@ export class ReportsService {
 
     const students = cls.students.map((s, idx) => {
       const studentRecs = records.filter(r => r.studentId === s.id);
-      const halfDayTotals = countWholeDayRangeTotals(
+      const halfDayTotals = countHalfDayBlocks(
         studentRecs as any,
         (r: any) => r.studentId,
         formatRule.caseStudyABEnabled ?? true,
@@ -960,7 +960,7 @@ export class ReportsService {
 
     const staffData = staff.map((u, idx) => {
       const userRecs = records.filter(r => r.userId === u.id);
-      const halfDayTotals = countWholeDayRangeTotals(
+      const halfDayTotals = countHalfDayBlocks(
         userRecs as any,
         (r: any) => r.userId,
         formatRule.caseStudyABEnabled ?? true,
