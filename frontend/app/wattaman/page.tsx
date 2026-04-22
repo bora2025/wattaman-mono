@@ -5,14 +5,13 @@ import AuthGuard from '../../components/AuthGuard'
 import Sidebar from '../../components/Sidebar'
 import { wattamanNav } from '../../lib/wattaman-nav'
 import Link from 'next/link'
-import { apiFetch, getCurrentUser } from '../../lib/api'
+import { getCurrentUser } from '../../lib/api'
 
-interface TodayStat { total: number; present: number; late: number }
+interface TodayStat { total: number; present: number; late: number; already: number }
 
 function WattamanDashboardContent() {
   const [userName, setUserName] = useState('')
-  const [stats, setStats] = useState<TodayStat>({ total: 0, present: 0, late: 0 })
-  const [loadingStats, setLoadingStats] = useState(true)
+  const [stats, setStats] = useState<TodayStat>({ total: 0, present: 0, late: 0, already: 0 })
 
   const now = new Date()
   const cambodiaNow = new Date(now.getTime() + 7 * 60 * 60 * 1000)
@@ -23,31 +22,26 @@ function WattamanDashboardContent() {
   useEffect(() => {
     getCurrentUser().then(u => { if (u) setUserName(u.email.split('@')[0]) })
     loadStats()
+    // Refresh stats when tab becomes visible (user comes back from scan page)
+    const onVisible = () => { if (document.visibilityState === 'visible') loadStats() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
   }, [])
 
-  const loadStats = async () => {
-    setLoadingStats(true)
+  const loadStats = () => {
     try {
-      const today = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().split('T')[0]
-      const classRes = await apiFetch('/api/classes')
-      if (classRes.ok) {
-        const classes = await classRes.json()
-        let total = 0, present = 0, late = 0
-        await Promise.all(
-          classes.slice(0, 10).map(async (cls: { id: string }) => {
-            const r = await apiFetch(`/api/attendance/records?classId=${cls.id}&date=${today}`)
-            if (r.ok) {
-              const rows: Array<{ sessions: Array<{ status: string | null }> }> = await r.json()
-              rows.forEach(row => row.sessions.forEach(s => {
-                if (s.status) { total++; if (s.status === 'PRESENT') present++; if (s.status === 'LATE') late++ }
-              }))
-            }
-          })
-        )
-        setStats({ total, present, late })
-      }
-    } catch { /* non-critical */ }
-    setLoadingStats(false)
+      const today = new Date().toISOString().split('T')[0]
+      const todayKey = `wattaman_scans_${today}`
+      const saved: Array<{ action: string; status: string }> = JSON.parse(localStorage.getItem(todayKey) || '[]')
+      let total = 0, present = 0, late = 0, already = 0
+      saved.forEach(r => {
+        total++
+        if (r.action === 'ALREADY_RECORDED') already++
+        else if (r.status === 'PRESENT') present++
+        else if (r.status === 'LATE') late++
+      })
+      setStats({ total, present, late, already })
+    } catch { /* storage unavailable */ }
   }
 
   return (
@@ -95,15 +89,16 @@ function WattamanDashboardContent() {
           </Link>
 
           {/* Today's stats */}
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-4 gap-2 sm:gap-3">
             {[
               { label: 'Scanned', value: stats.total, gradient: 'from-teal-400 to-emerald-500', icon: '📊' },
               { label: 'Present', value: stats.present, gradient: 'from-green-400 to-emerald-500', icon: '✅' },
               { label: 'Late', value: stats.late, gradient: 'from-amber-400 to-orange-500', icon: '⚠️' },
+              { label: 'Again', value: stats.already, gradient: 'from-indigo-400 to-violet-500', icon: '↩' },
             ].map(c => (
-              <div key={c.label} className={`rounded-2xl p-3 sm:p-4 text-white bg-gradient-to-br ${c.gradient} shadow-sm`}>
-                <div className="text-xl mb-1">{c.icon}</div>
-                <div className="text-2xl font-bold leading-none">{loadingStats ? '—' : c.value}</div>
+              <div key={c.label} className={`rounded-2xl p-2.5 sm:p-4 text-white bg-gradient-to-br ${c.gradient} shadow-sm`}>
+                <div className="text-lg sm:text-xl mb-1">{c.icon}</div>
+                <div className="text-xl sm:text-2xl font-bold leading-none">{c.value}</div>
                 <div className="text-xs text-white/80 mt-0.5">{c.label}</div>
               </div>
             ))}

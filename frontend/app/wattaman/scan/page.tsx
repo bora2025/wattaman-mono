@@ -133,6 +133,13 @@ function WattamanScanContent() {
           setTimeout(() => setFlashColor(null), 500)
         }
         setLastResult(result)
+        // Persist to localStorage for dashboard stats
+        const todayKey = `wattaman_scans_${new Date().toISOString().split('T')[0]}`
+        try {
+          const saved = JSON.parse(localStorage.getItem(todayKey) || '[]')
+          saved.unshift({ action: result.action, status: result.status, studentName: result.studentName, className: result.className, time: new Date().toISOString() })
+          localStorage.setItem(todayKey, JSON.stringify(saved.slice(0, 200)))
+        } catch { /* storage unavailable */ }
         setScanHistory(prev => [result, ...prev].slice(0, 20))
         if ('vibrate' in navigator) navigator.vibrate(isAlready ? [80] : 200)
         const displayTime = isAlready ? 2000 : 2500
