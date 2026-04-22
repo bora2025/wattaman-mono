@@ -84,6 +84,7 @@ function DashboardContent() {
   const [searchQuery, setSearchQuery] = useState('')
   const [drillRole, setDrillRole] = useState<'Student'|'Staff'|null>(null)
   const [tableExpanded, setTableExpanded] = useState(false)
+  const [visibleCount, setVisibleCount] = useState(100)
 
   // Monthly trend
   const [trendData, setTrendData] = useState<{ day: number; studentPresent: number; studentAbsent: number; staffPresent: number; staffAbsent: number }[]>([])
@@ -119,6 +120,7 @@ function DashboardContent() {
   const clearDrill = () => { setDrillRole(null); setRoleFilter('all'); setStatusFilter('all'); setGroupFilter(''); setSearchQuery('') }
 
   const filteredDetails = useMemo(() => {
+    setVisibleCount(100)
     if (!data) return []
     return data.details.filter(row => {
       if (roleFilter === 'Student' && row.role !== 'Student') return false
@@ -463,7 +465,7 @@ function DashboardContent() {
                       <svg className="w-10 h-10 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/></svg>
                       <span className="text-sm">{t('common.noData')}</span>
                     </td></tr>
-                  ) : filteredDetails.map((row, i) => (
+                  ) : filteredDetails.slice(0, visibleCount).map((row, i) => (
                     <tr key={`${row.id}-${i}`} className="hover:bg-gray-50/60 transition-colors">
                       <td className="px-4 py-3"><div className="font-medium text-gray-900 text-sm">{row.name}</div><div className="text-[11px] text-gray-400 md:hidden">{row.group||''}</div></td>
                       <td className="px-4 py-3">
@@ -483,7 +485,13 @@ function DashboardContent() {
             </div>
             {filteredDetails.length > 0 && (
               <div className="px-4 py-3 border-t border-gray-50 flex items-center justify-between">
-                <span className="text-[11px] text-gray-400 font-medium">{t('common.showing')} {filteredDetails.length} {filteredDetails.length===1?t('common.result'):t('common.results')}</span>
+                <span className="text-[11px] text-gray-400 font-medium">{t('common.showing')} {Math.min(visibleCount, filteredDetails.length)} / {filteredDetails.length} {t('common.results')}</span>
+                {visibleCount < filteredDetails.length && (
+                  <button onClick={() => setVisibleCount(v => v + 100)}
+                    className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-xl hover:bg-indigo-100 transition-colors">
+                    Show more ({filteredDetails.length - visibleCount} remaining)
+                  </button>
+                )}
               </div>
             )}
             </>)}

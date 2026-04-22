@@ -522,24 +522,30 @@ export class ReportsService {
       });
     }
 
-    // Headcount per individual for detail rows.
+    // Headcount per individual for detail rows — single pass, not O(N²).
+    // Group all student attendances by studentId first, then count once per student.
+    const studentAttByPerson = new Map<string, any[]>();
+    for (const a of studentAttendances) {
+      if (!studentAttByPerson.has((a as any).studentId)) studentAttByPerson.set((a as any).studentId, []);
+      studentAttByPerson.get((a as any).studentId)!.push(a);
+    }
     for (const [studentId, row] of studentMap.entries()) {
-      const totals = countDailyHeadcount(
-        studentAttendances.filter((a: any) => a.studentId === studentId) as any,
-        (a: any) => a.studentId,
-        classRule.caseStudyABEnabled ?? true,
-      );
+      const recs = studentAttByPerson.get(studentId) || [];
+      const totals = countDailyHeadcount(recs as any, (a: any) => a.studentId, classRule.caseStudyABEnabled ?? true);
       row.present = totals.present;
       row.absent = totals.absent;
       row.late = totals.late;
       row.permission = totals.permission;
     }
+
+    const staffAttByPerson = new Map<string, any[]>();
+    for (const a of staffAttendances) {
+      if (!staffAttByPerson.has((a as any).userId)) staffAttByPerson.set((a as any).userId, []);
+      staffAttByPerson.get((a as any).userId)!.push(a);
+    }
     for (const [userId, row] of staffMap.entries()) {
-      const totals = countDailyHeadcount(
-        staffAttendances.filter((a: any) => a.userId === userId) as any,
-        (a: any) => a.userId,
-        staffRule.caseStudyABEnabled ?? true,
-      );
+      const recs = staffAttByPerson.get(userId) || [];
+      const totals = countDailyHeadcount(recs as any, (a: any) => a.userId, staffRule.caseStudyABEnabled ?? true);
       row.present = totals.present;
       row.absent = totals.absent;
       row.late = totals.late;
