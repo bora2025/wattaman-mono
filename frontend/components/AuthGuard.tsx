@@ -9,7 +9,7 @@ interface AuthGuardProps {
   allowedRoles?: string[];
 }
 
-const EMPLOYEE_EXCLUDED_ROLES = ['ADMIN', 'TEACHER', 'STUDENT'];
+const EMPLOYEE_EXCLUDED_ROLES = ['ADMIN', 'TEACHER', 'STUDENT', 'WATTAMAN'];
 
 function isRoleAllowed(userRole: string, requiredRole?: string, allowedRoles?: string[]): boolean {
   if (allowedRoles && allowedRoles.length > 0) {

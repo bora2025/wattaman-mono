@@ -321,4 +321,22 @@ export class AttendanceController {
   ) {
     return this.attendanceService.getUserDailyAttendance(userId, date);
   }
+
+  // ========== WATTAMAN ROLE: class-free QR scan ==========
+
+  @UseGuards(JwtAuthGuard)
+  @Post('wattaman/scan')
+  async wattamanScan(
+    @Request() req,
+    @Body() body: { qrData: string; latitude?: number; longitude?: number; location?: string },
+  ) {
+    const scannedById = req.user.userId;
+    return this.attendanceService.wattamanScan(
+      body.qrData,
+      scannedById,
+      body.latitude,
+      body.longitude,
+      body.location,
+    );
+  }
 }

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useLanguage } from '../lib/i18n'
-import { IconShield, IconBook, IconGraduation, IconBriefcase } from '../components/Icons'
+import { IconShield, IconBook, IconGraduation, IconBriefcase, IconCamera } from '../components/Icons'
 
 const portalKeys = [
   {
@@ -37,6 +37,14 @@ const portalKeys = [
     IconComp: IconBriefcase,
     color: 'from-amber-500 to-amber-700',
     hoverBorder: 'hover:border-amber-300',
+  },
+  {
+    titleKey: 'home.wattamanPortal',
+    descKey: 'home.wattamanDesc',
+    href: '/wattaman',
+    IconComp: IconCamera,
+    color: 'from-teal-500 to-teal-700',
+    hoverBorder: 'hover:border-teal-300',
   },
 ]
 

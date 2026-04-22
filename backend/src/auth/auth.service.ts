@@ -85,6 +85,7 @@ export class AuthService {
       'SECURITY_GUARD', 'JANITOR', 'PROJECT_MANAGER', 'BRANCH_MANAGER',
       'EXECUTIVE_DIRECTOR', 'HR_MANAGER', 'ATHLETE_MALE', 'ATHLETE_FEMALE',
       'TRAINER', 'BARISTA', 'CASHIER', 'RECEPTIONIST', 'GENERAL_MANAGER',
+      'WATTAMAN',
     ];
     const normalizedRole = role.toUpperCase();
     if (!allowedRoles.includes(normalizedRole)) {
@@ -183,6 +184,7 @@ export class AuthService {
         'SECURITY_GUARD', 'JANITOR', 'PROJECT_MANAGER', 'BRANCH_MANAGER',
         'EXECUTIVE_DIRECTOR', 'HR_MANAGER', 'ATHLETE_MALE', 'ATHLETE_FEMALE',
         'TRAINER', 'BARISTA', 'CASHIER', 'RECEPTIONIST', 'GENERAL_MANAGER',
+        'WATTAMAN',
       ];
       const normalizedRole = data.role.toUpperCase();
       if (!allowedRoles.includes(normalizedRole)) {

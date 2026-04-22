@@ -1332,6 +1332,172 @@ export class AttendanceService {
       }),
     };
   }
+
+  /**
+   * Wattaman QR scan: records PRESENT/LATE attendance for any student
+   * without requiring a class to be selected first.
+   * Looks up the student by userId or qrCode, finds their assigned class,
+   * auto-detects the current session from that class's session config,
+   * and upserts the attendance record.
+   */
+  async wattamanScan(
+    qrData: string,
+    scannedById: string,
+    latitude?: number,
+    longitude?: number,
+    location?: string,
+  ) {
+    const now = new Date();
+    const attendanceDate = toUTCMidnight(now);
+    const cambodiaNow = nowCambodia();
+    const hhmm = `${String(cambodiaNow.getUTCHours()).padStart(2, '0')}:${String(cambodiaNow.getUTCMinutes()).padStart(2, '0')}`;
+
+    // Resolve the student – accept userId, student.id, or student.qrCode
+    const student = await this.prisma.student.findFirst({
+      where: {
+        OR: [
+          { userId: qrData },
+          { id: qrData },
+          { qrCode: qrData },
+        ],
+      },
+      include: {
+        user: { select: { name: true, photo: true } },
+        class: { select: { id: true, name: true, schedule: true, sessionConfigs: true } },
+      },
+    });
+
+    if (!student) {
+      throw new NotFoundException(`No student found for QR data: "${qrData}"`);
+    }
+
+    if (!student.classId || !student.class) {
+      throw new NotFoundException(`Student "${student.user?.name}" is not assigned to any class`);
+    }
+
+    const classId = student.classId;
+    const classSchedule = (student.class as any).schedule;
+
+    // Check scheduled day-off
+    if (isScheduledDayOff(classSchedule, attendanceDate)) {
+      return {
+        action: 'DAY_OFF',
+        studentId: student.id,
+        studentName: student.user?.name ?? student.id,
+        studentPhoto: student.user?.photo ?? null,
+        className: student.class.name,
+        status: 'DAY_OFF',
+        session: 0,
+        date: attendanceDate.toISOString(),
+        message: 'Today is a scheduled day-off for this class',
+      };
+    }
+
+    // Auto-detect session from class session configs
+    const toMinutes = (t: string) => {
+      const [h, m] = t.split(':').map(Number);
+      return h * 60 + m;
+    };
+    const nowMinutes = toMinutes(hhmm);
+
+    let configs: Array<{ session: number; type: string; startTime: string; endTime: string }> = [];
+    try {
+      configs = await this.sessionConfigService.getConfigs(classId);
+    } catch {
+      // fallback: use defaults
+      try { configs = await this.sessionConfigService.getStaffDefaults(); } catch { /* ignore */ }
+    }
+
+    const checkInConfigs = configs
+      .filter(c => c.type === 'CHECK_IN' && c.startTime !== c.endTime)
+      .sort((a, b) => a.session - b.session);
+
+    // Find the active or most-recently-started CHECK_IN session
+    let matched = checkInConfigs.find(c => nowMinutes >= toMinutes(c.startTime) && nowMinutes <= toMinutes(c.endTime));
+    if (!matched) {
+      // Within 30 min before start
+      matched = checkInConfigs.find(c => {
+        const startMin = toMinutes(c.startTime);
+        return nowMinutes >= startMin - 30 && nowMinutes < startMin;
+      });
+    }
+    if (!matched) {
+      const past = checkInConfigs.filter(c => toMinutes(c.startTime) <= nowMinutes);
+      matched = past.length > 0 ? past[past.length - 1] : checkInConfigs[0];
+    }
+
+    const session = matched ? matched.session : 1;
+    const checkInTime = now;
+
+    // Determine PRESENT or LATE
+    let status: 'PRESENT' | 'LATE' = 'PRESENT';
+    if (matched) {
+      const [sh, sm] = matched.startTime.split(':').map(Number);
+      const lateAfterMinutes = sh * 60 + sm + 20;
+      if (nowMinutes > lateAfterMinutes) {
+        status = 'LATE';
+      }
+    }
+
+    const locData = {
+      ...(latitude != null ? { scanLatitude: latitude } : {}),
+      ...(longitude != null ? { scanLongitude: longitude } : {}),
+      ...(location ? { scanLocation: location } : {}),
+    };
+
+    // Preserve first check-in if already recorded
+    const existing = await this.prisma.attendance.findUnique({
+      where: { studentId_classId_date_session: { studentId: student.id, classId, date: attendanceDate, session } },
+    });
+    const keepOriginal = !!(existing?.checkInTime);
+
+    const record = await this.prisma.attendance.upsert({
+      where: { studentId_classId_date_session: { studentId: student.id, classId, date: attendanceDate, session } },
+      update: {
+        status: keepOriginal ? existing!.status : status,
+        markedById: scannedById,
+        checkInTime: keepOriginal ? existing!.checkInTime : checkInTime,
+        permissionType: null,
+        permissionStartDate: null,
+        permissionEndDate: null,
+        ...locData,
+      },
+      create: {
+        studentId: student.id,
+        classId,
+        date: attendanceDate,
+        session,
+        status,
+        markedById: scannedById,
+        checkInTime,
+        permissionType: null,
+        permissionStartDate: null,
+        permissionEndDate: null,
+        ...locData,
+      },
+    });
+
+    // Notify real-time
+    this.attendanceGateway.notifyAttendanceUpdate(classId, {
+      studentId: student.id,
+      studentName: student.user?.name ?? student.id,
+      status: keepOriginal ? existing!.status : status,
+      session,
+      timestamp: record.timestamp,
+    });
+
+    return {
+      action: keepOriginal ? 'ALREADY_RECORDED' : 'CHECK_IN',
+      studentId: student.id,
+      studentName: student.user?.name ?? student.id,
+      studentPhoto: student.user?.photo ?? null,
+      className: student.class.name,
+      status: record.status,
+      session,
+      date: attendanceDate.toISOString(),
+      checkInTime: record.checkInTime?.toISOString() ?? null,
+    };
+  }
 }
 
 type PermissionType = 'HALF_DAY_MORNING' | 'HALF_DAY_AFTERNOON' | 'FULL_DAY' | 'MULTI_DAY';
