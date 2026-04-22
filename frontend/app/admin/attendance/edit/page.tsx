@@ -153,27 +153,26 @@ export default function EditAttendance() {
   const handlePermissionTypeChange = async (studentRow: StudentRow, newType: string) => {
     setPermissionTypes(prev => ({ ...prev, [studentRow.studentId]: newType }))
 
-    const permissionSession = studentRow.sessions.find(s => s.status === 'PERMISSION' && s.attendanceId)
-    if (!permissionSession?.attendanceId) return
+    const hasPermissionSession = studentRow.sessions.some(s => s.status === 'PERMISSION')
+    if (!hasPermissionSession) return
 
-    setSaving(`${studentRow.studentId}-${permissionSession.session}`)
+    setSaving(`${studentRow.studentId}-perm`)
     setError('')
     setSuccess('')
 
     try {
-      const res = await apiFetch('/api/attendance/update', {
+      const res = await apiFetch('/api/attendance/edit-permission-type', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          attendanceId: permissionSession.attendanceId,
-          status: 'PERMISSION',
+          studentId: studentRow.studentId,
+          classId: selectedClassId,
+          date: selectedDate,
           permissionType: newType,
-          permissionStartDate: selectedDate,
-          permissionEndDate: selectedDate,
         }),
       })
       if (!res.ok) throw new Error('Failed to update permission type')
-      setSuccess(`Updated ${studentRow.studentName}: ${newType} applied to ${permissionScopeLabel(newType)}`)
+      setSuccess(`Updated ${studentRow.studentName}: ${permissionScopeLabel(newType)}`)
       setTimeout(() => setSuccess(''), 3000)
       await fetchRecords()
     } catch {

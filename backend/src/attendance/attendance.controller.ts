@@ -219,6 +219,22 @@ export class AttendanceController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Patch('edit-permission-type')
+  async editPermissionType(
+    @Request() req,
+    @Body() body: { studentId: string; classId: string; date: string; permissionType: string },
+  ) {
+    const adminId = req.user.userId;
+    return this.attendanceService.editPermissionType(
+      body.studentId,
+      body.classId,
+      body.date,
+      adminId,
+      body.permissionType,
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Patch('staff/update')
   async updateStaffAttendance(
     @Request() req,

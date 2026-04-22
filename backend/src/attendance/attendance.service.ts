@@ -729,6 +729,74 @@ export class AttendanceService {
     });
   }
 
+  /**
+   * Edit permission type for a single student on a specific date (edit-attendance context).
+   * - In-scope sessions (covered by new type) are upserted as PERMISSION/new-type.
+   * - Out-of-scope sessions that are currently PERMISSION are set to ABSENT (not deleted),
+   *   so they remain visible in reports and the admin can change them to PRESENT if needed.
+   * - Out-of-scope sessions already PRESENT/LATE/ABSENT are left unchanged.
+   */
+  async editPermissionType(
+    studentId: string,
+    classId: string,
+    date: string,
+    adminId: string,
+    newPermissionType: string,
+  ) {
+    const attendanceDate = toUTCMidnight(new Date(date));
+    const newType = normalizePermissionType(newPermissionType);
+    const inScopeSessions = permissionSessions(newType);
+    const allSessions = [1, 2, 3, 4];
+    const outOfScopeSessions = allSessions.filter(s => !inScopeSessions.includes(s));
+
+    // Upsert in-scope sessions as PERMISSION/new-type
+    const inScopeWrites = inScopeSessions.map(session =>
+      this.prisma.attendance.upsert({
+        where: { studentId_classId_date_session: { studentId, classId, date: attendanceDate, session } },
+        update: {
+          status: 'PERMISSION',
+          permissionType: newType,
+          permissionStartDate: attendanceDate,
+          permissionEndDate: attendanceDate,
+          markedById: adminId,
+          checkInTime: null,
+          checkOutTime: null,
+        },
+        create: {
+          studentId,
+          classId,
+          date: attendanceDate,
+          session,
+          status: 'PERMISSION',
+          permissionType: newType,
+          permissionStartDate: attendanceDate,
+          permissionEndDate: attendanceDate,
+          markedById: adminId,
+          checkInTime: null,
+          checkOutTime: null,
+        },
+      }),
+    );
+
+    // Convert out-of-scope PERMISSION sessions to ABSENT so they remain visible
+    // (sessions already PRESENT/LATE/ABSENT are not touched)
+    const outOfScopeUpdates = outOfScopeSessions.map(session =>
+      this.prisma.attendance.updateMany({
+        where: { studentId, classId, date: attendanceDate, session, status: 'PERMISSION' },
+        data: {
+          status: 'ABSENT',
+          permissionType: null,
+          permissionStartDate: null,
+          permissionEndDate: null,
+          markedById: adminId,
+        },
+      }),
+    );
+
+    await this.prisma.$transaction([...inScopeWrites, ...outOfScopeUpdates]);
+    return { success: true, permissionType: newType };
+  }
+
   async updateStaffAttendance(
     staffAttendanceId: string,
     status: string,
