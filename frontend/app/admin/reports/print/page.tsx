@@ -431,32 +431,31 @@ function PrintReportContent() {
             {isDaily ? (
               <>
                 {dailyRows.map((row, idx) => {
-                  const perm = studentPermissionLabel(row)
                   const isHoliday = row.isHoliday
                   return (
                     <tr key={row.studentId} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                       <td className="border border-slate-300 px-2 py-1.5 text-center font-mono">{row.studentNumber}</td>
                       <td className="border border-slate-300 px-2 py-1.5 text-slate-800">{row.studentName}</td>
-                      <td className="border border-slate-300 px-2 py-1.5 text-center">
-                        {isHoliday ? <span className="text-slate-400">{'\u2014'}</span> : <TimeCell time={row.checkInMorning} status={row.dayOff ? 'DAY_OFF' : row.session1Status} />}
-                      </td>
-                      <td className="border border-slate-300 px-2 py-1.5 text-center">
-                        {isHoliday ? <span className="text-slate-400">{'\u2014'}</span> : <TimeCell time={row.checkOutMorning} status={row.dayOff ? 'DAY_OFF' : row.session2Status} />}
-                      </td>
-                      <td className="border border-slate-300 px-2 py-1.5 text-center">
-                        {isHoliday ? <span className="text-slate-400">{'\u2014'}</span> : <TimeCell time={row.checkInAfternoon} status={row.dayOff ? 'DAY_OFF' : row.session3Status} />}
-                      </td>
-                      <td className="border border-slate-300 px-2 py-1.5 text-center">
-                        {isHoliday ? <span className="text-slate-400">{'\u2014'}</span> : <TimeCell time={row.checkOutAfternoon} status={row.dayOff ? 'DAY_OFF' : row.session4Status} />}
-                      </td>
-                      <td className="border border-slate-300 px-2 py-1.5 text-center">
-                        {isHoliday
-                          ? <span className="text-xs text-blue-500">Holiday</span>
-                          : perm
-                            ? <span className="text-xs text-purple-600 font-semibold">{perm}</span>
-                            : <span className="text-slate-300 text-xs">{'\u2014'}</span>
-                        }
-                      </td>
+                      {showMorning && (
+                        <td className="border border-slate-300 px-2 py-1.5 text-center">
+                          {isHoliday ? <span className="text-slate-400">{'\u2014'}</span> : <TimeCell time={row.checkInMorning} status={row.dayOff ? 'DAY_OFF' : row.session1Status} />}
+                        </td>
+                      )}
+                      {showMorning && (
+                        <td className="border border-slate-300 px-2 py-1.5 text-center">
+                          {isHoliday ? <span className="text-slate-400">{'\u2014'}</span> : <TimeCell time={row.checkOutMorning} status={row.dayOff ? 'DAY_OFF' : row.session2Status} />}
+                        </td>
+                      )}
+                      {showAfternoon && (
+                        <td className="border border-slate-300 px-2 py-1.5 text-center">
+                          {isHoliday ? <span className="text-slate-400">{'\u2014'}</span> : <TimeCell time={row.checkInAfternoon} status={row.dayOff ? 'DAY_OFF' : row.session3Status} />}
+                        </td>
+                      )}
+                      {showAfternoon && (
+                        <td className="border border-slate-300 px-2 py-1.5 text-center">
+                          {isHoliday ? <span className="text-slate-400">{'\u2014'}</span> : <TimeCell time={row.checkOutAfternoon} status={row.dayOff ? 'DAY_OFF' : row.session4Status} />}
+                        </td>
+                      )}
                     </tr>
                   )
                 })}
