@@ -204,8 +204,6 @@ function DashboardContent() {
 
   const stu = data?.students || { total:0,present:0,absent:0,late:0,permission:0 }
   const stf = data?.staff || { total:0,present:0,absent:0,late:0,permission:0 }
-  const stuAtt = stu.present + stu.absent + stu.late + stu.permission
-  const stfAtt = stf.present + stf.absent + stf.late + stf.permission
 
   return (
     <div className="page-shell">
@@ -253,10 +251,10 @@ function DashboardContent() {
                   <span className="ml-1 text-xs bg-gray-100 text-gray-500 font-semibold px-2 py-0.5 rounded-full">{stu.total}</span>
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <SummaryCard label={t('common.present')} value={stu.present} total={stuAtt} color="green" onClick={() => handleCardClick('Student','present')}/>
-                  <SummaryCard label={t('common.absent')} value={stu.absent} total={stuAtt} color="red" onClick={() => handleCardClick('Student','absent')}/>
-                  <SummaryCard label={t('common.late')} value={stu.late} total={stuAtt} color="orange" onClick={() => handleCardClick('Student','late')}/>
-                  <SummaryCard label={t('common.permission')} value={stu.permission} total={stuAtt} color="blue" onClick={() => handleCardClick('Student','permission')}/>
+                  <SummaryCard label={t('common.present')} value={stu.present} total={stu.total} color="green" onClick={() => handleCardClick('Student','present')}/>
+                  <SummaryCard label={t('common.absent')} value={stu.absent} total={stu.total} color="red" onClick={() => handleCardClick('Student','absent')}/>
+                  <SummaryCard label={t('common.late')} value={stu.late} total={stu.total} color="orange" onClick={() => handleCardClick('Student','late')}/>
+                  <SummaryCard label={t('common.permission')} value={stu.permission} total={stu.total} color="blue" onClick={() => handleCardClick('Student','permission')}/>
                 </div>
                 {stu.permissionBreakdown && (
                   <div className="mt-2 text-xs text-slate-500">
@@ -270,10 +268,10 @@ function DashboardContent() {
                   <span className="ml-1 text-xs bg-gray-100 text-gray-500 font-semibold px-2 py-0.5 rounded-full">{stf.total}</span>
                 </div>
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                  <SummaryCard label={t('common.present')} value={stf.present} total={stfAtt} color="green" onClick={() => handleCardClick('Staff','present')}/>
-                  <SummaryCard label={t('common.absent')} value={stf.absent} total={stfAtt} color="red" onClick={() => handleCardClick('Staff','absent')}/>
-                  <SummaryCard label={t('common.late')} value={stf.late} total={stfAtt} color="orange" onClick={() => handleCardClick('Staff','late')}/>
-                  <SummaryCard label={t('common.permission')} value={stf.permission} total={stfAtt} color="blue" onClick={() => handleCardClick('Staff','permission')}/>
+                  <SummaryCard label={t('common.present')} value={stf.present} total={stf.total} color="green" onClick={() => handleCardClick('Staff','present')}/>
+                  <SummaryCard label={t('common.absent')} value={stf.absent} total={stf.total} color="red" onClick={() => handleCardClick('Staff','absent')}/>
+                  <SummaryCard label={t('common.late')} value={stf.late} total={stf.total} color="orange" onClick={() => handleCardClick('Staff','late')}/>
+                  <SummaryCard label={t('common.permission')} value={stf.permission} total={stf.total} color="blue" onClick={() => handleCardClick('Staff','permission')}/>
                 </div>
                 {stf.permissionBreakdown && (
                   <div className="mt-2 text-xs text-slate-500">

@@ -437,8 +437,16 @@ export class ReportsService {
       },
     });
 
-    // Totals
-    const totalStudents = await this.prisma.student.count();
+    // Totals — fetch all students with basic info so we can add no-record students to the detail table
+    const allStudents = await this.prisma.student.findMany({
+      select: {
+        id: true,
+        studentNumber: true,
+        user: { select: { name: true } },
+        class: { select: { name: true } },
+      },
+    });
+    const totalStudents = allStudents.length;
     const totalStaff = await this.prisma.user.count({ where: { role: { notIn: ['STUDENT', 'PARENT'] } } });
 
     // Student summary — headcount: each student counted once by dominant status for the day
@@ -449,9 +457,12 @@ export class ReportsService {
       classRule.caseStudyABEnabled ?? true,
     );
     const studentPresent = studentTotals.present;
-    const studentAbsent = studentTotals.absent;
     const studentLate = studentTotals.late;
     const studentPermission = studentTotals.permission;
+    // Students with no record today are treated as absent (unrecorded = not present)
+    const studentsWithRecords = new Set(studentAttendances.map(a => a.studentId));
+    const studentsNoRecord = allStudents.filter(s => !studentsWithRecords.has(s.id));
+    const studentAbsent = studentTotals.absent + studentsNoRecord.length;
 
     // Staff summary — headcount from actual records
     const staffRule = await this.sessionConfigService.getFormatRules('STAFF', organizationId);
@@ -518,6 +529,17 @@ export class ReportsService {
         name: u.name,
         role: u.role,
         department: u.department?.name || '',
+        present: 0, absent: 1, late: 0, permission: 0,
+      });
+    }
+
+    // Add students with NO attendance record (they are absent)
+    for (const s of studentsNoRecord) {
+      studentMap.set(s.id, {
+        id: s.studentNumber || s.id,
+        name: s.user.name,
+        role: 'Student',
+        className: s.class?.name || '',
         present: 0, absent: 1, late: 0, permission: 0,
       });
     }
@@ -589,12 +611,12 @@ export class ReportsService {
 
     const studentAttendances = await this.prisma.attendance.findMany({
       where: { date: { gte: start, lt: endPlusOne } },
-      select: { date: true, status: true },
+      select: { date: true, status: true, studentId: true },
     });
 
     const staffAttendances = await this.prisma.staffAttendance.findMany({
       where: { date: { gte: start, lt: endPlusOne } },
-      select: { date: true, status: true },
+      select: { date: true, status: true, userId: true },
     });
 
     const result: { day: number; studentPresent: number; studentAbsent: number; staffPresent: number; staffAbsent: number }[] = [];
@@ -608,10 +630,10 @@ export class ReportsService {
 
       result.push({
         day: d,
-        studentPresent: stuDay.filter(a => a.status === 'PRESENT' || a.status === 'LATE').length,
-        studentAbsent: stuDay.filter(a => a.status === 'ABSENT').length,
-        staffPresent: stfDay.filter(a => a.status === 'PRESENT' || a.status === 'LATE').length,
-        staffAbsent: stfDay.filter(a => a.status === 'ABSENT').length,
+        studentPresent: new Set(stuDay.filter(a => a.status === 'PRESENT' || a.status === 'LATE').map(a => a.studentId)).size,
+        studentAbsent: new Set(stuDay.filter(a => a.status === 'ABSENT').map(a => a.studentId)).size,
+        staffPresent: new Set(stfDay.filter(a => a.status === 'PRESENT' || a.status === 'LATE').map(a => a.userId)).size,
+        staffAbsent: new Set(stfDay.filter(a => a.status === 'ABSENT').map(a => a.userId)).size,
       });
     }
 
