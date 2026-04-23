@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, MouseEvent as ReactMouseEvent } from 'react';
-import { CardDesign, CardType, LogoElement, PhotoPlaceholder, QrPlaceholder, ShapeElement, STUDENT_TEMPLATE, STAFF_TEMPLATE, BLANK_TEMPLATE, loadSavedDesign, saveDesign, SavedTemplate, loadSavedTemplates, saveTemplate, deleteTemplate } from './types';
+import { CardDesign, CardType, LogoElement, PhotoPlaceholder, QrPlaceholder, ShapeElement, STUDENT_TEMPLATE, STAFF_TEMPLATE, BLANK_TEMPLATE, STUDENT_CLASSIC_BLUE, STUDENT_DARK_NAVY, STUDENT_SKY_WAVE, STUDENT_GEOMETRIC, STUDENT_MINIMAL, STAFF_CORPORATE_TEAL, STAFF_DEEP_OCEAN, STAFF_ROSE, STAFF_FOREST, STAFF_SLATE_EXECUTIVE, loadSavedDesign, saveDesign, SavedTemplate, loadSavedTemplates, saveTemplate, deleteTemplate } from './types';
 import { renderDesignToCanvas } from './renderDesignToCanvas';
 import { downloadSingleCardPDF } from './generateCardPDF';
 import CardCanvas from './CardCanvas';
@@ -73,6 +73,16 @@ export default function CardEditor() {
       { key: '__builtin_blank', design: BLANK_TEMPLATE },
       { key: '__builtin_student', design: STUDENT_TEMPLATE },
       { key: '__builtin_staff', design: STAFF_TEMPLATE },
+      { key: '__preset_st1', design: STUDENT_CLASSIC_BLUE },
+      { key: '__preset_st2', design: STUDENT_DARK_NAVY },
+      { key: '__preset_st3', design: STUDENT_SKY_WAVE },
+      { key: '__preset_st4', design: STUDENT_GEOMETRIC },
+      { key: '__preset_st5', design: STUDENT_MINIMAL },
+      { key: '__preset_sf1', design: STAFF_CORPORATE_TEAL },
+      { key: '__preset_sf2', design: STAFF_DEEP_OCEAN },
+      { key: '__preset_sf3', design: STAFF_ROSE },
+      { key: '__preset_sf4', design: STAFF_FOREST },
+      { key: '__preset_sf5', design: STAFF_SLATE_EXECUTIVE },
       ...templates.map((t) => ({ key: t.id, design: t.design })),
     ];
     let cancelled = false;
@@ -402,6 +412,70 @@ export default function CardEditor() {
                     <div className="mt-2 inline-block px-2 py-0.5 text-[10px] rounded-full bg-emerald-100 text-emerald-600 font-medium">Built-in</div>
                   </div>
                 </button>
+              </div>
+            </div>
+
+            {/* Preset Styled Templates — Student */}
+            <div className="mb-6">
+              <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">🎓 Student Preset Styles</h4>
+              <div className="grid grid-cols-5 gap-2">
+                {([
+                  { key: '__preset_st1', design: STUDENT_CLASSIC_BLUE, label: 'Classic Blue', emoji: '🔵' },
+                  { key: '__preset_st2', design: STUDENT_DARK_NAVY, label: 'Dark Navy', emoji: '🌌' },
+                  { key: '__preset_st3', design: STUDENT_SKY_WAVE, label: 'Sky Wave', emoji: '🌊' },
+                  { key: '__preset_st4', design: STUDENT_GEOMETRIC, label: 'Geometric', emoji: '🔷' },
+                  { key: '__preset_st5', design: STUDENT_MINIMAL, label: 'Minimal', emoji: '⬜' },
+                ] as const).map(({ key, design: tplDesign, label, emoji }) => (
+                  <button
+                    key={key}
+                    onClick={() => { setDesign({ ...tplDesign }); setSelectedId(null); setShowTemplatePicker(false); }}
+                    className="rounded-xl border-2 border-indigo-100 bg-white hover:border-indigo-400 hover:bg-indigo-50 transition-all text-left overflow-hidden group"
+                  >
+                    <div className="bg-slate-50 flex items-center justify-center p-2 border-b border-indigo-100 h-32">
+                      {templatePreviews[key] ? (
+                        <img src={templatePreviews[key]} alt={label} className="rounded shadow-sm max-h-28 object-contain" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-slate-300 text-xs">Loading...</div>
+                      )}
+                    </div>
+                    <div className="p-2">
+                      <div className="text-xs font-semibold text-slate-700 flex items-center gap-1"><span>{emoji}</span><span className="truncate">{label}</span></div>
+                      <div className="mt-1 inline-block px-1.5 py-0.5 text-[9px] rounded-full bg-indigo-100 text-indigo-600 font-medium">Student</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Preset Styled Templates — Staff */}
+            <div className="mb-6">
+              <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">👨‍🏫 Staff Preset Styles</h4>
+              <div className="grid grid-cols-5 gap-2">
+                {([
+                  { key: '__preset_sf1', design: STAFF_CORPORATE_TEAL, label: 'Corp Teal', emoji: '🟢' },
+                  { key: '__preset_sf2', design: STAFF_DEEP_OCEAN, label: 'Deep Ocean', emoji: '🌑' },
+                  { key: '__preset_sf3', design: STAFF_ROSE, label: 'Rose Pro', emoji: '🌸' },
+                  { key: '__preset_sf4', design: STAFF_FOREST, label: 'Forest', emoji: '🌿' },
+                  { key: '__preset_sf5', design: STAFF_SLATE_EXECUTIVE, label: 'Executive', emoji: '🏛️' },
+                ] as const).map(({ key, design: tplDesign, label, emoji }) => (
+                  <button
+                    key={key}
+                    onClick={() => { setDesign({ ...tplDesign }); setSelectedId(null); setShowTemplatePicker(false); }}
+                    className="rounded-xl border-2 border-emerald-100 bg-white hover:border-emerald-400 hover:bg-emerald-50 transition-all text-left overflow-hidden group"
+                  >
+                    <div className="bg-slate-50 flex items-center justify-center p-2 border-b border-emerald-100 h-32">
+                      {templatePreviews[key] ? (
+                        <img src={templatePreviews[key]} alt={label} className="rounded shadow-sm max-h-28 object-contain" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-slate-300 text-xs">Loading...</div>
+                      )}
+                    </div>
+                    <div className="p-2">
+                      <div className="text-xs font-semibold text-slate-700 flex items-center gap-1"><span>{emoji}</span><span className="truncate">{label}</span></div>
+                      <div className="mt-1 inline-block px-1.5 py-0.5 text-[9px] rounded-full bg-emerald-100 text-emerald-600 font-medium">Staff</div>
+                    </div>
+                  </button>
+                ))}
               </div>
             </div>
 
