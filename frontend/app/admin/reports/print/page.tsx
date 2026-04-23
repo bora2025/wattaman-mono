@@ -43,8 +43,14 @@ interface StudentDailyRow {
   session1PermissionType?: string | null
   session2PermissionType?: string | null
   session3PermissionType?: string | null
-  session4PermissionType?: string | null
-}
+  session4PermissionType?: string | null  session1PermissionStartDate?: string | null
+  session1PermissionEndDate?: string | null
+  session2PermissionStartDate?: string | null
+  session2PermissionEndDate?: string | null
+  session3PermissionStartDate?: string | null
+  session3PermissionEndDate?: string | null
+  session4PermissionStartDate?: string | null
+  session4PermissionEndDate?: string | null}
 
 const PAPER_SIZES: Record<string, { width: string; minHeight: string }> = {
   A4: { width: '210mm', minHeight: '297mm' },
@@ -61,23 +67,35 @@ function studentPermissionLabel(row: StudentDailyRow): string | null {
   if (!statuses.some(s => isDayOff(s)) && !row.dayOff) return null
   const types = [row.session1PermissionType, row.session2PermissionType, row.session3PermissionType, row.session4PermissionType]
   const t = types.find(Boolean)
-  if (t === 'HALF_DAY_MORNING') return 'Half AM'
-  if (t === 'HALF_DAY_AFTERNOON') return 'Half PM'
-  if (t === 'FULL_DAY') return 'Full Day'
-  if (t === 'MULTI_DAY') return 'Multi Day'
-  if (statuses.some(s => s === 'DAY_OFF') || row.dayOff) return 'Day Off'
-  return 'Permission'
+  const fmtD = (d: string) => {
+    const dt = new Date(d + 'T00:00:00')
+    return dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  }
+  const startDate = [row.session1PermissionStartDate, row.session2PermissionStartDate, row.session3PermissionStartDate, row.session4PermissionStartDate].find(Boolean)
+  const endDate = [row.session1PermissionEndDate, row.session2PermissionEndDate, row.session3PermissionEndDate, row.session4PermissionEndDate].find(Boolean)
+  if (t === 'HALF_DAY_MORNING') return 'P Half AM'
+  if (t === 'HALF_DAY_AFTERNOON') return 'P Half PM'
+  if (t === 'FULL_DAY') return 'P Full Day'
+  if (t === 'MULTI_DAY') {
+    if (startDate && endDate) return `P ${fmtD(startDate)} – ${fmtD(endDate)}`
+    return 'P Multi Day'
+  }
+  if (statuses.some(s => s === 'DAY_OFF') || row.dayOff) return 'P Day Off'
+  return 'P'
 }
 
 function TimeCell({ time, status }: { time: string | null; status: string | null }) {
-  if (isDayOff(status)) return <span className="text-purple-600 font-semibold text-xs">{'-'}</span>
+  if (isDayOff(status)) return <span className="text-purple-500 font-bold text-xs">P</span>
   const isLate = status === 'LATE'
   if (time) return (
     <span className={`font-semibold text-xs tabular-nums ${isLate ? 'text-amber-600' : 'text-emerald-700'}`}>
-      {time}{isLate ? <span className="ml-0.5 text-[10px] font-bold text-amber-700 bg-amber-100 px-0.5 rounded"> L</span> : null}
+      {isLate
+        ? <><span className="font-bold">L</span> ({time})</>
+        : <><span>{'✓'}</span> ({time})</>}
     </span>
   )
-  if (status === 'PRESENT' || status === 'LATE') return <span className="text-emerald-600 text-xs">{'\u2713'}</span>
+  if (isLate) return <span className="text-amber-600 font-bold text-xs">L</span>
+  if (status === 'PRESENT') return <span className="text-emerald-600 text-xs">{'✓'}</span>
   return <span className="text-red-500 text-xs">{'\u2717'}</span>
 }
 
