@@ -71,7 +71,12 @@ function studentPermissionLabel(row: StudentDailyRow): string | null {
 
 function TimeCell({ time, status }: { time: string | null; status: string | null }) {
   if (isDayOff(status)) return <span className="text-purple-600 font-semibold text-xs">{'-'}</span>
-  if (time) return <span className="text-emerald-700 font-semibold text-xs tabular-nums">{time}</span>
+  const isLate = status === 'LATE'
+  if (time) return (
+    <span className={`font-semibold text-xs tabular-nums ${isLate ? 'text-amber-600' : 'text-emerald-700'}`}>
+      {time}{isLate ? ' ⚠' : ''}
+    </span>
+  )
   if (status === 'PRESENT' || status === 'LATE') return <span className="text-emerald-600 text-xs">{'\u2713'}</span>
   return <span className="text-red-500 text-xs">{'\u2717'}</span>
 }
