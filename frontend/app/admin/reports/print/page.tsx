@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { apiFetch } from '../../../../lib/api'
 import { useLanguage } from '../../../../lib/i18n'
 
+// ── Summary-mode row (weekly / monthly / yearly / custom) ──
 interface PrintStudent {
   studentId: string
   studentNumber: string
@@ -24,11 +25,497 @@ interface PrintData {
   students: PrintStudent[]
 }
 
+// ── Daily-mode row (actual check-in/out times) ──
+interface StudentDailyRow {
+  studentId: string
+  studentNumber: string
+  studentName: string
+  checkInMorning: string | null
+  checkOutMorning: string | null
+  checkInAfternoon: string | null
+  checkOutAfternoon: string | null
+  dayOff: boolean
+  isHoliday?: boolean
+  session1Status: string | null
+  session2Status: string | null
+  session3Status: string | null
+  session4Status: string | null
+  session1PermissionType?: string | null
+  session2PermissionType?: string | null
+  session3PermissionType?: string | null
+  session4PermissionType?: string | null
+}
+
 const PAPER_SIZES: Record<string, { width: string; minHeight: string }> = {
   A4: { width: '210mm', minHeight: '297mm' },
   Letter: { width: '215.9mm', minHeight: '279.4mm' },
   Legal: { width: '215.9mm', minHeight: '355.6mm' },
 }
+
+function isDayOff(status: string | null | undefined) {
+  return status === 'PERMISSION' || status === 'DAY_OFF'
+}
+
+function studentPermissionLabel(row: StudentDailyRow): string | null {
+  const statuses = [row.session1Status, row.session2Status, row.session3Status, row.session4Status]
+  if (!statuses.some(s => isDayOff(s)) && !row.dayOff) return null
+  const types = [row.session1PermissionType, row.session2PermissionType, row.session3PermissionType, row.session4PermissionType]
+  const t = types.find(Boolean)
+  if (t === 'HALF_DAY_MORNING') return 'Half AM'
+  if (t === 'HALF_DAY_AFTERNOON') return 'Half PM'
+  if (t === 'FULL_DAY') return 'Full Day'
+  if (t === 'MULTI_DAY') return 'Multi Day'
+  if (statuses.some(s => s === 'DAY_OFF') || row.dayOff) return 'Day Off'
+  return 'Permission'
+}
+
+function TimeCell({ time, status }: { time: string | null; status: string | null }) {
+  if (isDayOff(status)) return <span className="text-purple-600 font-semibold text-xs">—</span>
+  if (time) return <span className="text-emerald-700 font-semibold text-xs tabular-nums">{time}</span>
+  if (status === 'PRESENT' || status === 'LATE') return <span className="text-emerald-600 text-xs">✓</span>
+  return <span className="text-red-500 text-xs">✗</span>
+}
+
+export default function PrintReportPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="w-10 h-10 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin"></div></div>}>
+      <PrintReportContent />
+    </Suspense>
+  )
+}
+
+function PrintReportContent() {
+  const { t } = useLanguage()
+  const searchParams = useSearchParams()
+  const classId = searchParams.get('classId') || ''
+  const startDate = searchParams.get('startDate') || ''
+  const endDate = searchParams.get('endDate') || ''
+  const period = searchParams.get('period') || 'daily'
+  const paperSize = searchParams.get('paper') || 'A4'
+  const orgName = searchParams.get('orgName') || 'Wattaman School'
+  const logoUrl = searchParams.get('logoUrl') || ''
+  const logoTextLines: string[] = (() => {
+    try { return JSON.parse(searchParams.get('logoTextLines') || '[]') }
+    catch { return [] }
+  })()
+  const logoGap = parseInt(searchParams.get('logoGap') || '4')
+  const logoTextGap = parseInt(searchParams.get('logoTextGap') || '4')
+  const headerGap = parseInt(searchParams.get('headerGap') || '6')
+  const headerLines: string[] = (() => {
+    try { return JSON.parse(searchParams.get('headerLines') || '[]') }
+    catch { return [] }
+  })()
+  const signers: string[] = (() => {
+    try { return JSON.parse(searchParams.get('signers') || '[]') }
+    catch { return ['Teacher', 'Admin'] }
+  })()
+
+  const isDaily = period === 'daily'
+
+  const [data, setData] = useState<PrintData | null>(null)
+  const [dailyRows, setDailyRows] = useState<StudentDailyRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (!classId || !startDate || !endDate) {
+      setError('Missing required parameters')
+      setLoading(false)
+      return
+    }
+    fetchData()
+  }, [classId, startDate, endDate, period])
+
+  const fetchData = async () => {
+    try {
+      if (isDaily) {
+        // For daily view use the attendance-grid endpoint which has actual times
+        const res = await apiFetch(
+          `/api/reports/attendance-grid?classId=${encodeURIComponent(classId)}&date=${encodeURIComponent(startDate)}`
+        )
+        if (res.ok) {
+          setDailyRows(await res.json())
+          // Also fetch class info for header
+          const infoRes = await apiFetch(
+            `/api/reports/print-report-data?classId=${encodeURIComponent(classId)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`
+          )
+          if (infoRes.ok) {
+            const json = await infoRes.json()
+            if (json) setData(json)
+          }
+        } else {
+          setError('Failed to load report data')
+        }
+      } else {
+        const res = await apiFetch(
+          `/api/reports/print-report-data?classId=${encodeURIComponent(classId)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`
+        )
+        if (res.ok) {
+          const json = await res.json()
+          if (!json) {
+            setError('Class not found')
+          } else {
+            setData(json)
+          }
+        } else {
+          setError('Failed to load report data')
+        }
+      }
+    } catch {
+      setError('Failed to connect to server')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const paper = PAPER_SIZES[paperSize] || PAPER_SIZES.A4
+
+  const getPeriodLabel = () => {
+    switch (period) {
+      case 'daily': return t('reports.daily')
+      case 'weekly': return t('reports.weekly')
+      case 'monthly': return t('reports.monthly')
+      case 'yearly': return t('reports.yearly')
+      default: return t('reports.customRange')
+    }
+  }
+
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr + 'T00:00:00')
+    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="w-10 h-10 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-sm text-slate-500 mt-3">{t('common.loading')}</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error || (!isDaily && !data)) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <p className="text-red-600 font-medium">{error || t('reports.noDataForRange')}</p>
+          <button onClick={() => window.close()} className="mt-4 px-4 py-2 bg-slate-200 rounded-lg text-sm">{t('common.close')}</button>
+        </div>
+      </div>
+    )
+  }
+
+  // Summary totals (non-daily)
+  const summaryTotals = { present: 0, late: 0, absent: 0, dayOff: 0 }
+  if (!isDaily && data) {
+    for (const s of data.students) {
+      if (s.absent > 0) summaryTotals.absent += 1
+      else if (s.dayOff > 0) summaryTotals.dayOff += 1
+      else if (s.late > 0) summaryTotals.late += 1
+      else summaryTotals.present += 1
+    }
+  }
+
+  // Daily totals
+  const dailyTotals = { present: 0, late: 0, absent: 0, permission: 0 }
+  if (isDaily) {
+    for (const r of dailyRows) {
+      const statuses = [r.session1Status, r.session2Status, r.session3Status, r.session4Status]
+      if (statuses.some(s => isDayOff(s)) || r.dayOff) dailyTotals.permission += 1
+      else if (statuses.some(s => s === 'ABSENT')) dailyTotals.absent += 1
+      else if (statuses.some(s => s === 'LATE')) dailyTotals.late += 1
+      else if (statuses.some(s => s === 'PRESENT')) dailyTotals.present += 1
+    }
+  }
+
+  const className = data?.className ?? ''
+  const teacherName = data?.teacherName ?? ''
+  const subject = data?.subject ?? null
+
+  return (
+    <>
+      {/* Print-specific styles */}
+      <style jsx global>{`
+        @media print {
+          @page {
+            size: ${paperSize === 'Letter' ? 'letter' : paperSize === 'Legal' ? 'legal' : 'A4'} portrait;
+            margin: 15mm;
+          }
+          body {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          .no-print {
+            display: none !important;
+          }
+        }
+        @media screen {
+          body {
+            background: #f1f5f9;
+          }
+        }
+      `}</style>
+
+      {/* Screen-only toolbar */}
+      <div className="no-print fixed top-0 left-0 right-0 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between z-50 shadow-sm">
+        <button onClick={() => window.close()} className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200">
+          ← {t('common.close')}
+        </button>
+        <div className="text-sm text-slate-500">
+          {className} — {getPeriodLabel()} — {paperSize}
+        </div>
+        <button onClick={() => window.print()} className="px-5 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 shadow-sm">
+          🖨️ {t('reports.printReport')}
+        </button>
+      </div>
+
+      {/* Print content */}
+      <div
+        className="mx-auto bg-white"
+        style={{
+          width: paper.width,
+          minHeight: paper.minHeight,
+          padding: '15mm',
+          marginTop: '60px',
+        }}
+      >
+        {/* Header Section — Khmer letter-head style */}
+        <div className="mb-6 border-b-2 border-slate-800 pb-4">
+          <div className="flex items-start gap-4">
+            {logoUrl && (
+              <div className="flex-shrink-0 pt-1 text-center">
+                <img src={logoUrl} alt="Logo" className="h-20 w-20 object-contain" style={{ marginBottom: `${logoGap}px` }} />
+                {logoTextLines.length > 0 && (
+                  <div style={{ marginBottom: `${logoTextGap}px` }}>
+                    {logoTextLines.map((line, idx) => (
+                      <p key={idx} className="text-[9px] text-slate-600 leading-tight whitespace-nowrap">{line}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            <div className="flex-1 text-center" style={{ marginBottom: `${headerGap}px` }}>
+              {headerLines.map((line, idx) => (
+                <p key={idx} className={`${idx === 0 ? 'text-base font-bold text-slate-900' : 'text-sm font-semibold text-slate-700'}`}>
+                  {line}
+                </p>
+              ))}
+              {orgName && (
+                <p className="text-lg font-bold text-slate-900 uppercase tracking-wide mt-1">
+                  {orgName}
+                </p>
+              )}
+            </div>
+            {/* Spacer to balance logo */}
+            {logoUrl && <div className="w-20 flex-shrink-0" />}
+          </div>
+          <div className="text-center mt-3">
+            <h2 className="text-lg font-semibold text-slate-700">
+              {t('reports.attendanceReport')}
+            </h2>
+            <div className="mt-2 flex flex-wrap justify-center gap-x-8 gap-y-1 text-sm text-slate-600">
+              <span>
+                <strong>{t('reports.reportPeriod')}:</strong> {getPeriodLabel()}
+              </span>
+              <span>
+                <strong>{t('reports.dateRange')}:</strong>{' '}
+                {startDate === endDate ? formatDate(startDate) : `${formatDate(startDate)} — ${formatDate(endDate)}`}
+              </span>
+            </div>
+            {className && (
+              <div className="mt-2 flex flex-wrap justify-center gap-x-8 gap-y-1 text-sm text-slate-600">
+                <span>
+                  <strong>{t('common.class')}:</strong> {className}
+                  {subject ? ` — ${subject}` : ''}
+                </span>
+                {teacherName && (
+                  <span>
+                    <strong>{t('reports.preparedBy')}:</strong> {teacherName}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Body Section — Report Table */}
+        <table className="w-full border-collapse text-xs">
+          <thead>
+            {isDaily ? (
+              /* ── Daily header: two-row span for morning/afternoon ── */
+              <>
+                <tr className="bg-slate-800 text-white">
+                  <th className="border border-slate-600 px-2 py-1.5 text-center font-semibold" rowSpan={2}>
+                    {t('common.id')}
+                  </th>
+                  <th className="border border-slate-600 px-2 py-1.5 text-left font-semibold" rowSpan={2}>
+                    {t('common.name')}
+                  </th>
+                  <th className="border border-slate-600 px-2 py-1.5 text-center font-semibold" colSpan={2}>
+                    Morning
+                  </th>
+                  <th className="border border-slate-600 px-2 py-1.5 text-center font-semibold" colSpan={2}>
+                    Afternoon
+                  </th>
+                  <th className="border border-slate-600 px-2 py-1.5 text-center font-semibold" rowSpan={2}>
+                    {t('reports.colPermission')}
+                  </th>
+                </tr>
+                <tr className="bg-slate-700 text-white">
+                  <th className="border border-slate-600 px-2 py-1 text-center font-medium w-16">Check-In</th>
+                  <th className="border border-slate-600 px-2 py-1 text-center font-medium w-16">Check-Out</th>
+                  <th className="border border-slate-600 px-2 py-1 text-center font-medium w-16">Check-In</th>
+                  <th className="border border-slate-600 px-2 py-1 text-center font-medium w-16">Check-Out</th>
+                </tr>
+              </>
+            ) : (
+              /* ── Summary header (weekly/monthly/etc.) ── */
+              <tr className="bg-slate-100">
+                <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-slate-700 w-12">
+                  {t('common.id')}
+                </th>
+                <th className="border border-slate-400 px-3 py-2 text-left font-semibold text-slate-700">
+                  {t('common.name')}
+                </th>
+                <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-emerald-700 w-16">
+                  {t('reports.colPresent')}
+                </th>
+                <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-amber-700 w-16">
+                  {t('reports.colLate')}
+                </th>
+                <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-red-700 w-16">
+                  {t('reports.colAbsent')}
+                </th>
+                <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-purple-700 w-20">
+                  {t('reports.colPermission')}
+                </th>
+              </tr>
+            )}
+          </thead>
+          <tbody>
+            {isDaily ? (
+              <>
+                {dailyRows.map((row, idx) => {
+                  const perm = studentPermissionLabel(row)
+                  const isHoliday = row.isHoliday
+                  return (
+                    <tr key={row.studentId} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                      <td className="border border-slate-300 px-2 py-1.5 text-center font-mono">{row.studentNumber}</td>
+                      <td className="border border-slate-300 px-2 py-1.5 text-slate-800">{row.studentName}</td>
+                      <td className="border border-slate-300 px-2 py-1.5 text-center">
+                        {isHoliday ? <span className="text-slate-400">—</span> : <TimeCell time={row.checkInMorning} status={row.session1Status} />}
+                      </td>
+                      <td className="border border-slate-300 px-2 py-1.5 text-center">
+                        {isHoliday ? <span className="text-slate-400">—</span> : <TimeCell time={row.checkOutMorning} status={row.session2Status} />}
+                      </td>
+                      <td className="border border-slate-300 px-2 py-1.5 text-center">
+                        {isHoliday ? <span className="text-slate-400">—</span> : <TimeCell time={row.checkInAfternoon} status={row.session3Status} />}
+                      </td>
+                      <td className="border border-slate-300 px-2 py-1.5 text-center">
+                        {isHoliday ? <span className="text-slate-400">—</span> : <TimeCell time={row.checkOutAfternoon} status={row.session4Status} />}
+                      </td>
+                      <td className="border border-slate-300 px-2 py-1.5 text-center">
+                        {isHoliday
+                          ? <span className="text-xs text-blue-500">Holiday</span>
+                          : perm
+                            ? <span className="text-xs text-purple-600 font-semibold">{perm}</span>
+                            : <span className="text-slate-300 text-xs">—</span>
+                        }
+                      </td>
+                    </tr>
+                  )
+                })}
+                {/* Daily totals row */}
+                <tr className="bg-slate-200 font-bold">
+                  <td className="border border-slate-400 px-2 py-2 text-center" colSpan={2}>
+                    {t('common.total')} ({dailyRows.length} students)
+                  </td>
+                  <td className="border border-slate-400 px-2 py-2 text-center text-emerald-700" colSpan={2}>
+                    {t('reports.colPresent')}: {dailyTotals.present}
+                  </td>
+                  <td className="border border-slate-400 px-2 py-2 text-center text-red-600" colSpan={2}>
+                    {t('reports.colAbsent')}: {dailyTotals.absent}
+                  </td>
+                  <td className="border border-slate-400 px-2 py-2 text-center text-purple-600">
+                    {dailyTotals.permission}
+                  </td>
+                </tr>
+              </>
+            ) : (
+              <>
+                {(data?.students ?? []).map((student, idx) => (
+                  <tr key={student.studentId} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                    <td className="border border-slate-300 px-2 py-1.5 text-center font-mono">
+                      {student.studentNumber}
+                    </td>
+                    <td className="border border-slate-300 px-3 py-1.5 text-slate-800">
+                      {student.studentName}
+                    </td>
+                    <td className="border border-slate-300 px-2 py-1.5 text-center font-semibold text-emerald-700">
+                      {student.present}
+                    </td>
+                    <td className="border border-slate-300 px-2 py-1.5 text-center font-semibold text-amber-600">
+                      {student.late}
+                    </td>
+                    <td className="border border-slate-300 px-2 py-1.5 text-center font-semibold text-red-600">
+                      {student.absent}
+                    </td>
+                    <td className="border border-slate-300 px-2 py-1.5 text-center font-semibold text-purple-600">
+                      {student.dayOff}
+                    </td>
+                  </tr>
+                ))}
+                {/* Summary totals row */}
+                <tr className="bg-slate-200 font-bold">
+                  <td className="border border-slate-400 px-2 py-2 text-center" colSpan={2}>
+                    {t('common.total')} ({data?.students.length ?? 0} students)
+                  </td>
+                  <td className="border border-slate-400 px-2 py-2 text-center text-emerald-700">
+                    {summaryTotals.present}
+                  </td>
+                  <td className="border border-slate-400 px-2 py-2 text-center text-amber-600">
+                    {summaryTotals.late}
+                  </td>
+                  <td className="border border-slate-400 px-2 py-2 text-center text-red-600">
+                    {summaryTotals.absent}
+                  </td>
+                  <td className="border border-slate-400 px-2 py-2 text-center text-purple-600">
+                    {summaryTotals.dayOff}
+                  </td>
+                </tr>
+              </>
+            )}
+          </tbody>
+        </table>
+
+        {/* Footer */}
+        <div className="mt-8 flex justify-between items-end text-xs text-slate-400">
+          <div>
+            {t('reports.printDate')}: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+          </div>
+          <div>
+            {orgName} — {t('reports.attendanceReport')}
+          </div>
+        </div>
+
+        {/* Signature area */}
+        {signers.length > 0 && (
+          <div className={`mt-12 flex ${signers.length <= 3 ? 'justify-between' : 'justify-around flex-wrap gap-y-8'} px-4`}>
+            {signers.map((signer, idx) => (
+              <div key={idx} className="text-center">
+                <div className="border-b border-slate-400 w-40 mb-1"></div>
+                <p className="text-xs text-slate-500">{signer}</p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  )
+}
+
 
 export default function PrintReportPage() {
   return (

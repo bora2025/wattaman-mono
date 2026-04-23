@@ -17,8 +17,28 @@ const positionLabels: Record<string, string> = {
   DEPARTMENT_HEAD: 'ប្រធាននាយកដ្ឋាន',
   SECURITY_GUARD: 'សន្តិសុខ',
   HR_MANAGER: 'ប្រធានធនធានមនុស្ស',
+  WATTAMAN: 'WATTAMAN',
+  UNIVERSITY_RECTOR: 'នាយកសាលាសាកលវិទ្យាល័យ',
+  DEPUTY_OFFICE_HEAD: 'អនុប្រធានការិយាល័យ',
+  DEPUTY_DEPARTMENT_HEAD: 'អនុប្រធាននាយកដ្ឋាន',
+  GENERAL_DEPARTMENT_DIRECTOR: 'អគ្គនាយកដ្ឋាន',
+  DEPUTY_GENERAL_DEPARTMENT_DIRECTOR: 'អគ្គរងនាយកដ្ឋាន',
+  COMPANY_CEO: 'អគ្គនាយកក្រុមហ៊ុន',
+  CREDIT_OFFICER: 'មន្ត្រីឥណទាន',
+  JANITOR: 'បុគ្គិលអនាម័យ',
+  PROJECT_MANAGER: 'ប្រធានគម្រោង',
+  BRANCH_MANAGER: 'ប្រធានសាខា',
+  EXECUTIVE_DIRECTOR: 'នាយកប្រតិបត្តិ',
+  ATHLETE_MALE: 'កីឡាករ',
+  ATHLETE_FEMALE: 'កីឡាការិនី',
+  TRAINER: 'គ្រូបង្វិក',
+  BARISTA: 'Barista',
+  CASHIER: 'អ្នកគិតលុយ',
+  RECEPTIONIST: 'អ្នកទទួលភ្ញៀវ',
+  GENERAL_MANAGER: 'អ្នកគ្រប់គ្រងទូទៅ',
 }
 
+// ── Summary-mode row (weekly / monthly / yearly / custom) ──
 interface StaffPrintRow {
   userId: string
   staffNumber: string
@@ -34,6 +54,51 @@ interface StaffPrintData {
   startDate: string
   endDate: string
   staff: StaffPrintRow[]
+}
+
+// ── Daily-mode row (actual check-in/out times) ──
+interface StaffDailyRow {
+  userId: string
+  staffNumber: string
+  staffName: string
+  role: string
+  checkInMorning: string | null
+  checkOutMorning: string | null
+  checkInAfternoon: string | null
+  checkOutAfternoon: string | null
+  session1Status: string | null
+  session2Status: string | null
+  session3Status: string | null
+  session4Status: string | null
+  session1PermissionType: string | null
+  session2PermissionType: string | null
+  session3PermissionType: string | null
+  session4PermissionType: string | null
+  isHoliday?: boolean
+}
+
+function isDayOff(status: string | null | undefined) {
+  return status === 'PERMISSION' || status === 'DAY_OFF'
+}
+
+function permissionLabel(row: StaffDailyRow): string | null {
+  const statuses = [row.session1Status, row.session2Status, row.session3Status, row.session4Status]
+  if (!statuses.some(s => isDayOff(s))) return null
+  const types = [row.session1PermissionType, row.session2PermissionType, row.session3PermissionType, row.session4PermissionType]
+  const t = types.find(Boolean)
+  if (t === 'HALF_DAY_MORNING') return 'Half AM'
+  if (t === 'HALF_DAY_AFTERNOON') return 'Half PM'
+  if (t === 'FULL_DAY') return 'Full Day'
+  if (t === 'MULTI_DAY') return 'Multi Day'
+  if (statuses.some(s => s === 'DAY_OFF')) return 'Day Off'
+  return 'Permission'
+}
+
+function TimeCell({ time, status }: { time: string | null; status: string | null }) {
+  if (isDayOff(status)) return <span className="text-purple-600 font-semibold text-xs">—</span>
+  if (time) return <span className="text-emerald-700 font-semibold text-xs tabular-nums">{time}</span>
+  if (status === 'PRESENT' || status === 'LATE') return <span className="text-emerald-600 text-xs">✓</span>
+  return <span className="text-red-500 text-xs">✗</span>
 }
 
 const PAPER_SIZES: Record<string, { width: string; minHeight: string }> = {
@@ -77,7 +142,10 @@ function StaffPrintReportContent() {
     catch { return ['Admin', 'Director'] }
   })()
 
+  const isDaily = period === 'daily'
+
   const [data, setData] = useState<StaffPrintData | null>(null)
+  const [dailyRows, setDailyRows] = useState<StaffDailyRow[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -88,18 +156,29 @@ function StaffPrintReportContent() {
       return
     }
     fetchData()
-  }, [startDate, endDate])
+  }, [startDate, endDate, period])
 
   const fetchData = async () => {
     try {
-      const res = await apiFetch(
-        `/api/reports/staff-print-report-data?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`
-      )
-      if (res.ok) {
-        const json = await res.json()
-        setData(json)
+      if (isDaily) {
+        // For daily view use the grid endpoint which has actual times
+        const res = await apiFetch(
+          `/api/reports/staff-attendance-daily-grid?date=${encodeURIComponent(startDate)}`
+        )
+        if (res.ok) {
+          setDailyRows(await res.json())
+        } else {
+          setError('Failed to load report data')
+        }
       } else {
-        setError('Failed to load report data')
+        const res = await apiFetch(
+          `/api/reports/staff-print-report-data?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`
+        )
+        if (res.ok) {
+          setData(await res.json())
+        } else {
+          setError('Failed to load report data')
+        }
       }
     } catch {
       setError('Failed to connect to server')
@@ -138,7 +217,7 @@ function StaffPrintReportContent() {
     )
   }
 
-  if (error || !data) {
+  if (error || (isDaily ? dailyRows.length === 0 && error : !data)) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
@@ -149,13 +228,27 @@ function StaffPrintReportContent() {
     )
   }
 
-  // Each staff counted once in their worst/dominant status so totals sum to exactly N staff
-  const totals = { present: 0, late: 0, absent: 0, dayOff: 0 }
-  for (const s of data.staff) {
-    if (s.absent > 0) totals.absent += 1
-    else if (s.dayOff > 0) totals.dayOff += 1
-    else if (s.late > 0) totals.late += 1
-    else totals.present += 1
+  // Summary totals (non-daily)
+  const summaryTotals = { present: 0, late: 0, absent: 0, dayOff: 0 }
+  if (!isDaily && data) {
+    for (const s of data.staff) {
+      if (s.absent > 0) summaryTotals.absent += 1
+      else if (s.dayOff > 0) summaryTotals.dayOff += 1
+      else if (s.late > 0) summaryTotals.late += 1
+      else summaryTotals.present += 1
+    }
+  }
+
+  // Daily totals
+  const dailyTotals = { present: 0, late: 0, absent: 0, permission: 0 }
+  if (isDaily) {
+    for (const r of dailyRows) {
+      const statuses = [r.session1Status, r.session2Status, r.session3Status, r.session4Status]
+      if (statuses.some(s => isDayOff(s))) dailyTotals.permission += 1
+      else if (statuses.some(s => s === 'ABSENT')) dailyTotals.absent += 1
+      else if (statuses.some(s => s === 'LATE')) dailyTotals.late += 1
+      else if (statuses.some(s => s === 'PRESENT')) dailyTotals.present += 1
+    }
   }
 
   return (
@@ -256,77 +349,163 @@ function StaffPrintReportContent() {
         </div>
 
         {/* Body Section — Report Table */}
-        <table className="w-full border-collapse text-sm">
+        <table className="w-full border-collapse text-xs">
           <thead>
-            <tr className="bg-slate-100">
-              <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-slate-700 w-12">
-                {t('common.id')}
-              </th>
-              <th className="border border-slate-400 px-3 py-2 text-left font-semibold text-slate-700">
-                {t('common.name')}
-              </th>
-              <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-slate-700 w-20">
-                {t('common.role')}
-              </th>
-              <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-emerald-700 w-20">
-                {t('reports.colPresent')}
-              </th>
-              <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-amber-700 w-20">
-                {t('reports.colLate')}
-              </th>
-              <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-red-700 w-20">
-                {t('reports.colAbsent')}
-              </th>
-              <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-purple-700 w-24">
-                {t('reports.colPermission')}
-              </th>
-            </tr>
+            {isDaily ? (
+              /* ── Daily header: two-row span for morning/afternoon ── */
+              <>
+                <tr className="bg-slate-800 text-white">
+                  <th className="border border-slate-600 px-2 py-1.5 text-center font-semibold" rowSpan={2}>
+                    {t('common.id')}
+                  </th>
+                  <th className="border border-slate-600 px-2 py-1.5 text-left font-semibold" rowSpan={2}>
+                    {t('common.name')}
+                  </th>
+                  <th className="border border-slate-600 px-2 py-1.5 text-center font-semibold" rowSpan={2}>
+                    {t('common.role')}
+                  </th>
+                  <th className="border border-slate-600 px-2 py-1.5 text-center font-semibold" colSpan={2}>
+                    Morning
+                  </th>
+                  <th className="border border-slate-600 px-2 py-1.5 text-center font-semibold" colSpan={2}>
+                    Afternoon
+                  </th>
+                  <th className="border border-slate-600 px-2 py-1.5 text-center font-semibold" rowSpan={2}>
+                    {t('reports.colPermission')}
+                  </th>
+                </tr>
+                <tr className="bg-slate-700 text-white">
+                  <th className="border border-slate-600 px-2 py-1 text-center font-medium w-16">Check-In</th>
+                  <th className="border border-slate-600 px-2 py-1 text-center font-medium w-16">Check-Out</th>
+                  <th className="border border-slate-600 px-2 py-1 text-center font-medium w-16">Check-In</th>
+                  <th className="border border-slate-600 px-2 py-1 text-center font-medium w-16">Check-Out</th>
+                </tr>
+              </>
+            ) : (
+              /* ── Summary header (weekly/monthly/etc.) ── */
+              <tr className="bg-slate-100">
+                <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-slate-700 w-12">
+                  {t('common.id')}
+                </th>
+                <th className="border border-slate-400 px-3 py-2 text-left font-semibold text-slate-700">
+                  {t('common.name')}
+                </th>
+                <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-slate-700 w-20">
+                  {t('common.role')}
+                </th>
+                <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-emerald-700 w-16">
+                  {t('reports.colPresent')}
+                </th>
+                <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-amber-700 w-16">
+                  {t('reports.colLate')}
+                </th>
+                <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-red-700 w-16">
+                  {t('reports.colAbsent')}
+                </th>
+                <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-purple-700 w-20">
+                  {t('reports.colPermission')}
+                </th>
+              </tr>
+            )}
           </thead>
           <tbody>
-            {data.staff.map((row, idx) => (
-              <tr key={row.userId} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                <td className="border border-slate-300 px-2 py-1.5 text-center text-xs font-mono">
-                  {row.staffNumber}
-                </td>
-                <td className="border border-slate-300 px-3 py-1.5 text-slate-800">
-                  {row.staffName}
-                </td>
-                <td className="border border-slate-300 px-2 py-1.5 text-center text-xs text-slate-600">
-                  {positionLabels[row.role] || row.role}
-                </td>
-                <td className="border border-slate-300 px-2 py-1.5 text-center font-semibold text-emerald-700">
-                  {row.present}
-                </td>
-                <td className="border border-slate-300 px-2 py-1.5 text-center font-semibold text-amber-600">
-                  {row.late}
-                </td>
-                <td className="border border-slate-300 px-2 py-1.5 text-center font-semibold text-red-600">
-                  {row.absent}
-                </td>
-                <td className="border border-slate-300 px-2 py-1.5 text-center font-semibold text-purple-600">
-                  {row.dayOff}
-                </td>
-              </tr>
-            ))}
-            {/* Totals Row — daily only */}
-            {period === 'daily' && (
-            <tr className="bg-slate-200 font-bold">
-              <td className="border border-slate-400 px-2 py-2 text-center" colSpan={3}>
-                {t('common.total')} ({data.staff.length} staff)
-              </td>
-              <td className="border border-slate-400 px-2 py-2 text-center text-emerald-700">
-                {totals.present}
-              </td>
-              <td className="border border-slate-400 px-2 py-2 text-center text-amber-600">
-                {totals.late}
-              </td>
-              <td className="border border-slate-400 px-2 py-2 text-center text-red-600">
-                {totals.absent}
-              </td>
-              <td className="border border-slate-400 px-2 py-2 text-center text-purple-600">
-                {totals.dayOff}
-              </td>
-            </tr>
+            {isDaily ? (
+              <>
+                {dailyRows.map((row, idx) => {
+                  const perm = permissionLabel(row)
+                  const isHoliday = row.isHoliday
+                  return (
+                    <tr key={row.userId} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                      <td className="border border-slate-300 px-2 py-1.5 text-center font-mono">{row.staffNumber}</td>
+                      <td className="border border-slate-300 px-2 py-1.5 text-slate-800">{row.staffName}</td>
+                      <td className="border border-slate-300 px-2 py-1.5 text-center text-slate-600">
+                        {positionLabels[row.role] || row.role}
+                      </td>
+                      <td className="border border-slate-300 px-2 py-1.5 text-center">
+                        {isHoliday ? <span className="text-slate-400">—</span> : <TimeCell time={row.checkInMorning} status={row.session1Status} />}
+                      </td>
+                      <td className="border border-slate-300 px-2 py-1.5 text-center">
+                        {isHoliday ? <span className="text-slate-400">—</span> : <TimeCell time={row.checkOutMorning} status={row.session2Status} />}
+                      </td>
+                      <td className="border border-slate-300 px-2 py-1.5 text-center">
+                        {isHoliday ? <span className="text-slate-400">—</span> : <TimeCell time={row.checkInAfternoon} status={row.session3Status} />}
+                      </td>
+                      <td className="border border-slate-300 px-2 py-1.5 text-center">
+                        {isHoliday ? <span className="text-slate-400">—</span> : <TimeCell time={row.checkOutAfternoon} status={row.session4Status} />}
+                      </td>
+                      <td className="border border-slate-300 px-2 py-1.5 text-center">
+                        {isHoliday
+                          ? <span className="text-xs text-blue-500">Holiday</span>
+                          : perm
+                            ? <span className="text-xs text-purple-600 font-semibold">{perm}</span>
+                            : <span className="text-slate-300 text-xs">—</span>
+                        }
+                      </td>
+                    </tr>
+                  )
+                })}
+                {/* Daily totals row */}
+                <tr className="bg-slate-200 font-bold">
+                  <td className="border border-slate-400 px-2 py-2 text-center" colSpan={3}>
+                    {t('common.total')} ({dailyRows.length} staff)
+                  </td>
+                  <td className="border border-slate-400 px-2 py-2 text-center text-emerald-700" colSpan={2}>
+                    {t('reports.colPresent')}: {dailyTotals.present}
+                  </td>
+                  <td className="border border-slate-400 px-2 py-2 text-center text-red-600" colSpan={2}>
+                    {t('reports.colAbsent')}: {dailyTotals.absent}
+                  </td>
+                  <td className="border border-slate-400 px-2 py-2 text-center text-purple-600">
+                    {dailyTotals.permission}
+                  </td>
+                </tr>
+              </>
+            ) : (
+              <>
+                {(data?.staff ?? []).map((row, idx) => (
+                  <tr key={row.userId} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+                    <td className="border border-slate-300 px-2 py-1.5 text-center font-mono">
+                      {row.staffNumber}
+                    </td>
+                    <td className="border border-slate-300 px-3 py-1.5 text-slate-800">
+                      {row.staffName}
+                    </td>
+                    <td className="border border-slate-300 px-2 py-1.5 text-center text-slate-600">
+                      {positionLabels[row.role] || row.role}
+                    </td>
+                    <td className="border border-slate-300 px-2 py-1.5 text-center font-semibold text-emerald-700">
+                      {row.present}
+                    </td>
+                    <td className="border border-slate-300 px-2 py-1.5 text-center font-semibold text-amber-600">
+                      {row.late}
+                    </td>
+                    <td className="border border-slate-300 px-2 py-1.5 text-center font-semibold text-red-600">
+                      {row.absent}
+                    </td>
+                    <td className="border border-slate-300 px-2 py-1.5 text-center font-semibold text-purple-600">
+                      {row.dayOff}
+                    </td>
+                  </tr>
+                ))}
+                {/* Summary totals row */}
+                <tr className="bg-slate-200 font-bold">
+                  <td className="border border-slate-400 px-2 py-2 text-center" colSpan={3}>
+                    {t('common.total')} ({data?.staff.length ?? 0} staff)
+                  </td>
+                  <td className="border border-slate-400 px-2 py-2 text-center text-emerald-700">
+                    {summaryTotals.present}
+                  </td>
+                  <td className="border border-slate-400 px-2 py-2 text-center text-amber-600">
+                    {summaryTotals.late}
+                  </td>
+                  <td className="border border-slate-400 px-2 py-2 text-center text-red-600">
+                    {summaryTotals.absent}
+                  </td>
+                  <td className="border border-slate-400 px-2 py-2 text-center text-purple-600">
+                    {summaryTotals.dayOff}
+                  </td>
+                </tr>
+              </>
             )}
           </tbody>
         </table>
