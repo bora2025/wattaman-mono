@@ -269,9 +269,9 @@ function StaffPrintReportContent() {
     for (const r of dailyRows) {
       const statuses = [r.session1Status, r.session2Status, r.session3Status, r.session4Status]
       if (statuses.some(s => isDayOff(s))) dailyTotals.permission += 1
-      else if (statuses.some(s => s === 'ABSENT')) dailyTotals.absent += 1
-      else if (statuses.some(s => s === 'LATE')) dailyTotals.late += 1
       else if (statuses.some(s => s === 'PRESENT')) dailyTotals.present += 1
+      else if (statuses.some(s => s === 'LATE')) dailyTotals.late += 1
+      else if (statuses.some(s => s === 'ABSENT')) dailyTotals.absent += 1
     }
   }
 
@@ -454,15 +454,21 @@ function StaffPrintReportContent() {
                   )
                 })}
                 {/* Daily totals row */}
-                <tr className="bg-slate-200 font-bold">
-                  <td className="border border-slate-400 px-2 py-2 text-center" colSpan={3}>
-                    {t('common.total')} ({dailyRows.length} staff)
+                <tr className="bg-slate-200 font-bold text-xs">
+                  <td className="border border-slate-400 px-2 py-2 text-center text-sm" colSpan={3}>
+                    {t('common.total')} ({dailyRows.length})
                   </td>
-                  <td className="border border-slate-400 px-2 py-2 text-center text-emerald-700" colSpan={2}>
+                  <td className="border border-slate-400 px-1 py-2 text-center text-emerald-700">
                     {t('reports.colPresent')}: {dailyTotals.present}
                   </td>
-                  <td className="border border-slate-400 px-2 py-2 text-center text-red-600" colSpan={2}>
+                  <td className="border border-slate-400 px-1 py-2 text-center text-amber-600">
+                    {t('reports.colLate')}: {dailyTotals.late}
+                  </td>
+                  <td className="border border-slate-400 px-1 py-2 text-center text-red-600">
                     {t('reports.colAbsent')}: {dailyTotals.absent}
+                  </td>
+                  <td className="border border-slate-400 px-1 py-2 text-center text-purple-600">
+                    {t('reports.colPermission')}: {dailyTotals.permission}
                   </td>
                 </tr>
               </>
