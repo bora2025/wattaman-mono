@@ -264,9 +264,9 @@ function PrintReportContent() {
         ...(showAfternoon ? [r.session3Status, r.session4Status] : []),
       ]
       if (statuses.some(s => isDayOff(s)) || r.dayOff) dailyTotals.permission += 1
-      else if (statuses.some(s => s === 'ABSENT')) dailyTotals.absent += 1
-      else if (statuses.some(s => s === 'LATE')) dailyTotals.late += 1
       else if (statuses.some(s => s === 'PRESENT')) dailyTotals.present += 1
+      else if (statuses.some(s => s === 'LATE')) dailyTotals.late += 1
+      else if (statuses.some(s => s === 'ABSENT')) dailyTotals.absent += 1
     }
   }
 
@@ -465,13 +465,16 @@ function PrintReportContent() {
                 {/* Daily totals row */}
                 <tr className="bg-slate-200 font-bold">
                   <td className="border border-slate-400 px-2 py-2 text-center" colSpan={2}>
-                    {t('common.total')} ({dailyRows.length} students)
+                    {t('common.total')} ({dailyRows.length} {t('common.students') || 'students'})
                   </td>
-                  <td className="border border-slate-400 px-2 py-2 text-center text-emerald-700" colSpan={showMorning && showAfternoon ? 2 : 1}>
-                    {t('reports.colPresent')}: {dailyTotals.present}
-                  </td>
-                  <td className="border border-slate-400 px-2 py-2 text-center text-red-600" colSpan={showMorning && showAfternoon ? 2 : 1}>
-                    {t('reports.colAbsent')}: {dailyTotals.absent}
+                  <td className="border border-slate-400 px-2 py-2 text-center" colSpan={(showMorning ? 2 : 0) + (showAfternoon ? 2 : 0)}>
+                    <span className="text-emerald-700">{t('reports.colPresent')}: {dailyTotals.present}</span>
+                    <span className="mx-2 text-slate-400">|</span>
+                    <span className="text-amber-600">{t('reports.colLate')}: {dailyTotals.late}</span>
+                    <span className="mx-2 text-slate-400">|</span>
+                    <span className="text-red-600">{t('reports.colAbsent')}: {dailyTotals.absent}</span>
+                    <span className="mx-2 text-slate-400">|</span>
+                    <span className="text-purple-600">{t('reports.colPermission')}: {dailyTotals.permission}</span>
                   </td>
                 </tr>
               </>
