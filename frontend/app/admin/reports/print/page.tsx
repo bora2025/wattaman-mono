@@ -43,14 +43,16 @@ interface StudentDailyRow {
   session1PermissionType?: string | null
   session2PermissionType?: string | null
   session3PermissionType?: string | null
-  session4PermissionType?: string | null  session1PermissionStartDate?: string | null
+  session4PermissionType?: string | null
+  session1PermissionStartDate?: string | null
   session1PermissionEndDate?: string | null
   session2PermissionStartDate?: string | null
   session2PermissionEndDate?: string | null
   session3PermissionStartDate?: string | null
   session3PermissionEndDate?: string | null
   session4PermissionStartDate?: string | null
-  session4PermissionEndDate?: string | null}
+  session4PermissionEndDate?: string | null
+}
 
 const PAPER_SIZES: Record<string, { width: string; minHeight: string }> = {
   A4: { width: '210mm', minHeight: '297mm' },
