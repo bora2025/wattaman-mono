@@ -104,6 +104,7 @@ export default function Toolbar({ design, selectedId, onDesignChange, onSelect, 
       opacity: 1,
       rotation: 0,
       zIndex: getMaxZIndex() + 1,
+      lineStyle: type === 'line' ? 'solid' : undefined,
       gradient: {
         enabled: false,
         type: 'linear',
@@ -728,6 +729,35 @@ export default function Toolbar({ design, selectedId, onDesignChange, onSelect, 
                             <input type="range" min={0} max={50} value={selectedShape.borderRadius ?? 0} onChange={(e) => updateShape(selectedShape.id, { borderRadius: Number(e.target.value) })} className="w-full accent-indigo-600" />
                           </label>
                         )}
+                      </>
+                    )}
+                    {selectedShape.type === 'line' && (
+                      <>
+                        <label className="flex items-center gap-2">
+                          <input type="color" value={selectedShape.borderColor ?? '#1e293b'} onChange={(e) => updateShape(selectedShape.id, { borderColor: e.target.value })} className="w-6 h-6 rounded cursor-pointer border border-slate-300" />
+                          <div className="flex-1">
+                            <span className="text-xs text-slate-500">Line Color</span>
+                            <input type="text" value={selectedShape.borderColor ?? '#1e293b'} onChange={(e) => { const v = e.target.value; if (/^#[0-9a-fA-F]{6}$/.test(v)) updateShape(selectedShape.id, { borderColor: v }); }} className="!py-0.5 !text-[10px] font-mono w-full" placeholder="#000000" />
+                          </div>
+                        </label>
+                        <label>
+                          <span className="text-xs text-slate-500">Line Width ({selectedShape.borderWidth}pt)</span>
+                          <input type="number" min={0.5} max={20} step={0.5} value={selectedShape.borderWidth ?? 1} onChange={(e) => updateShape(selectedShape.id, { borderWidth: Math.max(0.5, Number(e.target.value)) })} className="!py-1 !text-xs" />
+                        </label>
+                        <div>
+                          <span className="text-xs text-slate-500">Line Style</span>
+                          <div className="flex gap-1 mt-1">
+                            {(['solid', 'dashed', 'dotted'] as const).map((style) => (
+                              <button
+                                key={style}
+                                onClick={() => updateShape(selectedShape.id, { lineStyle: style })}
+                                className={`flex-1 px-2 py-1 text-xs rounded border transition-colors ${(selectedShape.lineStyle ?? 'solid') === style ? 'bg-indigo-100 border-indigo-300 text-indigo-700' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                              >
+                                {style === 'solid' ? '\u2014 Solid' : style === 'dashed' ? '- - Dash' : '\u00B7\u00B7\u00B7 Dot'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       </>
                     )}
                     <label>

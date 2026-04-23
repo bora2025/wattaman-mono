@@ -11,6 +11,7 @@ interface CardCanvasProps {
   onSelect: (id: string | null) => void;
   onMoveText: (id: string, x: number, y: number) => void;
   onMoveLogo: (id: string, x: number, y: number) => void;
+  onResizeLogo?: (id: string, changes: Partial<LogoElement>) => void;
   onMoveShape?: (id: string, x: number, y: number) => void;
   onResizeShape?: (id: string, changes: Partial<ShapeElement>) => void;
   onMovePhoto?: (x: number, y: number) => void;
@@ -19,10 +20,10 @@ interface CardCanvasProps {
   onResizeQr?: (changes: Partial<QrPlaceholder>) => void;
 }
 
-export default function CardCanvas({ design, selectedId, onSelect, onMoveText, onMoveLogo, onMoveShape, onResizeShape, onMovePhoto, onResizePhoto, onMoveQr, onResizeQr }: CardCanvasProps) {
+export default function CardCanvas({ design, selectedId, onSelect, onMoveText, onMoveLogo, onResizeLogo, onMoveShape, onResizeShape, onMovePhoto, onResizePhoto, onMoveQr, onResizeQr }: CardCanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<{
-    type: 'text' | 'logo' | 'shape' | 'photo' | 'qr' | 'resize' | 'photo-resize' | 'qr-resize' | 'rotate';
+    type: 'text' | 'logo' | 'shape' | 'photo' | 'qr' | 'resize' | 'photo-resize' | 'qr-resize' | 'logo-resize' | 'rotate';
     id: string;
     startX: number;
     startY: number;
@@ -243,6 +244,49 @@ export default function CardCanvas({ design, selectedId, onSelect, onMoveText, o
     document.addEventListener('mouseup', handleMouseUp);
   };
 
+  // --- Logo resize handle drag ---
+  const handleLogoResizeMouseDown = (e: React.MouseEvent, logo: LogoElement, handle: HandlePosition) => {
+    e.stopPropagation();
+    e.preventDefault();
+    onSelect(logo.id);
+    dragRef.current = {
+      type: 'logo-resize',
+      id: logo.id,
+      startX: e.clientX,
+      startY: e.clientY,
+      elemX: logo.x,
+      elemY: logo.y,
+      elemW: logo.width,
+      elemH: logo.height,
+      handle,
+    };
+
+    const handleMouseMove = (ev: MouseEvent) => {
+      if (!dragRef.current || dragRef.current.type !== 'logo-resize' || !onResizeLogo) return;
+      const dx = ev.clientX - dragRef.current.startX;
+      const dy = ev.clientY - dragRef.current.startY;
+      const h = dragRef.current.handle!;
+      let { elemX: x, elemY: y, elemW: w, elemH: ht } = dragRef.current;
+      w = w!; ht = ht!;
+
+      if (h.includes('e')) w = Math.max(10, w + dx);
+      if (h.includes('w')) { w = Math.max(10, w - dx); x = x + (dragRef.current.elemW! - Math.max(10, dragRef.current.elemW! - dx)); }
+      if (h.includes('s')) ht = Math.max(10, ht + dy);
+      if (h.includes('n')) { ht = Math.max(10, ht - dy); y = y + (dragRef.current.elemH! - Math.max(10, dragRef.current.elemH! - dy)); }
+
+      onResizeLogo(dragRef.current.id, { x, y, width: w, height: ht });
+    };
+
+    const handleMouseUp = () => {
+      dragRef.current = null;
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
+
   // --- Arrow-key nudge for selected element ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -432,10 +476,10 @@ export default function CardCanvas({ design, selectedId, onSelect, onMoveText, o
                       zIndex: shape.zIndex ?? 0,
                       transform: shape.rotation ? `rotate(${shape.rotation}deg)` : undefined,
                       transformOrigin: 'center center',
-                      backgroundColor: gradientStyle ? undefined : shape.color,
-                      backgroundImage: gradientStyle,
+                      backgroundColor: shape.type === 'line' ? 'transparent' : (gradientStyle ? undefined : shape.color),
+                      backgroundImage: shape.type === 'line' ? undefined : gradientStyle,
                       borderRadius: shape.type === 'circle' ? '50%' : shape.borderRadius,
-                      border: shape.borderWidth > 0 ? `${shape.borderWidth}px solid ${shape.borderColor}` : 'none',
+                      border: shape.type === 'line' ? 'none' : (shape.borderWidth > 0 ? `${shape.borderWidth}px solid ${shape.borderColor}` : 'none'),
                       opacity: shape.opacity,
                     }}
                     onMouseDown={(e) => handleMouseDown(e, 'shape', shape.id, shape.x, shape.y)}
@@ -443,7 +487,10 @@ export default function CardCanvas({ design, selectedId, onSelect, onMoveText, o
                     {shape.type === 'line' && (
                       <div
                         className="w-full absolute top-1/2 -translate-y-1/2"
-                        style={{ height: Math.max(shape.borderWidth, 2), backgroundColor: shape.borderColor || shape.color }}
+                        style={{
+                          height: 0,
+                          borderTop: `${Math.max(shape.borderWidth, 0.5)}px ${shape.lineStyle ?? 'solid'} ${shape.borderColor || shape.color}`,
+                        }}
                       />
                     )}
                   </div>
@@ -468,6 +515,7 @@ export default function CardCanvas({ design, selectedId, onSelect, onMoveText, o
                   </div>
                 );
               }
+              // logo handled above
               const text = item.data as TextElement;
               return (
                 <div
@@ -633,6 +681,44 @@ export default function CardCanvas({ design, selectedId, onSelect, onMoveText, o
                 className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] text-indigo-500 font-mono whitespace-nowrap pointer-events-none bg-white/80 px-1 rounded"
               >
                 {Math.round(qr.width)} × {Math.round(qr.height)}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Logo resize handles overlay */}
+        {(() => {
+          const selectedLogo = design.logos.find((l) => l.id === selectedId);
+          if (!selectedLogo) return null;
+          return (
+            <div
+              className="absolute pointer-events-none"
+              style={{
+                left: selectedLogo.x,
+                top: selectedLogo.y,
+                width: selectedLogo.width,
+                height: selectedLogo.height,
+                zIndex: 50,
+              }}
+            >
+              <div className="absolute inset-0 border-2 border-dashed border-indigo-400 rounded-sm pointer-events-none" />
+              {handlePositions.map(({ key, cursor, style }) => (
+                <div
+                  key={key}
+                  className="absolute bg-white border-2 border-indigo-500 rounded-sm pointer-events-auto shadow-sm hover:bg-indigo-50 hover:scale-125 transition-transform"
+                  style={{
+                    width: HANDLE_SIZE,
+                    height: HANDLE_SIZE,
+                    cursor,
+                    ...style,
+                  }}
+                  onMouseDown={(e) => handleLogoResizeMouseDown(e, selectedLogo, key)}
+                />
+              ))}
+              <div
+                className="absolute -bottom-5 left-1/2 -translate-x-1/2 text-[10px] text-indigo-500 font-mono whitespace-nowrap pointer-events-none bg-white/80 px-1 rounded"
+              >
+                {Math.round(selectedLogo.width)} × {Math.round(selectedLogo.height)}
               </div>
             </div>
           );

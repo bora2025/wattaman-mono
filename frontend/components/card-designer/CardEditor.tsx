@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, MouseEvent as ReactMouseEvent } from 'react';
-import { CardDesign, CardType, PhotoPlaceholder, QrPlaceholder, ShapeElement, STUDENT_TEMPLATE, STAFF_TEMPLATE, BLANK_TEMPLATE, loadSavedDesign, saveDesign, SavedTemplate, loadSavedTemplates, saveTemplate, deleteTemplate } from './types';
+import { CardDesign, CardType, LogoElement, PhotoPlaceholder, QrPlaceholder, ShapeElement, STUDENT_TEMPLATE, STAFF_TEMPLATE, BLANK_TEMPLATE, loadSavedDesign, saveDesign, SavedTemplate, loadSavedTemplates, saveTemplate, deleteTemplate } from './types';
 import { renderDesignToCanvas } from './renderDesignToCanvas';
 import { downloadSingleCardPDF } from './generateCardPDF';
 import CardCanvas from './CardCanvas';
@@ -135,6 +135,16 @@ export default function CardEditor() {
       setDesign((prev) => ({
         ...prev,
         logos: prev.logos.map((l) => (l.id === id ? { ...l, x, y } : l)),
+      }));
+    },
+    []
+  );
+
+  const handleResizeLogo = useCallback(
+    (id: string, changes: Partial<LogoElement>) => {
+      setDesign((prev) => ({
+        ...prev,
+        logos: prev.logos.map((l) => (l.id === id ? { ...l, ...changes } : l)),
       }));
     },
     []
@@ -470,6 +480,7 @@ export default function CardEditor() {
             onSelect={setSelectedId}
             onMoveText={handleMoveText}
             onMoveLogo={handleMoveLogo}
+            onResizeLogo={handleResizeLogo}
             onMoveShape={handleMoveShape}
             onResizeShape={handleResizeShape}
             onMovePhoto={handleMovePhoto}
