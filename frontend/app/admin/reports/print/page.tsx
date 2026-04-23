@@ -139,6 +139,7 @@ function PrintReportContent() {
 
   const [data, setData] = useState<PrintData | null>(null)
   const [dailyRows, setDailyRows] = useState<StudentDailyRow[]>([])
+  const [sessionConfig, setSessionConfig] = useState<{ session: number; startTime: string; endTime: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -168,6 +169,9 @@ function PrintReportContent() {
             const json = await infoRes.json()
             if (json) setData(json)
           }
+          // Fetch session config to determine which columns to show
+          const cfgRes = await apiFetch(`/api/session-config?classId=${encodeURIComponent(classId)}`)
+          if (cfgRes.ok) setSessionConfig(await cfgRes.json())
         } else {
           setError('Failed to load report data')
         }
@@ -254,6 +258,14 @@ function PrintReportContent() {
       else if (statuses.some(s => s === 'PRESENT')) dailyTotals.present += 1
     }
   }
+
+  // Determine which session columns to show based on session config
+  // A session is "active" when startTime !== endTime (non-zero time window)
+  const activeSessions = sessionConfig.length > 0
+    ? sessionConfig.filter(c => c.startTime !== c.endTime).map(c => c.session)
+    : [1, 2, 3, 4]
+  const showMorning = activeSessions.some(s => s === 1 || s === 2)
+  const showAfternoon = activeSessions.some(s => s === 3 || s === 4)
 
   const className = data?.className ?? ''
   const teacherName = data?.teacherName ?? ''
@@ -378,21 +390,20 @@ function PrintReportContent() {
                   <th className="border border-slate-600 px-2 py-1.5 text-left font-semibold" rowSpan={2}>
                     {t('common.name')}
                   </th>
-                  <th className="border border-slate-600 px-2 py-1.5 text-center font-semibold" colSpan={2}>
-                    Morning
-                  </th>
-                  <th className="border border-slate-600 px-2 py-1.5 text-center font-semibold" colSpan={2}>
-                    Afternoon
-                  </th>
-                  <th className="border border-slate-600 px-2 py-1.5 text-center font-semibold" rowSpan={2}>
-                    {t('reports.colPermission')}
-                  </th>
+                  {showMorning && (
+                    <th className="border border-slate-600 px-2 py-1.5 text-center font-semibold" colSpan={2}>
+                      Morning
+                    </th>
+                  )}
+                  {showAfternoon && (
+                    <th className="border border-slate-600 px-2 py-1.5 text-center font-semibold" colSpan={2}>
+                      Afternoon
+                    </th>
+                  )}
                 </tr>
                 <tr className="bg-slate-700 text-white">
-                  <th className="border border-slate-600 px-2 py-1 text-center font-medium w-16">Check-In</th>
-                  <th className="border border-slate-600 px-2 py-1 text-center font-medium w-16">Check-Out</th>
-                  <th className="border border-slate-600 px-2 py-1 text-center font-medium w-16">Check-In</th>
-                  <th className="border border-slate-600 px-2 py-1 text-center font-medium w-16">Check-Out</th>
+                  {showMorning && <><th className="border border-slate-600 px-2 py-1 text-center font-medium w-16">Check-In</th><th className="border border-slate-600 px-2 py-1 text-center font-medium w-16">Check-Out</th></>}
+                  {showAfternoon && <><th className="border border-slate-600 px-2 py-1 text-center font-medium w-16">Check-In</th><th className="border border-slate-600 px-2 py-1 text-center font-medium w-16">Check-Out</th></>}
                 </tr>
               </>
             ) : (
@@ -412,9 +423,6 @@ function PrintReportContent() {
                 </th>
                 <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-red-700 w-16">
                   {t('reports.colAbsent')}
-                </th>
-                <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-purple-700 w-20">
-                  {t('reports.colPermission')}
                 </th>
               </tr>
             )}
@@ -457,14 +465,11 @@ function PrintReportContent() {
                   <td className="border border-slate-400 px-2 py-2 text-center" colSpan={2}>
                     {t('common.total')} ({dailyRows.length} students)
                   </td>
-                  <td className="border border-slate-400 px-2 py-2 text-center text-emerald-700" colSpan={2}>
+                  <td className="border border-slate-400 px-2 py-2 text-center text-emerald-700" colSpan={showMorning && showAfternoon ? 2 : 1}>
                     {t('reports.colPresent')}: {dailyTotals.present}
                   </td>
-                  <td className="border border-slate-400 px-2 py-2 text-center text-red-600" colSpan={2}>
+                  <td className="border border-slate-400 px-2 py-2 text-center text-red-600" colSpan={showMorning && showAfternoon ? 2 : 1}>
                     {t('reports.colAbsent')}: {dailyTotals.absent}
-                  </td>
-                  <td className="border border-slate-400 px-2 py-2 text-center text-purple-600">
-                    {dailyTotals.permission}
                   </td>
                 </tr>
               </>
@@ -487,9 +492,6 @@ function PrintReportContent() {
                     <td className="border border-slate-300 px-2 py-1.5 text-center font-semibold text-red-600">
                       {student.absent}
                     </td>
-                    <td className="border border-slate-300 px-2 py-1.5 text-center font-semibold text-purple-600">
-                      {student.dayOff}
-                    </td>
                   </tr>
                 ))}
                 {/* Summary totals row */}
@@ -506,9 +508,7 @@ function PrintReportContent() {
                   <td className="border border-slate-400 px-2 py-2 text-center text-red-600">
                     {summaryTotals.absent}
                   </td>
-                  <td className="border border-slate-400 px-2 py-2 text-center text-purple-600">
-                    {summaryTotals.dayOff}
-                  </td>
+
                 </tr>
               </>
             )}

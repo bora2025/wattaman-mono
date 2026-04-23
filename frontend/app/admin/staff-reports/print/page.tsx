@@ -394,9 +394,6 @@ function StaffPrintReportContent() {
                   <th className="border border-slate-600 px-2 py-1.5 text-center font-semibold" colSpan={2}>
                     Afternoon
                   </th>
-                  <th className="border border-slate-600 px-2 py-1.5 text-center font-semibold" rowSpan={2}>
-                    {t('reports.colPermission')}
-                  </th>
                 </tr>
                 <tr className="bg-slate-700 text-white">
                   <th className="border border-slate-600 px-2 py-1 text-center font-medium w-16">Check-In</th>
@@ -426,9 +423,6 @@ function StaffPrintReportContent() {
                 <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-red-700 w-16">
                   {t('reports.colAbsent')}
                 </th>
-                <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-purple-700 w-20">
-                  {t('reports.colPermission')}
-                </th>
               </tr>
             )}
           </thead>
@@ -436,7 +430,6 @@ function StaffPrintReportContent() {
             {isDaily ? (
               <>
                 {dailyRows.map((row, idx) => {
-                  const perm = permissionLabel(row)
                   const isHoliday = row.isHoliday
                   return (
                     <tr key={row.userId} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
@@ -457,14 +450,6 @@ function StaffPrintReportContent() {
                       <td className="border border-slate-300 px-2 py-1.5 text-center">
                         {isHoliday ? <span className="text-slate-400">—</span> : <TimeCell time={row.checkOutAfternoon} status={row.session4Status} />}
                       </td>
-                      <td className="border border-slate-300 px-2 py-1.5 text-center">
-                        {isHoliday
-                          ? <span className="text-xs text-blue-500">Holiday</span>
-                          : perm
-                            ? <span className="text-xs text-purple-600 font-semibold">{perm}</span>
-                            : <span className="text-slate-300 text-xs">—</span>
-                        }
-                      </td>
                     </tr>
                   )
                 })}
@@ -478,9 +463,6 @@ function StaffPrintReportContent() {
                   </td>
                   <td className="border border-slate-400 px-2 py-2 text-center text-red-600" colSpan={2}>
                     {t('reports.colAbsent')}: {dailyTotals.absent}
-                  </td>
-                  <td className="border border-slate-400 px-2 py-2 text-center text-purple-600">
-                    {dailyTotals.permission}
                   </td>
                 </tr>
               </>
@@ -506,9 +488,6 @@ function StaffPrintReportContent() {
                     <td className="border border-slate-300 px-2 py-1.5 text-center font-semibold text-red-600">
                       {row.absent}
                     </td>
-                    <td className="border border-slate-300 px-2 py-1.5 text-center font-semibold text-purple-600">
-                      {row.dayOff}
-                    </td>
                   </tr>
                 ))}
                 {/* Summary totals row */}
@@ -524,9 +503,6 @@ function StaffPrintReportContent() {
                   </td>
                   <td className="border border-slate-400 px-2 py-2 text-center text-red-600">
                     {summaryTotals.absent}
-                  </td>
-                  <td className="border border-slate-400 px-2 py-2 text-center text-purple-600">
-                    {summaryTotals.dayOff}
                   </td>
                 </tr>
               </>
