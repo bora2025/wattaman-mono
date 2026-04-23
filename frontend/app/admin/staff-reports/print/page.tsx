@@ -99,7 +99,7 @@ function TimeCell({ time, status }: { time: string | null; status: string | null
   const isLate = status === 'LATE'
   if (time) return (
     <span className={`font-semibold text-xs tabular-nums ${isLate ? 'text-amber-600' : 'text-emerald-700'}`}>
-      {time}{isLate ? ' ⚠' : ''}
+      {time}{isLate ? <span className="ml-0.5 text-[10px] font-bold text-amber-700 bg-amber-100 px-0.5 rounded"> L</span> : null}
     </span>
   )
   if (status === 'PRESENT' || status === 'LATE') return <span className="text-emerald-600 text-xs">✓</span>
