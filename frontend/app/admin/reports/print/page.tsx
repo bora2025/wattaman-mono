@@ -430,16 +430,16 @@ function PrintReportContent() {
                       <td className="border border-slate-300 px-2 py-1.5 text-center font-mono">{row.studentNumber}</td>
                       <td className="border border-slate-300 px-2 py-1.5 text-slate-800">{row.studentName}</td>
                       <td className="border border-slate-300 px-2 py-1.5 text-center">
-                        {isHoliday ? <span className="text-slate-400">{'\u2014'}</span> : <TimeCell time={row.checkInMorning} status={row.session1Status} />}
+                        {isHoliday ? <span className="text-slate-400">{'\u2014'}</span> : <TimeCell time={row.checkInMorning} status={row.dayOff ? 'DAY_OFF' : row.session1Status} />}
                       </td>
                       <td className="border border-slate-300 px-2 py-1.5 text-center">
-                        {isHoliday ? <span className="text-slate-400">{'\u2014'}</span> : <TimeCell time={row.checkOutMorning} status={row.session2Status} />}
+                        {isHoliday ? <span className="text-slate-400">{'\u2014'}</span> : <TimeCell time={row.checkOutMorning} status={row.dayOff ? 'DAY_OFF' : row.session2Status} />}
                       </td>
                       <td className="border border-slate-300 px-2 py-1.5 text-center">
-                        {isHoliday ? <span className="text-slate-400">{'\u2014'}</span> : <TimeCell time={row.checkInAfternoon} status={row.session3Status} />}
+                        {isHoliday ? <span className="text-slate-400">{'\u2014'}</span> : <TimeCell time={row.checkInAfternoon} status={row.dayOff ? 'DAY_OFF' : row.session3Status} />}
                       </td>
                       <td className="border border-slate-300 px-2 py-1.5 text-center">
-                        {isHoliday ? <span className="text-slate-400">{'\u2014'}</span> : <TimeCell time={row.checkOutAfternoon} status={row.session4Status} />}
+                        {isHoliday ? <span className="text-slate-400">{'\u2014'}</span> : <TimeCell time={row.checkOutAfternoon} status={row.dayOff ? 'DAY_OFF' : row.session4Status} />}
                       </td>
                       <td className="border border-slate-300 px-2 py-1.5 text-center">
                         {isHoliday

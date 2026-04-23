@@ -122,7 +122,6 @@ function TimeCell({ time, status }: { time: string | null; status: string | null
     </span>
   )
   if (isLate) return <span className="text-amber-600 font-bold text-xs">L</span>
-  if (status === 'PRESENT') return <span className="text-emerald-600 text-xs">✓</span>
   return <span className="text-red-500 text-xs">✗</span>
 }
 
