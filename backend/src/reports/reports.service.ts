@@ -875,7 +875,7 @@ export class ReportsService {
               ? toCambodiaTimeShort(s4.checkInTime || s3?.checkOutTime)
               : (s3?.checkOutTime ? toCambodiaTimeShort(s3.checkOutTime) : null))
           : (s4 && s4.status !== 'ABSENT' && !isDayOffStatus(s4.status) ? toCambodiaTimeShort(s4.checkOutTime || s4.checkInTime) : null),
-        dayOff: hasDayOff || allAbsent,
+        dayOff: hasDayOff,
         isHoliday,
         session1Status,
         session2Status,
