@@ -1,11 +1,11 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { apiFetch } from '../../../../lib/api'
 import { useLanguage } from '../../../../lib/i18n'
 
-// ── Summary-mode row (weekly / monthly / yearly / custom) ──
+// â”€â”€ Summary-mode row (weekly / monthly / yearly / custom) â”€â”€
 interface PrintStudent {
   studentId: string
   studentNumber: string
@@ -25,7 +25,7 @@ interface PrintData {
   students: PrintStudent[]
 }
 
-// ── Daily-mode row (actual check-in/out times) ──
+// â”€â”€ Daily-mode row (actual check-in/out times) â”€â”€
 interface StudentDailyRow {
   studentId: string
   studentNumber: string
@@ -70,10 +70,10 @@ function studentPermissionLabel(row: StudentDailyRow): string | null {
 }
 
 function TimeCell({ time, status }: { time: string | null; status: string | null }) {
-  if (isDayOff(status)) return <span className="text-purple-600 font-semibold text-xs">—</span>
+  if (isDayOff(status)) return <span className="text-purple-600 font-semibold text-xs">â€”</span>
   if (time) return <span className="text-emerald-700 font-semibold text-xs tabular-nums">{time}</span>
-  if (status === 'PRESENT' || status === 'LATE') return <span className="text-emerald-600 text-xs">✓</span>
-  return <span className="text-red-500 text-xs">✗</span>
+  if (status === 'PRESENT' || status === 'LATE') return <span className="text-emerald-600 text-xs">âœ“</span>
+  return <span className="text-red-500 text-xs">âœ—</span>
 }
 
 export default function PrintReportPage() {
@@ -261,13 +261,13 @@ function PrintReportContent() {
       {/* Screen-only toolbar */}
       <div className="no-print fixed top-0 left-0 right-0 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between z-50 shadow-sm">
         <button onClick={() => window.close()} className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200">
-          ← {t('common.close')}
+          â† {t('common.close')}
         </button>
         <div className="text-sm text-slate-500">
-          {className} — {getPeriodLabel()} — {paperSize}
+          {className} â€” {getPeriodLabel()} â€” {paperSize}
         </div>
         <button onClick={() => window.print()} className="px-5 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 shadow-sm">
-          🖨️ {t('reports.printReport')}
+          ðŸ–¨ï¸ {t('reports.printReport')}
         </button>
       </div>
 
@@ -281,7 +281,7 @@ function PrintReportContent() {
           marginTop: '60px',
         }}
       >
-        {/* Header Section — Khmer letter-head style */}
+        {/* Header Section â€” Khmer letter-head style */}
         <div className="mb-6 border-b-2 border-slate-800 pb-4">
           <div className="flex items-start gap-4">
             {logoUrl && (
@@ -321,14 +321,14 @@ function PrintReportContent() {
               </span>
               <span>
                 <strong>{t('reports.dateRange')}:</strong>{' '}
-                {startDate === endDate ? formatDate(startDate) : `${formatDate(startDate)} — ${formatDate(endDate)}`}
+                {startDate === endDate ? formatDate(startDate) : `${formatDate(startDate)} â€” ${formatDate(endDate)}`}
               </span>
             </div>
             {className && (
               <div className="mt-2 flex flex-wrap justify-center gap-x-8 gap-y-1 text-sm text-slate-600">
                 <span>
                   <strong>{t('common.class')}:</strong> {className}
-                  {subject ? ` — ${subject}` : ''}
+                  {subject ? ` â€” ${subject}` : ''}
                 </span>
                 {teacherName && (
                   <span>
@@ -340,11 +340,11 @@ function PrintReportContent() {
           </div>
         </div>
 
-        {/* Body Section — Report Table */}
+        {/* Body Section â€” Report Table */}
         <table className="w-full border-collapse text-xs">
           <thead>
             {isDaily ? (
-              /* ── Daily header: two-row span for morning/afternoon ── */
+              /* â”€â”€ Daily header: two-row span for morning/afternoon â”€â”€ */
               <>
                 <tr className="bg-slate-800 text-white">
                   <th className="border border-slate-600 px-2 py-1.5 text-center font-semibold" rowSpan={2}>
@@ -371,7 +371,7 @@ function PrintReportContent() {
                 </tr>
               </>
             ) : (
-              /* ── Summary header (weekly/monthly/etc.) ── */
+              /* â”€â”€ Summary header (weekly/monthly/etc.) â”€â”€ */
               <tr className="bg-slate-100">
                 <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-slate-700 w-12">
                   {t('common.id')}
@@ -405,23 +405,23 @@ function PrintReportContent() {
                       <td className="border border-slate-300 px-2 py-1.5 text-center font-mono">{row.studentNumber}</td>
                       <td className="border border-slate-300 px-2 py-1.5 text-slate-800">{row.studentName}</td>
                       <td className="border border-slate-300 px-2 py-1.5 text-center">
-                        {isHoliday ? <span className="text-slate-400">—</span> : <TimeCell time={row.checkInMorning} status={row.session1Status} />}
+                        {isHoliday ? <span className="text-slate-400">â€”</span> : <TimeCell time={row.checkInMorning} status={row.session1Status} />}
                       </td>
                       <td className="border border-slate-300 px-2 py-1.5 text-center">
-                        {isHoliday ? <span className="text-slate-400">—</span> : <TimeCell time={row.checkOutMorning} status={row.session2Status} />}
+                        {isHoliday ? <span className="text-slate-400">â€”</span> : <TimeCell time={row.checkOutMorning} status={row.session2Status} />}
                       </td>
                       <td className="border border-slate-300 px-2 py-1.5 text-center">
-                        {isHoliday ? <span className="text-slate-400">—</span> : <TimeCell time={row.checkInAfternoon} status={row.session3Status} />}
+                        {isHoliday ? <span className="text-slate-400">â€”</span> : <TimeCell time={row.checkInAfternoon} status={row.session3Status} />}
                       </td>
                       <td className="border border-slate-300 px-2 py-1.5 text-center">
-                        {isHoliday ? <span className="text-slate-400">—</span> : <TimeCell time={row.checkOutAfternoon} status={row.session4Status} />}
+                        {isHoliday ? <span className="text-slate-400">â€”</span> : <TimeCell time={row.checkOutAfternoon} status={row.session4Status} />}
                       </td>
                       <td className="border border-slate-300 px-2 py-1.5 text-center">
                         {isHoliday
                           ? <span className="text-xs text-blue-500">Holiday</span>
                           : perm
                             ? <span className="text-xs text-purple-600 font-semibold">{perm}</span>
-                            : <span className="text-slate-300 text-xs">—</span>
+                            : <span className="text-slate-300 text-xs">â€”</span>
                         }
                       </td>
                     </tr>
@@ -496,305 +496,7 @@ function PrintReportContent() {
             {t('reports.printDate')}: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
           </div>
           <div>
-            {orgName} — {t('reports.attendanceReport')}
-          </div>
-        </div>
-
-        {/* Signature area */}
-        {signers.length > 0 && (
-          <div className={`mt-12 flex ${signers.length <= 3 ? 'justify-between' : 'justify-around flex-wrap gap-y-8'} px-4`}>
-            {signers.map((signer, idx) => (
-              <div key={idx} className="text-center">
-                <div className="border-b border-slate-400 w-40 mb-1"></div>
-                <p className="text-xs text-slate-500">{signer}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </>
-  )
-}
-
-
-export default function PrintReportPage() {
-  return (
-    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="w-10 h-10 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin"></div></div>}>
-      <PrintReportContent />
-    </Suspense>
-  )
-}
-
-function PrintReportContent() {
-  const { t } = useLanguage()
-  const searchParams = useSearchParams()
-  const classId = searchParams.get('classId') || ''
-  const startDate = searchParams.get('startDate') || ''
-  const endDate = searchParams.get('endDate') || ''
-  const period = searchParams.get('period') || 'daily'
-  const paperSize = searchParams.get('paper') || 'A4'
-  const orgName = searchParams.get('orgName') || 'Wattaman School'
-  const logoUrl = searchParams.get('logoUrl') || ''
-  const logoTextLines: string[] = (() => {
-    try { return JSON.parse(searchParams.get('logoTextLines') || '[]') }
-    catch { return [] }
-  })()
-  const logoGap = parseInt(searchParams.get('logoGap') || '4')
-  const logoTextGap = parseInt(searchParams.get('logoTextGap') || '4')
-  const headerGap = parseInt(searchParams.get('headerGap') || '6')
-  const headerLines: string[] = (() => {
-    try { return JSON.parse(searchParams.get('headerLines') || '[]') }
-    catch { return [] }
-  })()
-  const signers: string[] = (() => {
-    try { return JSON.parse(searchParams.get('signers') || '[]') }
-    catch { return ['Teacher', 'Admin'] }
-  })()
-
-  const [data, setData] = useState<PrintData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
-
-  useEffect(() => {
-    if (!classId || !startDate || !endDate) {
-      setError('Missing required parameters')
-      setLoading(false)
-      return
-    }
-    fetchData()
-  }, [classId, startDate, endDate])
-
-  const fetchData = async () => {
-    try {
-      const res = await apiFetch(
-        `/api/reports/print-report-data?classId=${encodeURIComponent(classId)}&startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`
-      )
-      if (res.ok) {
-        const json = await res.json()
-        if (!json) {
-          setError('Class not found')
-        } else {
-          setData(json)
-        }
-      } else {
-        setError('Failed to load report data')
-      }
-    } catch {
-      setError('Failed to connect to server')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // User clicks "Print Report" button to print manually
-
-  const paper = PAPER_SIZES[paperSize] || PAPER_SIZES.A4
-
-  const getPeriodLabel = () => {
-    switch (period) {
-      case 'daily': return t('reports.daily')
-      case 'weekly': return t('reports.weekly')
-      case 'monthly': return t('reports.monthly')
-      case 'yearly': return t('reports.yearly')
-      default: return t('reports.customRange')
-    }
-  }
-
-  const formatDate = (dateStr: string) => {
-    const d = new Date(dateStr + 'T00:00:00')
-    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="w-10 h-10 border-3 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="text-sm text-slate-500 mt-3">{t('common.loading')}</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (error || !data) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <p className="text-red-600 font-medium">{error || t('reports.noDataForRange')}</p>
-          <button onClick={() => window.close()} className="mt-4 px-4 py-2 bg-slate-200 rounded-lg text-sm">{t('common.close')}</button>
-        </div>
-      </div>
-    )
-  }
-
-  // Each student counted once in their worst/dominant status so totals sum to exactly N students
-  const totals = { present: 0, late: 0, absent: 0, dayOff: 0 }
-  for (const s of data.students) {
-    if (s.absent > 0) totals.absent += 1
-    else if (s.dayOff > 0) totals.dayOff += 1
-    else if (s.late > 0) totals.late += 1
-    else totals.present += 1
-  }
-
-  return (
-    <>
-      {/* Print-specific styles */}
-      <style jsx global>{`
-        @media print {
-          @page {
-            size: ${paperSize === 'Letter' ? 'letter' : paperSize === 'Legal' ? 'legal' : 'A4'} portrait;
-            margin: 15mm;
-          }
-          body {
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
-          }
-          .no-print {
-            display: none !important;
-          }
-        }
-        @media screen {
-          body {
-            background: #f1f5f9;
-          }
-        }
-      `}</style>
-
-      {/* Screen-only toolbar */}
-      <div className="no-print fixed top-0 left-0 right-0 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between z-50 shadow-sm">
-        <button onClick={() => window.close()} className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200">
-          ← {t('common.close')}
-        </button>
-        <div className="text-sm text-slate-500">
-          {data.className} — {getPeriodLabel()} — {paperSize}
-        </div>
-        <button onClick={() => window.print()} className="px-5 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 shadow-sm">
-          🖨️ {t('reports.printReport')}
-        </button>
-      </div>
-
-      {/* Print content */}
-      <div
-        className="mx-auto bg-white"
-        style={{
-          width: paper.width,
-          minHeight: paper.minHeight,
-          padding: '15mm',
-          marginTop: '60px',
-        }}
-      >
-        {/* Header Section — Khmer letter-head style */}
-        <div className="mb-6 border-b-2 border-slate-800 pb-4">
-          <div className="flex items-start gap-4">
-            {logoUrl && (
-              <div className="flex-shrink-0 pt-1 text-center">
-                <img src={logoUrl} alt="Logo" className="h-20 w-20 object-contain" style={{ marginBottom: `${logoGap}px` }} />
-                {logoTextLines.length > 0 && (
-                  <div style={{ marginBottom: `${logoTextGap}px` }}>
-                    {logoTextLines.map((line, idx) => (
-                      <p key={idx} className="text-[9px] text-slate-600 leading-tight whitespace-nowrap">{line}</p>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-            <div className="flex-1 text-center" style={{ marginBottom: `${headerGap}px` }}>
-              {headerLines.map((line, idx) => (
-                <p key={idx} className={`${idx === 0 ? 'text-base font-bold text-slate-900' : 'text-sm font-semibold text-slate-700'}`}>
-                  {line}
-                </p>
-              ))}
-              {orgName && (
-                <p className="text-lg font-bold text-slate-900 uppercase tracking-wide mt-1">
-                  {orgName}
-                </p>
-              )}
-            </div>
-            {/* Spacer to balance logo */}
-            {logoUrl && <div className="w-20 flex-shrink-0" />}
-          </div>
-          <div className="text-center mt-3">
-            <h2 className="text-lg font-semibold text-slate-700">
-              {t('reports.attendanceReport')}
-            </h2>
-            <div className="mt-2 flex flex-wrap justify-center gap-x-8 gap-y-1 text-sm text-slate-600">
-              <span>
-                <strong>{t('reports.reportPeriod')}:</strong> {getPeriodLabel()}
-              </span>
-              <span>
-                <strong>{t('reports.dateRange')}:</strong>{' '}
-                {startDate === endDate ? formatDate(startDate) : `${formatDate(startDate)} — ${formatDate(endDate)}`}
-              </span>
-            </div>
-            <div className="mt-2 flex flex-wrap justify-center gap-x-8 gap-y-1 text-sm text-slate-600">
-              <span>
-                <strong>{t('common.class')}:</strong> {data.className}
-                {data.subject ? ` — ${data.subject}` : ''}
-              </span>
-              <span>
-                <strong>{t('reports.preparedBy')}:</strong> {data.teacherName}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Body Section — Report Table */}
-        <table className="w-full border-collapse text-sm">
-          <thead>
-            <tr className="bg-slate-100">
-              <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-slate-700 w-12">
-                {t('common.id')}
-              </th>
-              <th className="border border-slate-400 px-3 py-2 text-left font-semibold text-slate-700">
-                {t('common.name')}
-              </th>
-              <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-emerald-700 w-20">
-                {t('reports.colPresent')}
-              </th>
-              <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-amber-700 w-20">
-                {t('reports.colLate')}
-              </th>
-              <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-red-700 w-20">
-                {t('reports.colAbsent')}
-              </th>
-              <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-purple-700 w-24">
-                {t('reports.colPermission')}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.students.map((student, idx) => (
-              <tr key={student.studentId} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
-                <td className="border border-slate-300 px-2 py-1.5 text-center text-xs font-mono">
-                  {student.studentNumber}
-                </td>
-                <td className="border border-slate-300 px-3 py-1.5 text-slate-800">
-                  {student.studentName}
-                </td>
-                <td className="border border-slate-300 px-2 py-1.5 text-center font-semibold text-emerald-700">
-                  {student.present}
-                </td>
-                <td className="border border-slate-300 px-2 py-1.5 text-center font-semibold text-amber-600">
-                  {student.late}
-                </td>
-                <td className="border border-slate-300 px-2 py-1.5 text-center font-semibold text-red-600">
-                  {student.absent}
-                </td>
-                <td className="border border-slate-300 px-2 py-1.5 text-center font-semibold text-purple-600">
-                  {student.dayOff}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {/* Footer */}
-        <div className="mt-8 flex justify-between items-end text-xs text-slate-400">
-          <div>
-            {t('reports.printDate')}: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-          </div>
-          <div>
-            {orgName} — {t('reports.attendanceReport')}
+            {orgName} â€” {t('reports.attendanceReport')}
           </div>
         </div>
 
