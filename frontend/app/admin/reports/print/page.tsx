@@ -247,18 +247,6 @@ function PrintReportContent() {
     }
   }
 
-  // Daily totals
-  const dailyTotals = { present: 0, late: 0, absent: 0, permission: 0 }
-  if (isDaily) {
-    for (const r of dailyRows) {
-      const statuses = [r.session1Status, r.session2Status, r.session3Status, r.session4Status]
-      if (statuses.some(s => isDayOff(s)) || r.dayOff) dailyTotals.permission += 1
-      else if (statuses.some(s => s === 'ABSENT')) dailyTotals.absent += 1
-      else if (statuses.some(s => s === 'LATE')) dailyTotals.late += 1
-      else if (statuses.some(s => s === 'PRESENT')) dailyTotals.present += 1
-    }
-  }
-
   // Determine which session columns to show based on session config
   // A session is "active" when startTime !== endTime (non-zero time window)
   const activeSessions = sessionConfig.length > 0
@@ -266,6 +254,21 @@ function PrintReportContent() {
     : [1, 2, 3, 4]
   const showMorning = activeSessions.some(s => s === 1 || s === 2)
   const showAfternoon = activeSessions.some(s => s === 3 || s === 4)
+
+  // Daily totals — only count statuses for active session columns
+  const dailyTotals = { present: 0, late: 0, absent: 0, permission: 0 }
+  if (isDaily) {
+    for (const r of dailyRows) {
+      const statuses = [
+        ...(showMorning ? [r.session1Status, r.session2Status] : []),
+        ...(showAfternoon ? [r.session3Status, r.session4Status] : []),
+      ]
+      if (statuses.some(s => isDayOff(s)) || r.dayOff) dailyTotals.permission += 1
+      else if (statuses.some(s => s === 'ABSENT')) dailyTotals.absent += 1
+      else if (statuses.some(s => s === 'LATE')) dailyTotals.late += 1
+      else if (statuses.some(s => s === 'PRESENT')) dailyTotals.present += 1
+    }
+  }
 
   const className = data?.className ?? ''
   const teacherName = data?.teacherName ?? ''

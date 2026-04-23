@@ -852,11 +852,17 @@ export class ReportsService {
         : (s4?.status || null);
 
       // Mark overtime sessions as ABSENT (past sessions with no record)
+      // Only apply to active sessions: inactive sessions have startTime === endTime (e.g. morning-only class)
+      const isActiveSession = (sessionNum: number) => {
+        const cfg = configs.find((c: any) => c.session === sessionNum);
+        if (!cfg) return true;
+        return cfg.startTime !== cfg.endTime;
+      };
       if (!isHoliday) {
-        if (!session1Status && isSessionOvertime(1, configs, dayStart, todayCambodia, cambodiaNowHHMM)) session1Status = 'ABSENT';
-        if (!session2Status && isSessionOvertime(2, configs, dayStart, todayCambodia, cambodiaNowHHMM)) session2Status = 'ABSENT';
-        if (!session3Status && isSessionOvertime(3, configs, dayStart, todayCambodia, cambodiaNowHHMM)) session3Status = 'ABSENT';
-        if (!session4Status && isSessionOvertime(4, configs, dayStart, todayCambodia, cambodiaNowHHMM)) session4Status = 'ABSENT';
+        if (!session1Status && isActiveSession(1) && isSessionOvertime(1, configs, dayStart, todayCambodia, cambodiaNowHHMM)) session1Status = 'ABSENT';
+        if (!session2Status && isActiveSession(2) && isSessionOvertime(2, configs, dayStart, todayCambodia, cambodiaNowHHMM)) session2Status = 'ABSENT';
+        if (!session3Status && isActiveSession(3) && isSessionOvertime(3, configs, dayStart, todayCambodia, cambodiaNowHHMM)) session3Status = 'ABSENT';
+        if (!session4Status && isActiveSession(4) && isSessionOvertime(4, configs, dayStart, todayCambodia, cambodiaNowHHMM)) session4Status = 'ABSENT';
       }
 
       return {
