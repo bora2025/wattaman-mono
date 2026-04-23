@@ -463,19 +463,33 @@ function PrintReportContent() {
                   )
                 })}
                 {/* Daily totals row */}
-                <tr className="bg-slate-200 font-bold">
-                  <td className="border border-slate-400 px-2 py-2 text-center" colSpan={2}>
-                    {t('common.total')} ({dailyRows.length} {t('common.students') || 'students'})
+                <tr className="bg-slate-200 font-bold text-xs">
+                  <td className="border border-slate-400 px-2 py-2 text-center text-sm" colSpan={2}>
+                    {t('common.total')} ({dailyRows.length})
                   </td>
-                  <td className="border border-slate-400 px-2 py-2 text-center" colSpan={(showMorning ? 2 : 0) + (showAfternoon ? 2 : 0)}>
-                    <span className="text-emerald-700">{t('reports.colPresent')}: {dailyTotals.present}</span>
-                    <span className="mx-2 text-slate-400">|</span>
-                    <span className="text-amber-600">{t('reports.colLate')}: {dailyTotals.late}</span>
-                    <span className="mx-2 text-slate-400">|</span>
-                    <span className="text-red-600">{t('reports.colAbsent')}: {dailyTotals.absent}</span>
-                    <span className="mx-2 text-slate-400">|</span>
-                    <span className="text-purple-600">{t('reports.colPermission')}: {dailyTotals.permission}</span>
+                  <td className="border border-slate-400 px-1 py-2 text-center text-emerald-700">
+                    {t('reports.colPresent')}: {dailyTotals.present}
                   </td>
+                  <td className="border border-slate-400 px-1 py-2 text-center text-amber-600">
+                    {t('reports.colLate')}: {dailyTotals.late}
+                  </td>
+                  {showAfternoon && (
+                    <td className="border border-slate-400 px-1 py-2 text-center text-red-600">
+                      {t('reports.colAbsent')}: {dailyTotals.absent}
+                    </td>
+                  )}
+                  {showAfternoon && (
+                    <td className="border border-slate-400 px-1 py-2 text-center text-purple-600">
+                      {t('reports.colPermission')}: {dailyTotals.permission}
+                    </td>
+                  )}
+                  {!showAfternoon && (
+                    <td className="border border-slate-400 px-1 py-2 text-center" colSpan={2}>
+                      <span className="text-red-600">{t('reports.colAbsent')}: {dailyTotals.absent}</span>
+                      <span className="mx-1 text-slate-400">|</span>
+                      <span className="text-purple-600">{t('reports.colPermission')}: {dailyTotals.permission}</span>
+                    </td>
+                  )}
                 </tr>
               </>
             ) : (
