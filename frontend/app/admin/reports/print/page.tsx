@@ -70,10 +70,10 @@ function studentPermissionLabel(row: StudentDailyRow): string | null {
 }
 
 function TimeCell({ time, status }: { time: string | null; status: string | null }) {
-  if (isDayOff(status)) return <span className="text-purple-600 font-semibold text-xs">â€”</span>
+  if (isDayOff(status)) return <span className="text-purple-600 font-semibold text-xs">{'-'}</span>
   if (time) return <span className="text-emerald-700 font-semibold text-xs tabular-nums">{time}</span>
-  if (status === 'PRESENT' || status === 'LATE') return <span className="text-emerald-600 text-xs">âœ“</span>
-  return <span className="text-red-500 text-xs">âœ—</span>
+  if (status === 'PRESENT' || status === 'LATE') return <span className="text-emerald-600 text-xs">{'\u2713'}</span>
+  return <span className="text-red-500 text-xs">{'\u2717'}</span>
 }
 
 export default function PrintReportPage() {
@@ -261,13 +261,13 @@ function PrintReportContent() {
       {/* Screen-only toolbar */}
       <div className="no-print fixed top-0 left-0 right-0 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between z-50 shadow-sm">
         <button onClick={() => window.close()} className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200">
-          â† {t('common.close')}
+          {'\u2190'} {t('common.close')}
         </button>
         <div className="text-sm text-slate-500">
-          {className} â€” {getPeriodLabel()} â€” {paperSize}
+          {className} {'\u2014'} {getPeriodLabel()} {'\u2014'} {paperSize}
         </div>
         <button onClick={() => window.print()} className="px-5 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 shadow-sm">
-          ðŸ–¨ï¸ {t('reports.printReport')}
+          {'\uD83D\uDDA8\uFE0F'} {t('reports.printReport')}
         </button>
       </div>
 
@@ -321,14 +321,14 @@ function PrintReportContent() {
               </span>
               <span>
                 <strong>{t('reports.dateRange')}:</strong>{' '}
-                {startDate === endDate ? formatDate(startDate) : `${formatDate(startDate)} â€” ${formatDate(endDate)}`}
+                {startDate === endDate ? formatDate(startDate) : `${formatDate(startDate)} \u2014 ${formatDate(endDate)}`}
               </span>
             </div>
             {className && (
               <div className="mt-2 flex flex-wrap justify-center gap-x-8 gap-y-1 text-sm text-slate-600">
                 <span>
                   <strong>{t('common.class')}:</strong> {className}
-                  {subject ? ` â€” ${subject}` : ''}
+                  {subject ? ` \u2014 ${subject}` : ''}
                 </span>
                 {teacherName && (
                   <span>
@@ -405,23 +405,23 @@ function PrintReportContent() {
                       <td className="border border-slate-300 px-2 py-1.5 text-center font-mono">{row.studentNumber}</td>
                       <td className="border border-slate-300 px-2 py-1.5 text-slate-800">{row.studentName}</td>
                       <td className="border border-slate-300 px-2 py-1.5 text-center">
-                        {isHoliday ? <span className="text-slate-400">â€”</span> : <TimeCell time={row.checkInMorning} status={row.session1Status} />}
+                        {isHoliday ? <span className="text-slate-400">{'\u2014'}</span> : <TimeCell time={row.checkInMorning} status={row.session1Status} />}
                       </td>
                       <td className="border border-slate-300 px-2 py-1.5 text-center">
-                        {isHoliday ? <span className="text-slate-400">â€”</span> : <TimeCell time={row.checkOutMorning} status={row.session2Status} />}
+                        {isHoliday ? <span className="text-slate-400">{'\u2014'}</span> : <TimeCell time={row.checkOutMorning} status={row.session2Status} />}
                       </td>
                       <td className="border border-slate-300 px-2 py-1.5 text-center">
-                        {isHoliday ? <span className="text-slate-400">â€”</span> : <TimeCell time={row.checkInAfternoon} status={row.session3Status} />}
+                        {isHoliday ? <span className="text-slate-400">{'\u2014'}</span> : <TimeCell time={row.checkInAfternoon} status={row.session3Status} />}
                       </td>
                       <td className="border border-slate-300 px-2 py-1.5 text-center">
-                        {isHoliday ? <span className="text-slate-400">â€”</span> : <TimeCell time={row.checkOutAfternoon} status={row.session4Status} />}
+                        {isHoliday ? <span className="text-slate-400">{'\u2014'}</span> : <TimeCell time={row.checkOutAfternoon} status={row.session4Status} />}
                       </td>
                       <td className="border border-slate-300 px-2 py-1.5 text-center">
                         {isHoliday
                           ? <span className="text-xs text-blue-500">Holiday</span>
                           : perm
                             ? <span className="text-xs text-purple-600 font-semibold">{perm}</span>
-                            : <span className="text-slate-300 text-xs">â€”</span>
+                            : <span className="text-slate-300 text-xs">{'\u2014'}</span>
                         }
                       </td>
                     </tr>
@@ -496,7 +496,7 @@ function PrintReportContent() {
             {t('reports.printDate')}: {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
           </div>
           <div>
-            {orgName} â€” {t('reports.attendanceReport')}
+            {orgName} {'\u2014'} {t('reports.attendanceReport')}
           </div>
         </div>
 
