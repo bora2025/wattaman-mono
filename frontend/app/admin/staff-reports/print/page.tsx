@@ -256,10 +256,10 @@ function StaffPrintReportContent() {
   const summaryTotals = { present: 0, late: 0, absent: 0, dayOff: 0 }
   if (!isDaily && data) {
     for (const s of data.staff) {
-      if (s.absent > 0) summaryTotals.absent += 1
-      else if (s.dayOff > 0) summaryTotals.dayOff += 1
+      if (s.dayOff > 0) summaryTotals.dayOff += 1
+      else if (s.present > 0) summaryTotals.present += 1
       else if (s.late > 0) summaryTotals.late += 1
-      else summaryTotals.present += 1
+      else if (s.absent > 0) summaryTotals.absent += 1
     }
   }
 
@@ -423,6 +423,9 @@ function StaffPrintReportContent() {
                 <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-red-700 w-16">
                   {t('reports.colAbsent')}
                 </th>
+                <th className="border border-slate-400 px-2 py-2 text-center font-semibold text-purple-700 w-16">
+                  {t('reports.colPermission')}
+                </th>
               </tr>
             )}
           </thead>
@@ -494,21 +497,27 @@ function StaffPrintReportContent() {
                     <td className="border border-slate-300 px-2 py-1.5 text-center font-semibold text-red-600">
                       {row.absent}
                     </td>
+                    <td className="border border-slate-300 px-2 py-1.5 text-center font-semibold text-purple-600">
+                      {row.dayOff ?? 0}
+                    </td>
                   </tr>
                 ))}
                 {/* Summary totals row */}
-                <tr className="bg-slate-200 font-bold">
-                  <td className="border border-slate-400 px-2 py-2 text-center" colSpan={3}>
-                    {t('common.total')} ({data?.staff.length ?? 0} staff)
+                <tr className="bg-slate-200 font-bold text-xs">
+                  <td className="border border-slate-400 px-2 py-2 text-center text-sm" colSpan={3}>
+                    {t('common.total')} ({data?.staff.length ?? 0})
                   </td>
-                  <td className="border border-slate-400 px-2 py-2 text-center text-emerald-700">
+                  <td className="border border-slate-400 px-1 py-2 text-center text-emerald-700">
                     {summaryTotals.present}
                   </td>
-                  <td className="border border-slate-400 px-2 py-2 text-center text-amber-600">
+                  <td className="border border-slate-400 px-1 py-2 text-center text-amber-600">
                     {summaryTotals.late}
                   </td>
-                  <td className="border border-slate-400 px-2 py-2 text-center text-red-600">
+                  <td className="border border-slate-400 px-1 py-2 text-center text-red-600">
                     {summaryTotals.absent}
+                  </td>
+                  <td className="border border-slate-400 px-1 py-2 text-center text-purple-600">
+                    {summaryTotals.dayOff}
                   </td>
                 </tr>
               </>
