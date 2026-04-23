@@ -63,6 +63,7 @@ export interface ShapeElement {
   borderRadius: number;
   opacity: number;
   zIndex?: number;
+  lineStyle?: 'solid' | 'dashed' | 'dotted';
   gradient: {
     enabled: boolean;
     type: 'linear' | 'radial';
