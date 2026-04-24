@@ -8,6 +8,7 @@ import { adminNav } from '../../../lib/admin-nav';
 import { apiFetch } from '../../../lib/api';
 import { useLanguage } from '../../../lib/i18n';
 import { CardDesign, STUDENT_TEMPLATE, DESIGN_STORAGE_KEY, loadSavedDesign } from '../../../components/card-designer/types';
+import { renderDesignToCanvas } from '../../../components/card-designer/renderDesignToCanvas';
 import CardEditor from '../../../components/card-designer/CardEditor';
 import { downloadSingleCardPDF, downloadA4CardsPDF } from '../../../components/card-designer/generateCardPDF';
 
