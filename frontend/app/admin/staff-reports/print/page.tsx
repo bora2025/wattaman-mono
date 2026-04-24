@@ -290,34 +290,64 @@ function StaffPrintReportContent() {
           .no-print {
             display: none !important;
           }
+          .print-container {
+            width: ${paper.width} !important;
+            padding: 15mm !important;
+            max-width: none !important;
+            margin-top: 0 !important;
+          }
+          .table-scroll-wrapper {
+            overflow: visible !important;
+          }
         }
         @media screen {
           body {
             background: #f1f5f9;
           }
+          .print-container {
+            width: 100%;
+            max-width: ${paper.width};
+            padding: 16px;
+            box-sizing: border-box;
+          }
+          .table-scroll-wrapper {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+          }
+          .table-scroll-wrapper table {
+            min-width: 520px;
+          }
+        }
+        @media screen and (min-width: 900px) {
+          .print-container {
+            padding: 15mm;
+          }
+        }
+        @media screen and (max-width: 640px) {
+          .print-toolbar-center {
+            display: none !important;
+          }
         }
       `}</style>
 
       {/* Screen-only toolbar */}
-      <div className="no-print fixed top-0 left-0 right-0 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between z-50 shadow-sm">
-        <button onClick={() => window.close()} className="px-4 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200">
+      <div className="no-print fixed top-0 left-0 right-0 bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between z-50 shadow-sm gap-2">
+        <button onClick={() => window.close()} className="flex-shrink-0 px-3 py-2 text-sm font-medium text-slate-600 bg-slate-100 rounded-lg hover:bg-slate-200">
           ← {t('common.close')}
         </button>
-        <div className="text-sm text-slate-500">
+        <div className="print-toolbar-center text-sm text-slate-500 truncate min-w-0 mx-1">
           {t('reports.staffAttendance')} — {getPeriodLabel()} — {paperSize}
         </div>
-        <button onClick={() => window.print()} className="px-5 py-2 text-sm font-semibold text-white bg-purple-600 rounded-lg hover:bg-purple-700 shadow-sm">
+        <button onClick={() => window.print()} className="flex-shrink-0 px-4 py-2 text-sm font-semibold text-white bg-purple-600 rounded-lg hover:bg-purple-700 shadow-sm">
           🖨️ {t('reports.printReport')}
         </button>
       </div>
 
       {/* Print content */}
       <div
-        className="mx-auto bg-white"
+        className="print-container mx-auto bg-white"
         style={{
-          width: paper.width,
           minHeight: paper.minHeight,
-          padding: '15mm',
           marginTop: '60px',
         }}
       >
@@ -373,6 +403,7 @@ function StaffPrintReportContent() {
         </div>
 
         {/* Body Section — Report Table */}
+        <div className="table-scroll-wrapper">
         <table className="w-full border-collapse text-xs">
           <thead>
             {isDaily ? (
@@ -524,6 +555,7 @@ function StaffPrintReportContent() {
             )}
           </tbody>
         </table>
+        </div>
 
         {/* Footer */}
         <div className="mt-8 flex justify-between items-end text-xs text-slate-400">
@@ -540,7 +572,7 @@ function StaffPrintReportContent() {
           <div className={`mt-12 flex ${signers.length <= 3 ? 'justify-between' : 'justify-around flex-wrap gap-y-8'} px-4`}>
             {signers.map((signer, idx) => (
               <div key={idx} className="text-center">
-                <div className="border-b border-slate-400 w-40 mb-1"></div>
+                <div className="border-b border-slate-400 w-28 sm:w-40 mb-1"></div>
                 <p className="text-xs text-slate-500">{signer}</p>
               </div>
             ))}
