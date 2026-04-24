@@ -12,8 +12,8 @@ const TEMPLATES: Record<CardType, CardDesign> = {
   staff: STAFF_TEMPLATE,
 };
 
-export default function CardEditor() {
-  const [design, setDesign] = useState<CardDesign>(STUDENT_TEMPLATE);
+export default function CardEditor({ initialCardType, onSave }: { initialCardType?: CardType; onSave?: () => void } = {}) {
+  const [design, setDesign] = useState<CardDesign>(initialCardType === 'staff' ? STAFF_TEMPLATE : STUDENT_TEMPLATE);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -58,9 +58,9 @@ export default function CardEditor() {
 
   // Load saved design on mount
   useEffect(() => {
-    const savedStudent = loadSavedDesign('student');
+    const savedStudent = loadSavedDesign(initialCardType ?? 'student');
     if (savedStudent) setDesign(savedStudent);
-  }, []);
+  }, [initialCardType]);
 
   // Refresh template list and generate previews when picker opens
   useEffect(() => {
@@ -247,6 +247,7 @@ export default function CardEditor() {
     saveDesign(design);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+    onSave?.();
   };
 
   const handleReset = () => {

@@ -1,16 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, MouseEvent as ReactMouseEvent } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import QRCode from 'qrcode';
 import Sidebar from '../../../components/Sidebar';
 import { adminNav } from '../../../lib/admin-nav';
 import { apiFetch } from '../../../lib/api';
 import { useLanguage } from '../../../lib/i18n';
-import { CardDesign, CardType, ShapeElement, STAFF_TEMPLATE, BLANK_TEMPLATE, DESIGN_STORAGE_KEY, loadSavedDesign, saveDesign, SavedTemplate, loadSavedTemplates, saveTemplate, deleteTemplate } from '../../../components/card-designer/types';
-import { renderDesignToCanvas } from '../../../components/card-designer/renderDesignToCanvas';
-import CardCanvas from '../../../components/card-designer/CardCanvas';
-import Toolbar from '../../../components/card-designer/Toolbar';
+import { CardDesign, STAFF_TEMPLATE, DESIGN_STORAGE_KEY, loadSavedDesign } from '../../../components/card-designer/types';
+import CardEditor from '../../../components/card-designer/CardEditor';
 import { downloadSingleCardPDF, downloadA4CardsPDF } from '../../../components/card-designer/generateCardPDF';
 
 interface StaffUser {
@@ -83,17 +81,6 @@ export default function StaffCardsPage() {
   const [staffViewMode, setStaffViewMode] = useState<'grid' | 'list'>('grid');
   const [staffDownloadMenuOpen, setStaffDownloadMenuOpen] = useState<string | null>(null);
   const [showEditor, setShowEditor] = useState(false);
-  const [editorDesign, setEditorDesign] = useState<CardDesign>(STAFF_TEMPLATE);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [editorSaved, setEditorSaved] = useState(false);
-  const [editorSidebarWidth, setEditorSidebarWidth] = useState(320);
-  const isEditorResizing = useRef(false);
-  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
-  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
-  const [templateName, setTemplateName] = useState('');
-  const [savedTemplates, setSavedTemplates] = useState<SavedTemplate[]>([]);
-  const [templateSaved, setTemplateSaved] = useState(false);
-  const [templatePreviews, setTemplatePreviews] = useState<Record<string, string>>({});
   const [liveDesign, setLiveDesign] = useState<CardDesign>(STAFF_TEMPLATE);
   const [exporting, setExporting] = useState(false);
 
@@ -133,107 +120,7 @@ export default function StaffCardsPage() {
     }
   };
 
-  // Editor handlers
-  useEffect(() => {
-    if (showEditor) {
-      setEditorDesign(loadSavedDesign('staff') ?? STAFF_TEMPLATE);
-      setSelectedId(null);
-    }
-  }, [showEditor]);
-
-  useEffect(() => {
-    if (showEditor) setLiveDesign(editorDesign);
-  }, [editorDesign, showEditor]);
-
-  const handleEditorMoveText = useCallback((id: string, x: number, y: number) => {
-    setEditorDesign((prev) => ({ ...prev, texts: prev.texts.map((t) => (t.id === id ? { ...t, x, y } : t)) }));
-  }, []);
-  const handleEditorMoveLogo = useCallback((id: string, x: number, y: number) => {
-    setEditorDesign((prev) => ({ ...prev, logos: prev.logos.map((l) => (l.id === id ? { ...l, x, y } : l)) }));
-  }, []);
-  const handleEditorMoveShape = useCallback((id: string, x: number, y: number) => {
-    setEditorDesign((prev) => ({ ...prev, shapes: (prev.shapes ?? []).map((s) => (s.id === id ? { ...s, x, y } : s)) }));
-  }, []);
-  const handleEditorResizeShape = useCallback((id: string, changes: Partial<ShapeElement>) => {
-    setEditorDesign((prev) => ({ ...prev, shapes: (prev.shapes ?? []).map((s) => (s.id === id ? { ...s, ...changes } : s)) }));
-  }, []);
-
-  const handleEditorSave = () => {
-    saveDesign(editorDesign);
-    setLiveDesign(editorDesign);
-    setEditorSaved(true);
-    setTimeout(() => setEditorSaved(false), 2000);
-  };
-
-  const handleEditorReset = () => setEditorDesign(STAFF_TEMPLATE);
   const handleEditorClose = () => { reloadDesign(); setShowEditor(false); };
-
-  useEffect(() => {
-    if (!showTemplatePicker) return;
-    const templates = loadSavedTemplates();
-    setSavedTemplates(templates);
-    const allDesigns: { key: string; design: CardDesign }[] = [
-      { key: '__builtin_blank', design: BLANK_TEMPLATE },
-      { key: '__builtin_staff', design: STAFF_TEMPLATE },
-      ...templates.map((t) => ({ key: t.id, design: t.design })),
-    ];
-    let cancelled = false;
-    (async () => {
-      const previews: Record<string, string> = {};
-      for (const item of allDesigns) {
-        if (cancelled) break;
-        try {
-          const canvas = await renderDesignToCanvas(item.design, { scale: 1 });
-          previews[item.key] = canvas.toDataURL('image/png');
-        } catch { /* skip */ }
-      }
-      if (!cancelled) setTemplatePreviews(previews);
-    })();
-    return () => { cancelled = true; };
-  }, [showTemplatePicker]);
-
-  const handleEditorSaveAsTemplate = () => {
-    const name = templateName.trim();
-    if (!name) return;
-    saveTemplate(name, editorDesign);
-    setTemplateName('');
-    setShowSaveTemplate(false);
-    setTemplateSaved(true);
-    setTimeout(() => setTemplateSaved(false), 2000);
-  };
-
-  const handleEditorLoadTemplate = (tpl: SavedTemplate) => {
-    setEditorDesign(JSON.parse(JSON.stringify(tpl.design)) as CardDesign);
-    setSelectedId(null);
-    setShowTemplatePicker(false);
-  };
-
-  const handleEditorDeleteTemplate = (id: string) => {
-    deleteTemplate(id);
-    setSavedTemplates(loadSavedTemplates());
-  };
-
-  const handleEditorResizeStart = useCallback((e: ReactMouseEvent) => {
-    e.preventDefault();
-    isEditorResizing.current = true;
-    const startX = e.clientX;
-    const startWidth = editorSidebarWidth;
-    const onMouseMove = (ev: globalThis.MouseEvent) => {
-      if (!isEditorResizing.current) return;
-      setEditorSidebarWidth(Math.min(600, Math.max(200, startWidth + (startX - ev.clientX))));
-    };
-    const onMouseUp = () => {
-      isEditorResizing.current = false;
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
-    };
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
-  }, [editorSidebarWidth]);
 
   const buildFieldValues = (name: string, displayId: string, subtitle: string): Record<string, string> => ({
     'Staff Name': name, 'Emp ID': displayId, 'Position': subtitle,
@@ -451,91 +338,12 @@ export default function StaffCardsPage() {
               <div className="flex items-center justify-between px-5 py-3 bg-amber-50 border-b border-amber-200">
                 <div>
                   <h3 className="font-semibold text-slate-800">✏️ Editing Staff Card Design</h3>
-                  <p className="text-xs text-slate-500 mt-0.5">Changes preview in real-time below · Click Save to persist</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Save design here to apply changes to all staff ID cards below</p>
                 </div>
-                <div className="flex gap-2">
-                  <button onClick={() => setShowTemplatePicker(true)} className="px-3 py-1.5 text-xs font-medium rounded-lg border border-amber-300 text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors">📂 Template</button>
-                  <button onClick={() => setShowSaveTemplate(true)} className="px-3 py-1.5 text-xs font-medium rounded-lg border border-indigo-300 text-indigo-700 bg-indigo-50 hover:bg-indigo-100 transition-colors">{templateSaved ? '✅ Saved!' : '📋 Save as Template'}</button>
-                  <button onClick={handleEditorSave} className="btn-success btn-sm">{editorSaved ? '✅ Saved!' : '💾 Save Design'}</button>
-                  <button onClick={handleEditorReset} className="btn-ghost btn-sm text-xs text-slate-400 hover:text-red-500">🗑️ Reset</button>
-                  <button onClick={handleEditorClose} className="btn-ghost btn-sm">✕</button>
-                </div>
+                <button onClick={handleEditorClose} className="btn-ghost btn-sm">✕ Close</button>
               </div>
-
-              {showSaveTemplate && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowSaveTemplate(false)}>
-                  <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-                    <h3 className="text-lg font-bold text-slate-800 mb-4">💾 Save as Template</h3>
-                    <input type="text" value={templateName} onChange={(e) => setTemplateName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleEditorSaveAsTemplate()} placeholder="Template name" className="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 mb-4" autoFocus />
-                    <div className="flex justify-end gap-2">
-                      <button onClick={() => setShowSaveTemplate(false)} className="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">Cancel</button>
-                      <button onClick={handleEditorSaveAsTemplate} disabled={!templateName.trim()} className="px-4 py-2 text-sm rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40">Save Template</button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {showTemplatePicker && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowTemplatePicker(false)}>
-                  <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-bold text-slate-800">📂 Choose Template</h3>
-                      <button onClick={() => setShowTemplatePicker(false)} className="text-slate-400 hover:text-slate-600 text-xl leading-none">&times;</button>
-                    </div>
-                    <div className="mb-6">
-                      <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Built-in Templates</h4>
-                      <div className="grid grid-cols-3 gap-3">
-                        {[
-                          { key: '__builtin_blank', design: BLANK_TEMPLATE, label: 'Blank Card', icon: '📄', desc: 'Start from scratch' },
-                          { key: '__builtin_staff', design: STAFF_TEMPLATE, label: 'Officer Card', icon: '👨‍🏫', desc: 'Default officer ID card' },
-                        ].map((tpl) => (
-                          <button key={tpl.key} onClick={() => { setEditorDesign({ ...tpl.design }); setSelectedId(null); setShowTemplatePicker(false); }} className="rounded-xl border-2 border-slate-200 bg-slate-50/50 hover:border-emerald-400 hover:bg-emerald-50 transition-all text-left group overflow-hidden">
-                            <div className="bg-slate-50 flex items-center justify-center p-3 border-b border-slate-100">
-                              {templatePreviews[tpl.key] ? <img src={templatePreviews[tpl.key]} alt={tpl.label} className="rounded-lg shadow-sm max-h-36 object-contain" /> : <div className="h-28 w-full flex items-center justify-center text-slate-400 text-sm">Loading...</div>}
-                            </div>
-                            <div className="p-3">
-                              <div className="flex items-center gap-2 mb-1"><span className="text-lg">{tpl.icon}</span><span className="font-semibold text-slate-800">{tpl.label}</span></div>
-                              <div className="text-xs text-slate-500">{tpl.desc}</div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Your Saved Templates</h4>
-                      {savedTemplates.length === 0 ? (
-                        <div className="text-center py-8 bg-slate-50 rounded-xl border border-dashed border-slate-200"><span className="text-3xl block mb-2">📭</span><p className="text-sm text-slate-400">No saved templates yet.</p></div>
-                      ) : (
-                        <div className="grid grid-cols-2 gap-3">
-                          {savedTemplates.map((tpl) => (
-                            <div key={tpl.id} className="rounded-xl border-2 border-slate-200 hover:border-slate-400 bg-white hover:bg-slate-50 transition-all text-left relative group overflow-hidden">
-                              <button onClick={() => handleEditorLoadTemplate(tpl)} className="w-full text-left">
-                                <div className="bg-slate-50 flex items-center justify-center p-3 border-b border-slate-100">
-                                  {templatePreviews[tpl.id] ? <img src={templatePreviews[tpl.id]} alt={tpl.name} className="rounded-lg shadow-sm max-h-36 object-contain" /> : <div className="h-28 w-full flex items-center justify-center text-slate-300 text-xs">Preview</div>}
-                                </div>
-                                <div className="p-3">
-                                  <span className="font-semibold text-slate-800 truncate">{tpl.name}</span>
-                                  <span className="text-[10px] text-slate-400 ml-2">{new Date(tpl.createdAt).toLocaleDateString()}</span>
-                                </div>
-                              </button>
-                              <button onClick={(e) => { e.stopPropagation(); handleEditorDeleteTemplate(tpl.id); }} className="absolute top-2 right-2 w-6 h-6 rounded-full bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-600 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" title="Delete template">✕</button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="p-5">
-                <div className="flex gap-4 items-start">
-                  <div className="flex-1 min-w-0">
-                    <CardCanvas design={editorDesign} selectedId={selectedId} onSelect={setSelectedId} onMoveText={handleEditorMoveText} onMoveLogo={handleEditorMoveLogo} onMoveShape={handleEditorMoveShape} onResizeShape={handleEditorResizeShape} />
-                  </div>
-                  <div onMouseDown={handleEditorResizeStart} className="w-1.5 shrink-0 cursor-col-resize rounded-full hover:bg-emerald-400 bg-slate-300 transition-colors self-stretch" title="Drag to resize sidebar" />
-                  <Toolbar design={editorDesign} selectedId={selectedId} onDesignChange={setEditorDesign} onSelect={setSelectedId} width={editorSidebarWidth} />
-                </div>
+              <div className="p-2">
+                <CardEditor initialCardType="staff" onSave={reloadDesign} />
               </div>
             </div>
           )}
